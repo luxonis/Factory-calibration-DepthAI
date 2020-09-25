@@ -78,7 +78,7 @@ class depthai_calibration_node:
     def parse_frame(self, frame, stream_name, file_name):
         # if not find_chessboard(frame):
         #     return False
-
+        file_name += '.png'
         # filename = image_filename(stream_name, self.current_polygon, self.images_captured)
         print(self.abs_path + "/dataset/{}/{}".format(stream_name, file_name))
         cv2.imwrite(self.abs_path + "/dataset/{}/{}".format(stream_name, file_name), frame)
@@ -87,7 +87,6 @@ class depthai_calibration_node:
 
     def capture_servive(self, req):
         print("Service Started")
-        file_name = req.name + ".png"
         recent_left = None
         recent_right = None
         finished = False
