@@ -1,0 +1,6 @@
+#name of the image to be captured
+string name
+---
+bool success
+string error
+
