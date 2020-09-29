@@ -53,4 +53,3 @@ ros_ws/.catkin_workspace
 
 # Ignoring pcd and json files
 *.pcd
-*.json
