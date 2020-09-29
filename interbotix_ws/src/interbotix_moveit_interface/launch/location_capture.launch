@@ -26,9 +26,9 @@
   </include>
 
   <node
-    name="moveit_python_interface"
+    name="location_capture_moveit"
     pkg="interbotix_moveit_interface"
-    type="moveit_python_interface"
+    type="location_capture_moveit"
     respawn="false"
     output="screen"
     ns="$(arg robot_name)">

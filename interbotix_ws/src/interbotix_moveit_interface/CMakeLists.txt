@@ -76,5 +76,6 @@ add_dependencies(moveit_interface_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${cat
 catkin_install_python(PROGRAMS
   scripts/moveit_interface_gui
   scripts/moveit_python_interface
+  scripts/location_capture_moveit
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
