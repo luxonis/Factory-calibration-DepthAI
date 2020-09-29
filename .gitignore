@@ -7,7 +7,7 @@ dataset
 *.lo
 *.o
 *.obj
-
+*/py3venv/
 # Precompiled Headers
 *.gch
 *.pch

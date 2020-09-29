@@ -1,0 +1,45 @@
+# Set the operating modes for the arm, gripper, or a single joint
+#
+# There are four options when setting operating modes:
+#   1) ARM_JOINTS_AND_GRIPPER - affects the operating modes for all joints, including the gripper.
+#   2) ARM_JOINTS - affects the operating modes for all joints, excluding the gripper.
+#   3) GRIPPER - affects the operating mode only for the gripper
+#   4) SINGLE_JOINT - affects the operating mode for the joint specified by 'joint_name'.
+#                     Note that the 'joint_name' parameter only needs to be used for this
+#                     option. For any other option, it can be left blank.
+# Set the option to the 'cmd' parameter and the 'joint_name' to the specified joint (if doing the
+# SINGLE_JOINT option).
+
+# There are 5 valid operating modes for the arm. They are...
+#   "none" - arm motors will not respond to any joint command
+#   "position" - arm motors will expect only position commands
+#   "velocity" - arm motors will expect only velocity commands
+#   "current" - arm motors will expect only current commands
+#   "pwm" - arm motors will expect only pwm commands
+#
+# The gripper can also be set to "ext_position". This allows the gripper to do
+# multiple rotations instead of just one. It should only be used if you are using
+# a custom gripper capable of doing more than one rotation.
+#
+# For "position" control, profile_velocity sets the max speed of each joint while
+# profile_acceleration sets the max acceleration. Please reference the motor datasheet
+# (just click a motor at http://emanual.robotis.com/docs/en/software/dynamixel/dynamixel_workbench/)
+# for conversion factors. Values can be between 0 and 32,767. If setting custom profiles,
+# make sure to set 'use_custom_x_profiles' to true.
+#
+# For "velocity" control, only profile_acceleration is used.
+#
+# The velocity and acceleration profiles are not used in the "current" and "pwm" modes.
+
+int8 ARM_JOINTS_AND_GRIPPER = 1
+int8 ARM_JOINTS = 2
+int8 GRIPPER = 3
+int8 SINGLE_JOINT = 4
+
+int8 cmd
+string mode
+string joint_name
+bool use_custom_profiles
+int32 profile_velocity
+int32 profile_acceleration
+---

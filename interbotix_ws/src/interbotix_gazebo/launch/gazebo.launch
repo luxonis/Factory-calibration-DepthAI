@@ -1,0 +1,57 @@
+<launch>
+
+  <arg name="robot_name"                    default=""/>
+  <arg name="robot_model"                   default="$(arg robot_name)"/>
+  <arg name="use_default_gripper_bar"       default="true"/>
+  <arg name="use_default_gripper_fingers"   default="true"/>
+  <arg name="use_world_frame"               default="true"/>
+  <arg name="external_urdf_loc"             default=""/>
+  <arg name="use_default_rviz"              default="false"/>
+  <arg name="gui"                           default="true"/>
+  <arg name="debug"                         default="false"/>
+  <arg name="paused"                        default="true"/>
+  <arg name="recording"                     default="false"/>
+  <arg name="use_sim_time"                  default="true"/>
+
+  <env name="GAZEBO_RESOURCE_PATH" value="$(find interbotix_gazebo)"/>
+
+  <rosparam file="$(find interbotix_gazebo)/config/$(arg robot_model)_gazebo_controllers.yaml" command="load" ns="$(arg robot_name)"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="gui" value="$(arg gui)" />
+    <arg name="debug" value="$(arg debug)" />
+    <arg name="paused" value="$(arg paused)"/>
+    <arg name="recording" value="$(arg recording)"/>
+    <arg name="use_sim_time" value="$(arg use_sim_time)"/>
+  </include>
+
+  <node
+    name="controller_spawner"
+    pkg="controller_manager"
+    type="spawner"
+    respawn="false"
+    output="screen"
+    ns="$(arg robot_name)"
+    args="arm_controller gripper_controller joint_state_controller"/>
+
+  <include file="$(find interbotix_descriptions)/launch/description.launch">
+    <arg name="robot_name"                    value="$(arg robot_name)"/>
+    <arg name="robot_model"                   value="$(arg robot_model)"/>
+    <arg name="use_default_gripper_bar"       value="$(arg use_default_gripper_bar)"/>
+    <arg name="use_default_gripper_fingers"   value="$(arg use_default_gripper_fingers)"/>
+    <arg name="use_world_frame"               value="$(arg use_world_frame)"/>
+    <arg name="external_urdf_loc"             value="$(arg external_urdf_loc)"/>
+    <arg name="load_gazebo_configs"           value="true"/>
+    <arg name="use_default_rviz"              value="$(arg use_default_rviz)"/>
+  </include>
+
+  <node
+    name="urdf_spawner"
+    pkg="gazebo_ros"
+    type="spawn_model"
+    respawn="false"
+    output="screen"
+    ns="$(arg robot_name)"
+	  args="-urdf -model $(arg robot_model) -param robot_description"/>
+
+</launch>
