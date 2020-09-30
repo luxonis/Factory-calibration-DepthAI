@@ -47,7 +47,7 @@ class MoveGroupPythonIntefaceTutorial(object):
                     anonymous=True)
 
     print("waiting for service--------------------------------->")
-    # rospy.wait_for_service('/capture_checkerboard')
+    rospy.wait_for_service('/capture_checkerboard')
 
     print("Found service----------------------------------->")
     try:
