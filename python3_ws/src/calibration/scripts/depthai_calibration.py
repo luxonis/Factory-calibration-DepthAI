@@ -37,7 +37,7 @@ class depthai_calibration_node:
         self.config = {
             'streams':
                 ['left', 'right'] if not on_embedded else
-                [{'name': 'left', "max_fps": 10.0}, {'name': 'right', "max_fps": 10.0}],
+                [{'name': 'left', "max_fps": 30.0}, {'name': 'right', "max_fps": 30.0}],
             'depth':
                 {
                     'calibration_file': consts.resource_paths.calib_fpath,
