@@ -11,6 +11,7 @@ from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from calibration.srv import Capture
 ## END_SUB_TUTORIAL
+import time
 
 def all_close(goal, actual, tolerance):
   """
@@ -46,7 +47,7 @@ class MoveGroupPythonIntefaceTutorial(object):
                     anonymous=True)
 
     print("waiting for service--------------------------------->")
-    rospy.wait_for_service('/capture_checkerboard')
+    # rospy.wait_for_service('/capture_checkerboard')
 
     print("Found service----------------------------------->")
     try:
@@ -78,7 +79,9 @@ class MoveGroupPythonIntefaceTutorial(object):
     ## This interface can be used to plan and execute motions on the Interbotix Arm:
     group_name = "interbotix_arm"
     group = moveit_commander.MoveGroupCommander(group_name)
-    group.set_planner_id("RRTstar")
+    group.set_planner_id("TRRT") # works better some times
+    # group.set_planner_id("PRM") 
+    
     ## We create a `DisplayTrajectory`_ publisher which is used later to publish
     ## trajectories for RViz to visualize:
     display_trajectory_publisher = rospy.Publisher("move_group/display_planned_path",
@@ -283,6 +286,10 @@ class MoveGroupPythonIntefaceTutorial(object):
     current_pose = self.group.get_current_pose().pose
     print("currrent pose------------------ ->")
     print(current_pose)
+    current_joints = self.group.get_current_joint_values()
+    print("currrent Joints------------------ ->")
+    print(current_joints)
+
     # end_effector_ = robot.get_end_effector_link
     # self.group.get
     return all_close(pose_goal, current_pose, 0.01)
@@ -514,7 +521,7 @@ class MoveGroupPythonIntefaceTutorial(object):
 def main():
   try:
     print "============ Press `Enter` to begin the tutorial by setting up the moveit_commander (press ctrl-d to exit) ..."    
-    raw_input()
+    # raw_input()
 
     tutorial = MoveGroupPythonIntefaceTutorial()
 
@@ -525,106 +532,318 @@ def main():
     #     res[0]+= 0.2
     #   elif
 
-    box_name = "back_box"
-    res = tutorial.add_box(box_name, [-0.1, 0, 0.5], (0.1, 0.4, 0.6))
+    # box_name = "back_box"
+    # res = tutorial.add_box(box_name, [-0.1, 0, 0.5], (0.1, 0.4, 0.6))
     
-    # raw_input()
+    raw_input()
     box_name = "base_box"
 
-    res = tutorial.add_box(box_name, [0, 0, -0.01],(2.6, 0.6, 0.02))
+    res = tutorial.add_box(box_name, [0, 0, -0.01],(0.6, 0.6, 0.02))
 
     # while(True):
     #   raw_input()
     #   tutorial.get_curr_pose()
 
+    # TODO: add home position
     pose_goal = geometry_msgs.msg.Pose()
     
-    pose_goal.position.x = 0.259814690409
-    pose_goal.position.y = 0.232549287713
-    pose_goal.position.z = 0.335102051841
-    pose_goal.orientation.x = 0.124969234989
-    pose_goal.orientation.y = 0.519724738342
-    pose_goal.orientation.z = -0.321123636691
-    pose_goal.orientation.w = 0.781759871456
+
+# start
+    pose_goal.position.x = 0.472119
+    pose_goal.position.y = 0.0
+    pose_goal.position.z = 0.42675
+    pose_goal.orientation.x = 0
+    pose_goal.orientation.y = 0
+    pose_goal.orientation.z = 0
+    pose_goal.orientation.w = 1.0
     
+    print("start-->")
+    tutorial.set_go_pose_goal(pose_goal)
+
+    time.sleep(1)
+
+# left 1
+    joints_goal = [0.5692879069377969, -0.061264558270077464, -0.07365505422455512, 1.771061925438095, 1.1748910437602111, -1.6845963642410158]
+
+    print("left 1 -->")
+    # pose_goal.position.x = 0.37845432843
+    # pose_goal.position.y = 0.121279816271
+    # pose_goal.position.z = 0.404892497354
+    # pose_goal.orientation.x = 0.00516142500642
+    # pose_goal.orientation.y = 0.097692649094
+    # pose_goal.orientation.z = -0.292291875216
+    # pose_goal.orientation.w = 0.951312233543
+    
+    
+    tutorial.go_to_next_joint_state(joints_goal)
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    # tutorial.capture_srv_client_handler("P_1")
+    time.sleep(1)
+
+  # left 2 
+    print("left 2 -->") 
+    # joints_goal = [-2.368507326065181, -1.7590461392706553, 0.32442732089777315, 1.743870642826355, -1.6225235540387866, 0.408189253406223]
+    joints_goal = [0.7730087577658563, 0.3276961983717477, 0.3242623826514706, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618]
+
+    # pose_goal.position.x = 0.411591647559
+    # pose_goal.position.y = 0.246870561136
+    # pose_goal.position.z = 0.376044478546
+    # pose_goal.orientation.x = -0.0265851421897
+    # pose_goal.orientation.y = 0.0778909430231
+    # pose_goal.orientation.z = -0.325835364004
+    # pose_goal.orientation.w = 0.941837325006
+    
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+
+    # tutorial.capture_srv_client_handler("P_1")
+    time.sleep(1)
+
+  # left 3 
+
+    print("left 3 -->")
+
+    # joints_goal = [-2.267086108376241, -1.5667150022362615, 1.0546774664328749, 1.6243658763470474, -1.5086104649102363, 1.1319672856246563]
+ 
+    pose_goal.position.x = 0.45118331908
+    pose_goal.position.y = 0.364659225187
+    pose_goal.position.z = 0.334874213097
+    pose_goal.orientation.x = 0.042598696368 
+    pose_goal.orientation.y = -0.00558387827696 
+    pose_goal.orientation.z = -0.303509292526 
+    pose_goal.orientation.w = 0.95185938075 
+
+    # raw_input()
+
+    tutorial.set_go_pose_goal(pose_goal)
+    # tutorial.go_to_next_joint_state(joints_goal)
+
+    # tutorial.capture_srv_client_handler("P_2")
+    time.sleep(1)
+
+# restart
+
+
+    print("restart -->") 
+
+    joint_goal = [0,0,0,0,0,0]
+
+    tutorial.go_to_next_joint_state(joint_goal)
+
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    time.sleep(1)
+
+  # top 1
+
+    print("top 1 -->")
+    joints_goal = [0.06580003696516191, 0.6496641402933865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784]
+
+    # pose_goal.position.x = 0.480959380819
+    # pose_goal.position.y = 0.0186728973959
+    # pose_goal.position.z = 0.534579543982
+    # pose_goal.orientation.x = -0.0320915721553 
+    # pose_goal.orientation.y = 0.24172299209 
+    # pose_goal.orientation.z = -0.0219507489553 
+    # pose_goal.orientation.w = 0.969566032157 
+
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+
+    # tutorial.capture_srv_client_handler("P_2")
+    time.sleep(1)
+
+  # top 2
+    print("top 2 -->")
+    joints_goal = [-0.004377206203473781, -0.017800570804476813, 0.5106211536628221, 0.030408722598111514, -1.0723827699844133, 0.02244848840376141]
+
+    # pose_goal.position.x = 0.409571593372
+    # pose_goal.position.y = 0.00114538603032
+    # pose_goal.position.z = 0.52072899085
+    # pose_goal.orientation.x = 0.0223940309388 
+    # pose_goal.orientation.y = 0.268217254345 
+    # pose_goal.orientation.z = 0.00569336422375 
+    # pose_goal.orientation.w = 0.963081303657 
+
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+
+    # tutorial.capture_srv_client_handler("P_2")
+    time.sleep(1)
+
+
+  # top 3
+
+    print("top 3 -->")
+    joints_goal = [0.05842017661375378, -0.01091474055365706, 0.508682744553706, -0.018383082431995736, -1.1322537449334422, 0.022251283194952686]
+
+    # pose_goal.position.x = 0.408109447253
+    # pose_goal.position.y = 0.0219358583358
+    # pose_goal.position.z = 0.511638093983
+    # pose_goal.orientation.x = -0.00479639502596 
+    # pose_goal.orientation.y = 0.301891464666 
+    # pose_goal.orientation.z = 0.0177699673067 
+    # pose_goal.orientation.w = 0.953164606151 
+
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+    # tutorial.capture_srv_client_handler("P_2")
+
+    time.sleep(1)
+
+
+  # bottom 1
+    print("bottom 1 -->")
+    joints_goal = [0.13606868986112158, 0.5215120491717602, -0.6259154415618842, 0.13400943020992345, 1.8297667107528208, 0.02169278611695778]
+
+    # pose_goal.position.x = 0.408966634051
+    # pose_goal.position.y = 0.0414024600974
+    # pose_goal.position.z = 0.154287744791
+    # pose_goal.orientation.x = 0.0384143717964 
+    # pose_goal.orientation.y = -0.332817776185 
+    # pose_goal.orientation.z = 0.000641605225098 
+    # pose_goal.orientation.w = 0.942208178821 
+
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+
+    # tutorial.capture_srv_client_handler("P_2")
+    time.sleep(1)
+
+
+  # bottom 2
+    print("bottom 2 -->")
+    joints_goal = [0.13788992401193792, 0.674550873909903, -0.551118472069638, 0.13742538797703818, 1.8170618246483157, 0.021266569887058374]
+
+    # pose_goal.position.x = 0.425874986403
+    # pose_goal.position.y = 0.044005983067
+    # pose_goal.position.z = 0.103928387588
+    # pose_goal.orientation.x = 0.0337231552409 
+    # pose_goal.orientation.y = -0.290145360345 
+    # pose_goal.orientation.z = 0.000204722357372 
+    # pose_goal.orientation.w = 0.956388193549 
+
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+
+    # tutorial.capture_srv_client_handler("P_2")
+    time.sleep(1)
+
+
+  # bottom 3
+    print("bottom 3 -->")
+    joints_goal = [0.14705021881303204, 0.8619704018470852, -0.41301399722681215, 0.1753433807927659, 1.830020125895237, 0.021073375261441003]
+
+    # pose_goal.position.x = 0.446037733873
+    # pose_goal.position.y = 0.0468594306518
+    # pose_goal.position.z = 0.0486985411372
+    # pose_goal.orientation.x = 0.032029215422 
+    # pose_goal.orientation.y = -0.272343085517 
+    # pose_goal.orientation.z = -0.0144403455887 
+    # pose_goal.orientation.w = 0.961558552325 
+
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+
+    # tutorial.capture_srv_client_handler("P_2")
+    time.sleep(1)
+
+
+  # Right 1
+    print("Right 1 -->")
+    joints_goal = [-0.6181781275060271, 0.24589725759526213, 0.3393180411553141, -1.619117307896248, 1.3303260219876556, 1.8034196787933272]
+    
+    # pose_goal.position.x = 0.435360807075
+    # pose_goal.position.y = -0.175637005642
+    # pose_goal.position.z = 0.428488881001
+    # pose_goal.orientation.x = 0.0568298549743 
+    # pose_goal.orientation.y = 0.0343912591401 
+    # pose_goal.orientation.z = 0.345199645687 
+    # pose_goal.orientation.w = 0.936175631757 
+
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+    # tutorial.capture_srv_client_handler("P_2")
+    time.sleep(1)
+
+  # Right 2
+    print("Right 2 -->")
+    joints_goal = [-0.7056384060995823, 0.4408910221209656, 0.5904422957811959, -1.6162359831343154, 1.3963049887383314, 1.8038828895561951]
+
+    # pose_goal.position.x = 0.45142560055
+    # pose_goal.position.y = -0.239084042968
+    # pose_goal.position.z = 0.415279546954
+    # pose_goal.orientation.x = 0.0331148833631 
+    # pose_goal.orientation.y = 0.021909663451 
+    # pose_goal.orientation.z = 0.336116248248 
+    # pose_goal.orientation.w = 0.940983123553 
+
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+
+    # tutorial.capture_srv_client_handler("P_2")
+    time.sleep(1)
+
+  # Right 3
+    print("Right 3 -->")
+    # joints_goal = [2.22892811727817, -1.6106321493901121, 0.9403142566692279, 1.5903513439330847, 1.4640536886529003, 2.24347381844878]
+    joints_goal = [-0.9127303995147863, 0.7875929049387073, 0.9387125797835927, -1.5077965957513577, 1.4824084209239934, 1.802813429049185]
+
+    # pose_goal.position.x = 0.431014624729
+    # pose_goal.position.y = -0.374573862973
+    # pose_goal.position.z = 0.34983147361
+    # pose_goal.orientation.x = 0.0523659844863 
+    # pose_goal.orientation.y = -0.0235299874545 
+    # pose_goal.orientation.z = 0.287492341758 
+    # pose_goal.orientation.w = 0.956060822746 
+
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+    # tutorial.capture_srv_client_handler("P_2")
+    time.sleep(1)
+
+# sleep pose
+    print("sleep pose -->")
+    
+
+    pose_goal.position.x =  0.0811047406103
+    pose_goal.position.y =  -1.34901728646e-05
+    pose_goal.position.z =  0.128741153434
+    pose_goal.orientation.x = -1.40023979928e-05
+    pose_goal.orientation.y = 0.290732882379
+    pose_goal.orientation.z = -6.39239167946e-05
+    pose_goal.orientation.w = 0.956804257318
+    
+
+    tutorial.set_go_pose_goal(pose_goal)
+    # tutorial.go_to_next_joint_state(joints_goal)
+    # tutorial.capture_srv_client_handler("P_1")
+
+
+
+
     raw_input()
-
-    tutorial.set_go_pose_goal(pose_goal)
-
-    ########################################################
-    # raw_input()
-    tutorial.capture_srv_client_handler("P_1")
-    # pose_goal = geometry_msgs.msg.Pose()
-    
-    pose_goal.position.x = 0.365626486551
-    pose_goal.position.y = 0
-    pose_goal.position.z = 0.30893633305
-    pose_goal.orientation.x = -5.66383483911e-05
-    pose_goal.orientation.y = 0.694590385641
-    pose_goal.orientation.z = -0.000147454998158
-    pose_goal.orientation.w = 0.719405428965
-
-    tutorial.set_go_pose_goal(pose_goal)
-    tutorial.capture_srv_client_handler("P_2")
-
-    ########################################################
-    # raw_input()
-    pose_goal.position.x = 0.259814690409
-    pose_goal.position.y = -0.232549287713
-    pose_goal.position.z = 0.335102051841
-    pose_goal.orientation.x = 0.482656982087
-    pose_goal.orientation.y = 0.576782379106
-    pose_goal.orientation.z = -0.122280037382
-    pose_goal.orientation.w = 0.647620195217
-
-    tutorial.set_go_pose_goal(pose_goal)
-    tutorial.capture_srv_client_handler("P_3")
-
-
-    # print "============ Press `Enter` to execute a movement using a joint state goal ..."
-    # raw_input()
-
-    # tutorial.go_to_joint_state()
-
-    # print "============ Press `Enter` to execute a movement using a pose goal ..."
-    # raw_input()
-    # tutorial.go_to_pose_goal()
-
-
-    # tutorial.go_to_pose_goal()
-
-    # print "============ Press `Enter` to plan and display a Cartesian path ..."
-    # raw_input()
-    # cartesian_plan, fraction = tutorial.plan_cartesian_path()
-
-    # print "============ Press `Enter` to display a saved trajectory (this will replay the Cartesian path)  ..."
-    # raw_input()
-    # tutorial.display_trajectory(cartesian_plan)
-
-    # print "============ Press `Enter` to execute a saved path ..."
-    # raw_input()
-    # tutorial.execute_plan(cartesian_plan)
-
-    # print "============ Press `Enter` to add a box to the planning scene ..."
-    # raw_input()
-    # tutorial.add_box()
-
-    # print "============ Press `Enter` to attach a Box to the Interbotix robot ..."
-    # raw_input()
-    # tutorial.attach_box()
-
-    # print "============ Press `Enter` to plan and execute a path with an attached collision object ..."
-    # raw_input()
-    # cartesian_plan, fraction = tutorial.plan_cartesian_path(scale=-1)
-    # tutorial.execute_plan(cartesian_plan)
-
-    # print "============ Press `Enter` to detach the box from the Interbotix robot ..."
-    # raw_input()
-    # tutorial.detach_box()
-
-    # print "============ Press `Enter` to remove the box from the planning scene ..."
-    # raw_input()
-    # tutorial.remove_box()
 
     print "============ Python tutorial demo complete!"
   except rospy.ROSInterruptException:
@@ -636,3 +855,5 @@ def main():
 
 if __name__ == '__main__':
   main()
+
+
