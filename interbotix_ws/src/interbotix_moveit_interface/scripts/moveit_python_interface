@@ -560,7 +560,7 @@ def main():
     print("start-->")
     tutorial.set_go_pose_goal(pose_goal)
 
-#     time.sleep(1)
+    time.sleep(1)
 
     print("start -->") 
 
