@@ -151,7 +151,7 @@ class MoveGroupPythonIntefaceTutorial(object):
     group.go(joint_goal, wait=True)
 
     # Calling ``stop()`` ensures that there is no residual movement
-    group.stop()
+    # group.stop()
 
     ## END_SUB_TUTORIAL
 
