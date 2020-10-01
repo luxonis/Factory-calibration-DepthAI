@@ -534,7 +534,7 @@ def main():
 
     # box_name = "back_box"
     # res = tutorial.add_box(box_name, [-0.1, 0, 0.5], (0.1, 0.4, 0.6))
-    
+    delay = 5
     raw_input()
     box_name = "base_box"
 
@@ -560,8 +560,6 @@ def main():
     print("start-->")
     # tutorial.set_go_pose_goal(pose_goal)
 
-    time.sleep(1)
-
     print("start -->") 
 
     joint_goal = [0,0,0,0,0,0]
@@ -585,7 +583,7 @@ def main():
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.capture_srv_client_handler("P_1")
-    time.sleep(1)
+    time.sleep(delay)
 
   # left 2 
     print("left 2 -->") 
@@ -606,7 +604,7 @@ def main():
     tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("P_2")
-    time.sleep(1)
+    time.sleep(delay)
 
   # left 3 
 
@@ -628,7 +626,7 @@ def main():
     tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("P_3")
-    time.sleep(1)
+    time.sleep(delay)
 
 # restart
 
@@ -641,7 +639,7 @@ def main():
 
 
     # tutorial.set_go_pose_goal(pose_goal)
-    time.sleep(1)
+    time.sleep(delay)
 
   # top 1
 
@@ -662,7 +660,7 @@ def main():
     tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("top_1")
-    time.sleep(1)
+    time.sleep(delay)
 
   # top 2
     print("top 2 -->")
@@ -682,7 +680,7 @@ def main():
     tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("top_2")
-    time.sleep(1)
+    time.sleep(delay)
 
 
   # top 3
@@ -704,7 +702,7 @@ def main():
     tutorial.go_to_next_joint_state(joints_goal)
     tutorial.capture_srv_client_handler("top_3")
 
-    time.sleep(1)
+    time.sleep(delay)
 
 
   # bottom 1
@@ -725,7 +723,7 @@ def main():
     tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("bottom_1")
-    time.sleep(1)
+    time.sleep(delay)
 
 
   # bottom 2
@@ -746,7 +744,7 @@ def main():
     tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("bottom_2")
-    time.sleep(1)
+    time.sleep(delay)
 
 
   # bottom 3
@@ -767,7 +765,7 @@ def main():
     tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("bottom_3")
-    time.sleep(1)
+    time.sleep(delay)
 
 
   # Right 1
@@ -787,7 +785,7 @@ def main():
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
     tutorial.capture_srv_client_handler("right_1")
-    time.sleep(1)
+    time.sleep(delay)
 
   # Right 2
     print("Right 2 -->")
@@ -807,7 +805,7 @@ def main():
     tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("right_2")
-    time.sleep(1)
+    time.sleep(delay)
 
   # Right 3
     print("Right 3 -->")
@@ -827,7 +825,7 @@ def main():
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
     tutorial.capture_srv_client_handler("right_3")
-    time.sleep(1)
+    time.sleep(delay)
 
 # sleep pose
     print("sleep pose -->")
@@ -846,10 +844,6 @@ def main():
     # tutorial.go_to_next_joint_state(joints_goal)
     # tutorial.capture_srv_client_handler("P_1")
 
-
-
-
-    raw_input()
 
     print "============ Python tutorial demo complete!"
   except rospy.ROSInterruptException:
