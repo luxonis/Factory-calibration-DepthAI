@@ -214,7 +214,7 @@ class StereoCalibration(object):
                 self.imgpoints_r.append(corners_r)
                 self.temp_img_l_point_list.append([corners_l])
                 self.temp_img_r_point_list.append([corners_r])
-                self.calib_successes.append(polygon_from_image_name(image_left))
+                # self.calib_successes.append(polygon_from_image_name(image_left))
                 print("\t[OK]. Took %i seconds." % (round(time.time() - start_time, 2)))
             else:
                 print("\t[ERROR] - Corners not detected. Took %i seconds." % (round(time.time() - start_time, 2)))
@@ -222,7 +222,7 @@ class StereoCalibration(object):
             self.img_shape = img_r.shape[::-1]
         print(str(len(self.objpoints)) + " of " + str(len(images_left)) +
               " images being used for calibration")
-        self.ensure_valid_images()
+        # self.ensure_valid_images()
 
     def ensure_valid_images(self):
         """
