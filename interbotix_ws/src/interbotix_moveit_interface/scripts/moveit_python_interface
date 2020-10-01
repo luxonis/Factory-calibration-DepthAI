@@ -584,6 +584,7 @@ def main():
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.capture_srv_client_handler("P_1")
     time.sleep(delay)
+    raw_input()
 
   # left 2 
     print("left 2 -->") 
@@ -598,7 +599,7 @@ def main():
     # pose_goal.orientation.z = -0.325835364004
     # pose_goal.orientation.w = 0.941837325006
     
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
@@ -620,7 +621,7 @@ def main():
     # pose_goal.orientation.z = -0.303509292526 
     # pose_goal.orientation.w = 0.95185938075 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
@@ -654,7 +655,7 @@ def main():
     # pose_goal.orientation.z = -0.0219507489553 
     # pose_goal.orientation.w = 0.969566032157 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
@@ -674,7 +675,7 @@ def main():
     # pose_goal.orientation.z = 0.00569336422375 
     # pose_goal.orientation.w = 0.963081303657 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
@@ -696,7 +697,7 @@ def main():
     # pose_goal.orientation.z = 0.0177699673067 
     # pose_goal.orientation.w = 0.953164606151 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
@@ -717,7 +718,7 @@ def main():
     # pose_goal.orientation.z = 0.000641605225098 
     # pose_goal.orientation.w = 0.942208178821 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
@@ -738,7 +739,7 @@ def main():
     # pose_goal.orientation.z = 0.000204722357372 
     # pose_goal.orientation.w = 0.956388193549 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
@@ -759,7 +760,7 @@ def main():
     # pose_goal.orientation.z = -0.0144403455887 
     # pose_goal.orientation.w = 0.961558552325 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
@@ -780,7 +781,7 @@ def main():
     # pose_goal.orientation.z = 0.345199645687 
     # pose_goal.orientation.w = 0.936175631757 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
@@ -799,13 +800,14 @@ def main():
     # pose_goal.orientation.z = 0.336116248248 
     # pose_goal.orientation.w = 0.940983123553 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("right_2")
     time.sleep(delay)
+    
 
   # Right 3
     print("Right 3 -->")
@@ -820,7 +822,7 @@ def main():
     # pose_goal.orientation.z = 0.287492341758 
     # pose_goal.orientation.w = 0.956060822746 
 
-    # raw_input()
+    raw_input()
 
     # tutorial.set_go_pose_goal(pose_goal)
     tutorial.go_to_next_joint_state(joints_goal)
