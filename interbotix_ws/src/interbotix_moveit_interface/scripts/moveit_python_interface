@@ -612,20 +612,20 @@ def main():
 
     print("left 3 -->")
 
-    # joints_goal = [-2.267086108376241, -1.5667150022362615, 1.0546774664328749, 1.6243658763470474, -1.5086104649102363, 1.1319672856246563]
+    joints_goal = [-2.267086108376241, -1.5667150022362615, 1.0546774664328749, 1.6243658763470474, -1.5086104649102363, 1.1319672856246563]
  
-    pose_goal.position.x = 0.45118331908
-    pose_goal.position.y = 0.364659225187
-    pose_goal.position.z = 0.334874213097
-    pose_goal.orientation.x = 0.042598696368 
-    pose_goal.orientation.y = -0.00558387827696 
-    pose_goal.orientation.z = -0.303509292526 
-    pose_goal.orientation.w = 0.95185938075 
+    # pose_goal.position.x = 0.45118331908
+    # pose_goal.position.y = 0.364659225187
+    # pose_goal.position.z = 0.334874213097
+    # pose_goal.orientation.x = 0.042598696368 
+    # pose_goal.orientation.y = -0.00558387827696 
+    # pose_goal.orientation.z = -0.303509292526 
+    # pose_goal.orientation.w = 0.95185938075 
 
     # raw_input()
 
-    tutorial.set_go_pose_goal(pose_goal)
-    # tutorial.go_to_next_joint_state(joints_goal)
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
 
     tutorial.capture_srv_client_handler("P_3")
     time.sleep(1)
