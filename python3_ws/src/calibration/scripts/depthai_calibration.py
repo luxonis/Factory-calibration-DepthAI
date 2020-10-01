@@ -95,20 +95,26 @@ class depthai_calibration_node:
         recent_left = None
         recent_right = None
         finished = False
+        now = rospy.get_rostime()
         while not finished:
             _, data_list = self.pipeline.get_available_nnet_and_data_packets()
             print(len(data_list))
 
             for packet in data_list:    
                 # print(packet.stream_name)
-                # print(packet.getMetadata().getTimestamp())
+                print("packet time")
+                print(packet.getMetadata().getTimestamp())
+                print("ros time")
+                print(now.secs)
                 if packet.stream_name == "left":
                     recent_left = packet.getData()
                 elif packet.stream_name == "right":
                     recent_right = packet.getData()
-            
-            if recent_left is not None and recent_right is not None:
-                finished = True
+
+
+                # if recent_left is not None and recent_right is not None:
+                #     finished = True
+
             # print("looping")
         # is_board_found_l = find_chessboard(recent_left)
         # is_board_found_r = find_chessboard(recent_right)
