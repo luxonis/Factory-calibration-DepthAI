@@ -10,6 +10,7 @@ from math import pi
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from calibration.srv import Capture
+import time
 ## END_SUB_TUTORIAL
 
 def all_close(goal, actual, tolerance):
@@ -293,6 +294,13 @@ class MoveGroupPythonIntefaceTutorial(object):
     print("currrent pose------------------ ->")
     print(current_pose)
 
+  def get_curr_joint_state(self):
+    current_joints = self.group.get_current_joint_values()
+    print("currrent joints------------------ ->")
+    print(current_joints)
+
+
+
   def plan_cartesian_path(self, scale=1):
     # Copy class variables to local variables to make the web tutorials more clear.
     # In practice, you should use the class variables directly unless you have a good
@@ -514,7 +522,7 @@ class MoveGroupPythonIntefaceTutorial(object):
 def main():
   try:
     print "============ Press `Enter` to begin the tutorial by setting up the moveit_commander (press ctrl-d to exit) ..."    
-    raw_input()
+    # raw_input()
 
     tutorial = MoveGroupPythonIntefaceTutorial()
 
@@ -524,11 +532,37 @@ def main():
     #   if input() == 'x':
     #     res[0]+= 0.2
     #   elif
+    joint_goal = [0,0,0,0,0,0]
 
+    tutorial.go_to_next_joint_state(joint_goal)
+    # joints_goal = [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784]
+    # tutorial.go_to_next_joint_state(joints_goal)
 
+    print("left 1-->") 
+    # joints_goal = [-2.368507326065181, -1.7590461392706553, 0.32442732089777315, 1.743870642826355, -1.6225235540387866, 0.408189253406223]
+    # joints_goal = [0.7730087577658563, 0.3276961983717477, 0.3242623826514706, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618]
+    joints_goal = [0.5692879069377969, -0.061264558270077464, -0.07365505422455512, 1.771061925438095, 1.1748910437602111, -1.6845963642410158]
+    raw_input()
+    time.sleep(1)
+    # pose_goal.position.x = 0.411591647559
+    # pose_goal.position.y = 0.246870561136
+    # pose_goal.position.z = 0.376044478546
+    # pose_goal.orientation.x = -0.0265851421897
+    # pose_goal.orientation.y = 0.0778909430231
+    # pose_goal.orientation.z = -0.325835364004
+    # pose_goal.orientation.w = 0.941837325006
+    
+    # raw_input()
+
+    # tutorial.set_go_pose_goal(pose_goal)
+    tutorial.go_to_next_joint_state(joints_goal)
+
+    tutorial.capture_srv_client_handler("P_2")
+    # time.sleep(1)
+    
     while True:
       raw_input()
-      tutorial.get_curr_pose()
+      tutorial.get_curr_joint_state()
 
 
   except KeyboardInterrupt:
