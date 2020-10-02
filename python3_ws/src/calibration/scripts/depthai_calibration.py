@@ -76,6 +76,10 @@ class depthai_calibration_node:
         self.calib_srv = rospy.Service(self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
 
 
+    def publisher(self):
+        
+
+
     def parse_frame(self, frame, stream_name, file_name):
 
         file_name += '.png'
@@ -117,11 +121,11 @@ class depthai_calibration_node:
             # print("looping")
         is_board_found_l = find_chessboard(recent_left)
         is_board_found_r = find_chessboard(recent_right)
-        # is_board_found_l = True
-        # is_board_found_r = True
         
         if is_board_found_l and is_board_found_r:
             print("Found------------------------->")
+        else:
+            print("Not found--------------------->")
         self.parse_frame(recent_left, "left", req.name)
         self.parse_frame(recent_right, "right", req.name)
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built

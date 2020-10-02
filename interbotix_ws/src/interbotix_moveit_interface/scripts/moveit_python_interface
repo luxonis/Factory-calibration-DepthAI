@@ -52,6 +52,8 @@ class MoveGroupPythonIntefaceTutorial(object):
     print("Found service----------------------------------->")
     try:
       self.capture_srv = rospy.ServiceProxy('/capture_checkerboard', Capture)  
+      self.calibrate_srv = rospy.ServiceProxy('/calibrate_stereo', Capture)  
+
     except rospy.ServiceException as e:
       print("Service call failed: %s"%e)
 
@@ -170,6 +172,12 @@ class MoveGroupPythonIntefaceTutorial(object):
     except rospy.ServiceException as e:
       print("Service call failed: %s"%e)
 
+  def calibrate_srv_client_handler(self):
+    try:
+      response = self.calibrate_srv("start_calibration")
+      return response
+    except rospy.ServiceException as e:
+      print("Service call failed: %s"%e)
 
   def go_to_joint_state(self):
     # Copy class variables to local variables to make the web tutorials more clear.
@@ -565,7 +573,7 @@ def main():
       tutorial.go_to_next_joint_state(joints_goal_dict[act])
       time.sleep(delay)
       tutorial.capture_srv_client_handler(act)
-      time.sleep(delay)
+      # time.sleep(delay)
 
 # sleep pose
     print("sleep pose -->")
@@ -581,9 +589,8 @@ def main():
     
 
     tutorial.set_go_pose_goal(pose_goal)
-    # tutorial.go_to_next_joint_state(joints_goal)
-    # tutorial.capture_srv_client_handler("P_1")
 
+    tutorial.calibrate_srv_client_handler()
 
     print "============ Python tutorial demo complete!"
   except rospy.ROSInterruptException:
