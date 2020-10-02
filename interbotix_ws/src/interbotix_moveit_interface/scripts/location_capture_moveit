@@ -565,16 +565,19 @@ def main():
     print("Choose one of the actions below:")
     print(actions)
     # tutorial.set_go_pose_goal(pose_goal)
-    val = raw_input()
-    while val != 'stop':
-      if val != 'current':
-        tutorial.go_to_next_joint_state(joints_goal_dict[val])
-        time.sleep(1)
+    key = raw_input()
+    while key != 'stop':
+      if key != 'current':
+        if key in joints_goal_dict:
+          tutorial.go_to_next_joint_state(joints_goal_dict[val])
+          time.sleep(1)
+        else:
+          print("Invalid key entered.")
       else:
         tutorial.get_curr_joint_state()
       print("Choose one of the actions below:")
       print(actions)
-      val = raw_input()
+      key = raw_input()
     
     pose_goal.position.x =  0.0811047406103
     pose_goal.position.y =  -1.34901728646e-05
