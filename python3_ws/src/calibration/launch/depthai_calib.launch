@@ -16,7 +16,7 @@
     respawn="false"
     output="screen">
 
-    <param name="package_path"                     value="$(find calibration)"/>
+    <param name="package_path"             value="$(find calibration)"/>
     <param name="swap_lr"                  value="$(arg swap_lr)"/>
     <param name="field_of_view"            value="$(arg field_of_view)"/>
     <param name="baseline"                 value="$(arg baseline)"/>

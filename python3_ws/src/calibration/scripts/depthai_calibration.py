@@ -102,15 +102,14 @@ class depthai_calibration_node:
 
             for packet in data_list:    
                 # print(packet.stream_name)
-                print("packet time")
-                print(packet.getMetadata().getTimestamp())
-                print("ros time")
-                print(now.secs)
+                # print("packet time")
+                # print(packet.getMetadata().getTimestamp())
+                # print("ros time")
+                # print(now.secs)
                 if packet.stream_name == "left":
                     recent_left = packet.getData()
                 elif packet.stream_name == "right":
                     recent_right = packet.getData()
-
 
             if recent_left is not None and recent_right is not None:
                 finished = True
@@ -122,7 +121,7 @@ class depthai_calibration_node:
         # is_board_found_r = True
         
         if is_board_found_l and is_board_found_r:
-            print("Found")
+            print("Found------------------------->")
         self.parse_frame(recent_left, "left", req.name)
         self.parse_frame(recent_right, "right", req.name)
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
