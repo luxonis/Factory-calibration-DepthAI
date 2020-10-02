@@ -19,6 +19,8 @@ import os
 from pathlib import Path
 import shutil
 import consts.resource_paths
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
 
 
 on_embedded = platform.machine().startswith('arm') or platform.machine().startswith('aarch64')
@@ -74,7 +76,8 @@ class depthai_calibration_node:
         self.pipeline = self.device.create_pipeline(self.config)
         self.capture_srv = rospy.Service(self.args["capture_service_name"], Capture, self.capture_servive_handler)
         self.calib_srv = rospy.Service(self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
-
+        self.image_pub_left = rospy.Publisher("left",Image)
+        self.image_pub_right = rospy.Publisher("right",Image)
 
     def parse_frame(self, frame, stream_name, file_name):
 
@@ -107,6 +110,7 @@ class depthai_calibration_node:
                 print("ros time")
                 print(now.secs)
                 if packet.stream_name == "left":
+                    print(packet.getMetadata().getTimestamp())
                     recent_left = packet.getData()
                 elif packet.stream_name == "right":
                     recent_right = packet.getData()
