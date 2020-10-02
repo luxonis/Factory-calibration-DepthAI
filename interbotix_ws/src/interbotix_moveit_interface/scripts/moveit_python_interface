@@ -559,7 +559,7 @@ def main():
     # TODO: add home position
     pose_goal = geometry_msgs.msg.Pose()
     
-    actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'top_3', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
+    actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
 
     for act in actions:
       tutorial.go_to_next_joint_state(joints_goal_dict[act])
