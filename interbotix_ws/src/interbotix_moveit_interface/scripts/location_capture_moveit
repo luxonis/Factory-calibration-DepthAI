@@ -561,7 +561,7 @@ def main():
     # pose_goal.orientation.w = 0.941837325006
     
     # raw_input()
-    actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'top_3', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
+    actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'top_3', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3', 'stop']
     print("Choose one of the actions below:")
     print(actions)
     # tutorial.set_go_pose_goal(pose_goal)

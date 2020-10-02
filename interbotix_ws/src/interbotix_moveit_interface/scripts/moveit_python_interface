@@ -546,7 +546,7 @@ def main():
 
     # box_name = "back_box"
     # res = tutorial.add_box(box_name, [-0.1, 0, 0.5], (0.1, 0.4, 0.6))
-    delay = 4
+    delay = 2
     raw_input()
     box_name = "base_box"
 
@@ -563,6 +563,7 @@ def main():
 
     for act in actions:
       tutorial.go_to_next_joint_state(joints_goal_dict[act])
+      time.sleep(delay)
       tutorial.capture_srv_client_handler(act)
       time.sleep(delay)
 
