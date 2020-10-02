@@ -546,7 +546,7 @@ def main():
 
     # box_name = "back_box"
     # res = tutorial.add_box(box_name, [-0.1, 0, 0.5], (0.1, 0.4, 0.6))
-    delay = 2
+    delay = 1
     raw_input()
     box_name = "base_box"
 

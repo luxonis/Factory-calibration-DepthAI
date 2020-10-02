@@ -569,7 +569,7 @@ def main():
     while key != 'stop':
       if key != 'current':
         if key in joints_goal_dict:
-          tutorial.go_to_next_joint_state(joints_goal_dict[val])
+          tutorial.go_to_next_joint_state(joints_goal_dict[key])
           time.sleep(1)
         else:
           print("Invalid key entered.")
