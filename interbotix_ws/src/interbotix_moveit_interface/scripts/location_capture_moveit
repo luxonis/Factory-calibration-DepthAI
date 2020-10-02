@@ -520,28 +520,36 @@ class MoveGroupPythonIntefaceTutorial(object):
 
 
 def main():
+  tutorial = MoveGroupPythonIntefaceTutorial()
+  pose_goal = geometry_msgs.msg.Pose()
+
   try:
     print "============ Press `Enter` to begin the tutorial by setting up the moveit_commander (press ctrl-d to exit) ..."    
     # raw_input()
 
-    tutorial = MoveGroupPythonIntefaceTutorial()
 
-    # res = [1,2,3]
-    # while(1):
-    #   # raw_input()
-    #   if input() == 'x':
-    #     res[0]+= 0.2
-    #   elif
-    joint_goal = [0,0,0,0,0,0]
+    joints_goal_dict = {
+      'start'    : [0,0,0,0,0,0],
+      'left_1'   : [0.7730087577658563, 0.3276961983717477, 0.401425728, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618],
+      'left_2'   : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
+      'left_3'   : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
+      'top_1'    : [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784],
+      'top_2'    : [0.0076699042692780495, 0.45405831933021545, 1.4649516344070435, 0.02454369328916073, -1.3192235231399536, 0.0015339808305725455],
+      'top_3'    : [0.05842017661375378, -0.01091474055365706, 0.508682744553706, -0.018383082431995736, -1.1322537449334422, 0.022251283194952686],
+      'bottom_1' : [0.13606868986112158, 0.5215120491717602, -0.6259154415618842, 0.13400943020992345, 1.8297667107528208, 0.02169278611695778],
+      'bottom_2' : [0.13788992401193792, 0.674550873909903, -0.551118472069638, 0.13742538797703818, 1.8170618246483157, 0.021266569887058374],
+      'bottom_3' : [0.14705021881303204, 0.8619704018470852, -0.41301399722681215, 0.1753433807927659, 1.830020125895237, 0.021073375261441003],
+      'right_1'  : [-0.725572943687439, 0.2914563715457916, 0.4080389142036438, -1.6275537014007568, 1.3299614191055298, 1.7824857234954834],
+      'right_2'  : [-0.725572943687439, 0.41264083981513977, 0.5936505794525146, -1.6275537014007568, 1.3284274339675903, 1.7824857234954834],
+      'right_3'  : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705]
+    }
 
-    tutorial.go_to_next_joint_state(joint_goal)
+    tutorial.go_to_next_joint_state(joints_goal_dict['start'])
     # joints_goal = [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784]
     # tutorial.go_to_next_joint_state(joints_goal)
 
-    print("left 1-->") 
     # joints_goal = [-2.368507326065181, -1.7590461392706553, 0.32442732089777315, 1.743870642826355, -1.6225235540387866, 0.408189253406223]
     # joints_goal = [0.7730087577658563, 0.3276961983717477, 0.3242623826514706, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618]
-    joints_goal = [0.5692879069377969, -0.061264558270077464, -0.07365505422455512, 1.771061925438095, 1.1748910437602111, -1.6845963642410158]
     raw_input()
     time.sleep(1)
     # pose_goal.position.x = 0.411591647559
@@ -553,19 +561,34 @@ def main():
     # pose_goal.orientation.w = 0.941837325006
     
     # raw_input()
-
+    actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'top_3', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
+    print("Choose one of the actions below:")
+    print(actions)
     # tutorial.set_go_pose_goal(pose_goal)
-    tutorial.go_to_next_joint_state(joints_goal)
-
-    tutorial.capture_srv_client_handler("P_2")
-    # time.sleep(1)
+    val = raw_input()
+    while val != 'stop':
+      if val != 'current':
+        tutorial.go_to_next_joint_state(joints_goal_dict[val])
+        time.sleep(1)
+      else:
+        tutorial.get_curr_joint_state()
+      print("Choose one of the actions below:")
+      print(actions)
+      val = raw_input()
     
-    while True:
-      raw_input()
-      tutorial.get_curr_joint_state()
+    pose_goal.position.x =  0.0811047406103
+    pose_goal.position.y =  -1.34901728646e-05
+    pose_goal.position.z =  0.128741153434
+    pose_goal.orientation.x = -1.40023979928e-05
+    pose_goal.orientation.y = 0.290732882379
+    pose_goal.orientation.z = -6.39239167946e-05
+    pose_goal.orientation.w = 0.956804257318
+    
 
+    tutorial.set_go_pose_goal(pose_goal)
 
   except KeyboardInterrupt:
+
     print("EERRRRROOORRR_----------------------------------------------")
     return
 

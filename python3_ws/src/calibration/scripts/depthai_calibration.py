@@ -116,14 +116,15 @@ class depthai_calibration_node:
                 finished = True
 
             # print("looping")
-        # is_board_found_l = find_chessboard(recent_left)
-        # is_board_found_r = find_chessboard(recent_right)
-        is_board_found_l = True
-        is_board_found_r = True
-        # print("Found")
+        is_board_found_l = find_chessboard(recent_left)
+        is_board_found_r = find_chessboard(recent_right)
+        # is_board_found_l = True
+        # is_board_found_r = True
+        
         if is_board_found_l and is_board_found_r:
-            self.parse_frame(recent_left, "left", req.name)
-            self.parse_frame(recent_right, "right", req.name)
+            print("Found")
+        self.parse_frame(recent_left, "left", req.name)
+        self.parse_frame(recent_right, "right", req.name)
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
         print("Service ending")
         return (True, "No Error")

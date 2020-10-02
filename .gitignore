@@ -11,7 +11,8 @@ dataset
 # Precompiled Headers
 *.gch
 *.pch
-
+*.pyc
+*__pycache__
 # Compiled Dynamic libraries
 *.so
 *.dylib
