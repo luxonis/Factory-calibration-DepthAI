@@ -3,7 +3,7 @@
   <arg name="swap_lr"                   default="false"/>
   <arg name="field_of_view"             default="71.86"/>
   <arg name="baseline"                  default="7.5"/>
-  <arg name="square_size_cm"            default="2.4"/>
+  <arg name="square_size_cm"            default="1.5"/>
   <arg name="depthai_path"              default="/home/sachin/Desktop/luxonis/depthai"/>
   <arg name="brd"                       default="bw1098obc"/>
   <arg name="capture_service_name"      default="capture_checkerboard"/>
@@ -16,7 +16,7 @@
     respawn="false"
     output="screen">
 
-    <param name="package_path"                     value="$(find calibration)"/>
+    <param name="package_path"             value="$(find calibration)"/>
     <param name="swap_lr"                  value="$(arg swap_lr)"/>
     <param name="field_of_view"            value="$(arg field_of_view)"/>
     <param name="baseline"                 value="$(arg baseline)"/>

@@ -79,6 +79,10 @@ class depthai_calibration_node:
         self.image_pub_left = rospy.Publisher("left",Image)
         self.image_pub_right = rospy.Publisher("right",Image)
 
+    def publisher(self):
+        
+
+
     def parse_frame(self, frame, stream_name, file_name):
 
         file_name += '.png'
@@ -105,16 +109,15 @@ class depthai_calibration_node:
 
             for packet in data_list:    
                 # print(packet.stream_name)
-                print("packet time")
-                print(packet.getMetadata().getTimestamp())
-                print("ros time")
-                print(now.secs)
+                # print("packet time")
+                # print(packet.getMetadata().getTimestamp())
+                # print("ros time")
+                # print(now.secs)
                 if packet.stream_name == "left":
                     print(packet.getMetadata().getTimestamp())
                     recent_left = packet.getData()
                 elif packet.stream_name == "right":
                     recent_right = packet.getData()
-
 
             if recent_left is not None and recent_right is not None:
                 finished = True
@@ -122,11 +125,11 @@ class depthai_calibration_node:
             # print("looping")
         is_board_found_l = find_chessboard(recent_left)
         is_board_found_r = find_chessboard(recent_right)
-        # is_board_found_l = True
-        # is_board_found_r = True
         
         if is_board_found_l and is_board_found_r:
-            print("Found")
+            print("Found------------------------->")
+        else:
+            print("Not found--------------------->")
         self.parse_frame(recent_left, "left", req.name)
         self.parse_frame(recent_right, "right", req.name)
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
