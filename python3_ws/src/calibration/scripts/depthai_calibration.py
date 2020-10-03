@@ -36,6 +36,8 @@ class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
+        self.bridge = CvBridge()
+        self.is_service_active = False
         self.config = {
             'streams':
                 ['left', 'right'] if not on_embedded else
@@ -71,15 +73,34 @@ class depthai_calibration_node:
                     },
                 },
         }
-
-        self.device = depthai.Device('', False)
-        self.pipeline = self.device.create_pipeline(self.config)
+        
+        self.start_device()
         self.capture_srv = rospy.Service(self.args["capture_service_name"], Capture, self.capture_servive_handler)
         self.calib_srv = rospy.Service(self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
         self.image_pub_left = rospy.Publisher("left",Image)
         self.image_pub_right = rospy.Publisher("right",Image)
 
+    def start_device(self):
+        self.device = depthai.Device('', False)
+        self.pipeline = self.device.create_pipeline(self.config)
+        
+
     def publisher(self):
+        while not rospy.is_shutdown():
+            if not self.is_service_active:
+                if not hasattr(self, "pipeline"):
+                    self.start_device()
+                _, data_list = self.pipeline.get_available_nnet_and_data_packets()
+                # print(len(data_list))
+
+                for packet in data_list:    
+                    if packet.stream_name == "left":
+                        recent_left = packet.getData()
+                        self.image_pub_left.publish(self.bridge.cv2_to_imgmsg(recent_left, "passthrough"))
+                    elif packet.stream_name == "right":
+                        recent_right = packet.getData()
+                        self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
+
         
 
 
@@ -102,6 +123,7 @@ class depthai_calibration_node:
         recent_left = None
         recent_right = None
         finished = False
+        self.is_service_active = True
         now = rospy.get_rostime()
         while not finished:
             _, data_list = self.pipeline.get_available_nnet_and_data_packets()
@@ -134,9 +156,11 @@ class depthai_calibration_node:
         self.parse_frame(recent_right, "right", req.name)
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
         print("Service ending")
+        self.is_service_active = False
         return (True, "No Error")
             
     def calibration_servive_handler(self, req):
+        self.is_service_active = True
         print("Capture image Service Started")
         if hasattr(self, "pipeline"):
             print("Removing")
@@ -150,6 +174,7 @@ class depthai_calibration_node:
         self.rundepthai()
         print("finished writing to EEPROM with Epipolar error of")
         print(avg_epipolar_error)
+        self.is_service_active = False
         return (True, "EEPROM written succesfully")
 
     def rundepthai(self):
