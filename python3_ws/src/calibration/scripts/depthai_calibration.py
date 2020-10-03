@@ -77,8 +77,8 @@ class depthai_calibration_node:
         self.start_device()
         self.capture_srv = rospy.Service(self.args["capture_service_name"], Capture, self.capture_servive_handler)
         self.calib_srv = rospy.Service(self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
-        self.image_pub_left = rospy.Publisher("left",Image)
-        self.image_pub_right = rospy.Publisher("right",Image)
+        self.image_pub_left = rospy.Publisher("left",Image, queue_size=10)
+        self.image_pub_right = rospy.Publisher("right",Image, queue_size=10)
 
     def start_device(self):
         self.device = depthai.Device('', False)
