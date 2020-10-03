@@ -88,14 +88,19 @@ class depthai_calibration_node:
     def publisher(self):
         while not rospy.is_shutdown():
             if not self.is_service_active:
+                PRINT("SERVICE NOT ACTIVE")
                 if not hasattr(self, "pipeline"):
                     self.start_device()
                 _, data_list = self.pipeline.get_available_nnet_and_data_packets()
                 # print(len(data_list))
-
+                print("total packets:")
+                print(len(data_list))
                 for packet in data_list:    
+                    print("found packets:")
+                    print(packet.stream_name)
                     if packet.stream_name == "left":
                         recent_left = packet.getData()
+                        print(recent_left.shape)
                         self.image_pub_left.publish(self.bridge.cv2_to_imgmsg(recent_left, "passthrough"))
                     elif packet.stream_name == "right":
                         recent_right = packet.getData()
