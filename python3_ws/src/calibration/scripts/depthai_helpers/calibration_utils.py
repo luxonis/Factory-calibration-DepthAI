@@ -5,7 +5,7 @@ import shutil
 import numpy as np
 import re
 import time
-import consts.resource_paths
+import scripts.consts.resource_paths
 import json
 
 # Creates a set of 13 polygon coordinates
