@@ -17,7 +17,13 @@ dataset
 *.so
 *.dylib
 *.dll
+<<<<<<< HEAD
 */__pycache__/
+=======
+
+*/__pycache__
+
+>>>>>>> added git ignore
 # Fortran module files
 *.mod
 *.smod
