@@ -9,7 +9,6 @@ import depthai
 import platform
 import signal
 import subprocess
-sys.path.append('/home/sachin/Desktop/calibration/python3_ws/src/calibration')
 
 from calibration.srv import Capture
 import time
@@ -17,13 +16,13 @@ import numpy as np
 import os
 from pathlib import Path
 import shutil
-import scripts.consts.resource_paths
+import consts.resource_paths
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 
-from scripts.depthai_helpers.calibration_utils import *
+from depthai_helpers.calibration_utils import *
 
-from scripts.depthai_helpers import utils
+from depthai_helpers import utils
 on_embedded = platform.machine().startswith('arm') or platform.machine().startswith('aarch64')
 
 def find_chessboard(frame):
@@ -89,19 +88,16 @@ class depthai_calibration_node:
     def publisher(self):
         while not rospy.is_shutdown():
             if not self.is_service_active:
-                PRINT("SERVICE NOT ACTIVE")
+                # print("SERVICE NOT ACTIVE")
                 if not hasattr(self, "pipeline"):
                     self.start_device()
                 _, data_list = self.pipeline.get_available_nnet_and_data_packets()
-                # print(len(data_list))
-                print("total packets:")
-                print(len(data_list))
                 for packet in data_list:    
-                    print("found packets:")
-                    print(packet.stream_name)
+                    # print("found packets:")
+                    # print(packet.stream_name)
                     if packet.stream_name == "left":
                         recent_left = packet.getData()
-                        print(recent_left.shape)
+                        # print(recent_left.shape)
                         self.image_pub_left.publish(self.bridge.cv2_to_imgmsg(recent_left, "passthrough"))
                     elif packet.stream_name == "right":
                         recent_right = packet.getData()
@@ -142,7 +138,6 @@ class depthai_calibration_node:
                 # print("ros time")
                 # print(now.secs)
                 if packet.stream_name == "left":
-                    print(packet.getMetadata().getTimestamp())
                     recent_left = packet.getData()
                 elif packet.stream_name == "right":
                     recent_right = packet.getData()
@@ -212,5 +207,5 @@ if __name__ == "__main__":
         Please add the correct path using depthai_path:=[path] while executing launchfile")
 
     depthai = depthai_calibration_node(arg)
-
+    depthai.publisher()
     rospy.spin()
