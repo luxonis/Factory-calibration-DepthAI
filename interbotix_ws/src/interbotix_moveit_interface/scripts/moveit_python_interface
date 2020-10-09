@@ -49,7 +49,6 @@ class MoveGroupPythonIntefaceTutorial(object):
     print("waiting for service--------------------------------->")
     rospy.wait_for_service('/capture_checkerboard')
 
-    print("Found service----------------------------------->")
     try:
       self.capture_srv = rospy.ServiceProxy('/capture_checkerboard', Capture)  
       self.calibrate_srv = rospy.ServiceProxy('/calibrate_stereo', Capture)  
@@ -57,7 +56,6 @@ class MoveGroupPythonIntefaceTutorial(object):
     except rospy.ServiceException as e:
       print("Service call failed: %s"%e)
 
-    print("ininitalized service---------------------------------------->")
     ## Get the name of the robot - this will be used to properly define the end-effector link when adding a box
     robot_name = rospy.get_param("~robot_name")
     self.robot_name = robot_name
@@ -90,11 +88,6 @@ class MoveGroupPythonIntefaceTutorial(object):
                                                    moveit_msgs.msg.DisplayTrajectory,
                                                    queue_size=20)
 
-    ## END_SUB_TUTORIAL
-
-    ## BEGIN_SUB_TUTORIAL basic_info
-    ##
-    ## Getting Basic Information
     ## ^^^^^^^^^^^^^^^^^^^^^^^^^
     # We can get the name of the reference frame for this robot:
     planning_frame = group.get_planning_frame()
@@ -549,23 +542,6 @@ def main():
       'right_3'  : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705]
     }
 
-
-    joints_goal_dict_30mm = {
-      'start'    : [0,0,0,0,0,0],
-      'left_1'   : [1.0078253746032715, 0.6043884754180908, 0.7439807057380676, 1.682776927947998, 1.6950488090515137, -1.8008935451507568] ,
-      # 'left_2'   : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
-      'left_3'   : [1.0078253746032715, 0.6043884754180908, 0.7439807057380676, 1.682776927947998, 1.6950488090515137, -1.8008935451507568],
-      'top_1'    : [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784],
-      'top_2'    : [0.0076699042692780495, 0.45405831933021545, 1.4649516344070435, 0.02454369328916073, -1.3192235231399536, 0.0015339808305725455],
-      'top_3'    : [0.05842017661375378, -0.01091474055365706, 0.508682744553706, -0.018383082431995736, -1.1322537449334422, 0.022251283194952686],
-      'bottom_1' : [0.13606868986112158, 0.5215120491717602, -0.6259154415618842, 0.13400943020992345, 1.8297667107528208, 0.02169278611695778],
-      'bottom_2' : [0.13788992401193792, 0.674550873909903, -0.551118472069638, 0.13742538797703818, 1.8170618246483157, 0.021266569887058374],
-      'bottom_3' : [0.14705021881303204, 0.8619704018470852, -0.41301399722681215, 0.1753433807927659, 1.830020125895237, 0.021073375261441003],
-      'right_1'  : [-0.725572943687439, 0.2914563715457916, 0.4080389142036438, -1.6275537014007568, 1.3299614191055298, 1.7824857234954834],
-      'right_2'  : [-0.725572943687439, 0.41264083981513977, 0.5936505794525146, -1.6275537014007568, 1.3284274339675903, 1.7824857234954834],
-      'right_3'  : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705]
-    }
-
     joints_goal_dict = joints_goal_dict_15mm
 
     # box_name = "back_box"
@@ -608,7 +584,7 @@ def main():
 
     tutorial.calibrate_srv_client_handler()
 
-    print "============ Python tutorial demo complete!"
+    print "============ Python arm calibration complete!"
   except rospy.ROSInterruptException:
     print("EERRRRROOORRR_----------------------------------------------")
     return
