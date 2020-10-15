@@ -169,7 +169,14 @@ class depthai_calibration_node:
             del self.device
         flags = [self.config['board_config']['stereo_center_crop']]
         cal_data = StereoCalibration()
-        avg_epipolar_error = cal_data.calibrate(self.package_path + "/dataset", self.args['square_size_cm'], self.args['depthai_path'] + "/resources/depthai.calib", flags)
+        avg_epipolar_error = cal_data.calibrate(
+                            self.package_path + "/dataset",
+                            self.args['square_size_cm'],
+                            self.args['depthai_path'] + "/resources/depthai.calib", 
+                            flags, 
+                            req.name, 
+                            self.args['marker_size_cm'])
+
         if avg_epipolar_error > 0.5:
             return (False, "Failed use to high calibration error")
         self.rundepthai()
@@ -198,6 +205,8 @@ if __name__ == "__main__":
     arg["baseline"] = rospy.get_param('~baseline')
     arg["package_path"] = rospy.get_param('~package_path')
     arg["square_size_cm"] = rospy.get_param('~square_size_cm')
+    arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
+
     arg["depthai_path"] = rospy.get_param('~depthai_path') ## Add  capture_checkerboard to launch file
     arg["brd"] = rospy.get_param('~brd') ## Add  capture_checkerboard to launch file
     arg["capture_service_name"] = rospy.get_param('~capture_service_name') ## Add  capture_checkerboard to launch file
@@ -206,6 +215,6 @@ if __name__ == "__main__":
     assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
         Please add the correct path using depthai_path:=[path] while executing launchfile")
 
-    depthai = depthai_calibration_node(arg)
-    depthai.publisher()
+    depthai_dev = depthai_calibration_node(arg)
+    depthai_dev.publisher()
     rospy.spin()
