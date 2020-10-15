@@ -49,7 +49,6 @@ class MoveGroupPythonIntefaceTutorial(object):
     print("waiting for service--------------------------------->")
     rospy.wait_for_service('/capture_checkerboard')
 
-    print("Found service----------------------------------->")
     try:
       self.capture_srv = rospy.ServiceProxy('/capture_checkerboard', Capture)  
       self.calibrate_srv = rospy.ServiceProxy('/calibrate_stereo', Capture)  
@@ -57,7 +56,6 @@ class MoveGroupPythonIntefaceTutorial(object):
     except rospy.ServiceException as e:
       print("Service call failed: %s"%e)
 
-    print("ininitalized service---------------------------------------->")
     ## Get the name of the robot - this will be used to properly define the end-effector link when adding a box
     robot_name = rospy.get_param("~robot_name")
     self.robot_name = robot_name
@@ -90,11 +88,6 @@ class MoveGroupPythonIntefaceTutorial(object):
                                                    moveit_msgs.msg.DisplayTrajectory,
                                                    queue_size=20)
 
-    ## END_SUB_TUTORIAL
-
-    ## BEGIN_SUB_TUTORIAL basic_info
-    ##
-    ## Getting Basic Information
     ## ^^^^^^^^^^^^^^^^^^^^^^^^^
     # We can get the name of the reference frame for this robot:
     planning_frame = group.get_planning_frame()
@@ -549,7 +542,10 @@ def main():
       'right_3'  : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705]
     }
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> 88fad1621f7aaa65a699681eefe8a25427aa11bc
     joints_goal_dict = joints_goal_dict_15mm
 
     # box_name = "back_box"
@@ -592,7 +588,7 @@ def main():
 
     tutorial.calibrate_srv_client_handler()
 
-    print "============ Python tutorial demo complete!"
+    print "============ Python arm calibration complete!"
   except rospy.ROSInterruptException:
     print("EERRRRROOORRR_----------------------------------------------")
     return
