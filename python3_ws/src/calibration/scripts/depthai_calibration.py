@@ -110,9 +110,9 @@ class depthai_calibration_node:
 
         file_name += '.png'
         # filename = image_filename(stream_name, self.current_polygon, self.images_captured)
-        print(self.package_path + "/dataset/{}/{}".format(stream_name, file_name))
+        # print(self.package_path + "/dataset/{}/{}".format(stream_name, file_name))
         ds_path = self.package_path + "/dataset/{}".format(stream_name)
-        print(ds_path)
+        # print(ds_path)
         if not os.path.exists(ds_path):
             os.makedirs(ds_path)
 
@@ -150,9 +150,9 @@ class depthai_calibration_node:
         is_board_found_r = find_chessboard(recent_right)
         
         if is_board_found_l and is_board_found_r:
-            print("Found------------------------->")
+            print("Found------------------------->" + req.name)
         else:
-            print("Not found--------------------->")
+            print("<-------------------Not found--------------------->" + req.name)
         self.parse_frame(recent_left, "left", req.name)
         self.parse_frame(recent_right, "right", req.name)
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built

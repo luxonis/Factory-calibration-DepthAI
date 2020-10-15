@@ -338,7 +338,8 @@ class StereoCalibration(object):
                 epi_error_sum = 0
                 for l_pt, r_pt in zip(corners_l, corners_r):
                     epi_error_sum += abs(l_pt[0][1] - r_pt[0][1])
-                
+            else:
+                print("<~~~~~~~~Not found~~~~~~~~>")
                 # print("Average Epipolar Error per image on host: " + str(epi_error_sum / len(corners_l)))
 
         epi_error_sum = 0
