@@ -19,7 +19,7 @@ import shutil
 import consts.resource_paths
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-
+import shutil
 from depthai_helpers.calibration_utils import *
 
 from depthai_helpers import utils
@@ -91,6 +91,7 @@ class depthai_calibration_node:
                 # print("SERVICE NOT ACTIVE")
                 if not hasattr(self, "pipeline"):
                     self.start_device()
+                    # print("restarting device---->")
                 _, data_list = self.pipeline.get_available_nnet_and_data_packets()
                 for packet in data_list:    
                     # print("found packets:")
@@ -104,8 +105,6 @@ class depthai_calibration_node:
                         self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
 
         
-
-
     def parse_frame(self, frame, stream_name, file_name):
 
         file_name += '.png'
@@ -126,7 +125,7 @@ class depthai_calibration_node:
         recent_right = None
         finished = False
         self.is_service_active = True
-        now = rospy.get_rostime()
+        # now = rospy.get_rostime()
         while not finished:
             _, data_list = self.pipeline.get_available_nnet_and_data_packets()
             # print(len(data_list))
@@ -146,9 +145,10 @@ class depthai_calibration_node:
                 finished = True
 
             # print("looping")
-        is_board_found_l = find_chessboard(recent_left)
-        is_board_found_r = find_chessboard(recent_right)
-        
+        # is_board_found_l = find_chessboard(recent_left)
+        # is_board_found_r = find_chessboard(recent_right)
+        is_board_found_l = True
+        is_board_found_r = True
         if is_board_found_l and is_board_found_r:
             print("Found------------------------->")
         else:
@@ -162,13 +162,19 @@ class depthai_calibration_node:
             
     def calibration_servive_handler(self, req):
         self.is_service_active = True
-        print("Capture image Service Started")
-        if hasattr(self, "pipeline"):
-            print("Removing")
-            del self.pipeline
-            del self.device
+        print("caalibrate image Service Started")
+        # if hasattr(self, "pipeline"):
+        #     print("Removing")
+        #     try:
+        #         del self.pipeline
+        #         del self.device
+        #     except:
+        #         print("catching")
+        print("starting calinratin-- ->")
+        
         flags = [self.config['board_config']['stereo_center_crop']]
         cal_data = StereoCalibration()
+        print("starting calinratin")
         avg_epipolar_error = cal_data.calibrate(
                             self.package_path + "/dataset",
                             self.args['square_size_cm'],
@@ -179,7 +185,11 @@ class depthai_calibration_node:
 
         if avg_epipolar_error > 0.5:
             return (False, "Failed use to high calibration error")
-        self.rundepthai()
+        # self.rundepthai()
+        mx_serial_id = self.device.get_mx_id()
+        calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
+        calib_dest_path = os.path.join(arg['calib_path'], "obc_" + mx_serial_id + ".calib")
+        shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
         print(avg_epipolar_error)
         self.is_service_active = False
@@ -207,10 +217,12 @@ if __name__ == "__main__":
     arg["square_size_cm"] = rospy.get_param('~square_size_cm')
     arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
 
-    arg["depthai_path"] = rospy.get_param('~depthai_path') ## Add  capture_checkerboard to launch file
-    arg["brd"] = rospy.get_param('~brd') ## Add  capture_checkerboard to launch file
-    arg["capture_service_name"] = rospy.get_param('~capture_service_name') ## Add  capture_checkerboard to launch file
-    arg["calibration_service_name"] = rospy.get_param('~calibration_service_name') ## Add  capture_checkerboard to launch file
+    arg["depthai_path"] = rospy.get_param('~depthai_path') ## Path of depthai repo
+    arg["calib_path"] = rospy.get_param('~calib_path') ## local path to store calib files with using mx device id.
+
+    arg["brd"] = rospy.get_param('~brd') ## board name (Mostly of no use in future)
+    arg["capture_service_name"] = rospy.get_param('~capture_service_name') ## get service capture_checkerboard from launch file
+    arg["calibration_service_name"] = rospy.get_param('~calibration_service_name') ## get calibration service from launch file
 
     assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
         Please add the correct path using depthai_path:=[path] while executing launchfile")
