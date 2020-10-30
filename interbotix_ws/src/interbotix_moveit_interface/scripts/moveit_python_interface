@@ -167,7 +167,7 @@ class MoveGroupPythonIntefaceTutorial(object):
 
   def calibrate_srv_client_handler(self):
     try:
-      response = self.calibrate_srv("start_calibration")
+      response = self.calibrate_srv("charuco")
       return response
     except rospy.ServiceException as e:
       print("Service call failed: %s"%e)
@@ -520,12 +520,12 @@ class MoveGroupPythonIntefaceTutorial(object):
 
 
 def main():
+  is_device_ready = True
   try:
-    print "============ Press `Enter` to begin the tutorial by setting up the moveit_commander (press ctrl-d to exit) ..."    
-    # raw_input()
-
+    
     tutorial = MoveGroupPythonIntefaceTutorial()
 
+    # creating a dict of all the joints pose of the arm. Some are redundant here
     joints_goal_dict_15mm = {
       'start'    : [0,0,0,0,0,0],
       'left_1'   : [0.7730087577658563, 0.3276961983717477, 0.401425728, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618],
@@ -547,44 +547,56 @@ def main():
     # box_name = "back_box"
     # res = tutorial.add_box(box_name, [-0.1, 0, 0.5], (0.1, 0.4, 0.6))
     delay = 0.5
-    raw_input()
     box_name = "base_box"
-
+    
+    ## adding virtual base of the robot
     res = tutorial.add_box(box_name, [0, 0, -0.01],(0.6, 0.6, 0.02))
 
-    # while(True):
-    #   raw_input()
-    #   tutorial.get_curr_pose()
-
-    # TODO: add home position
     pose_goal = geometry_msgs.msg.Pose()
     
-    actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
+    # actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
+    actions = ['start', 'left_1', 'left_3', 'start', 'top_1', 'bottom_1',  'right_1']
 
-    for act in actions:
-      tutorial.go_to_next_joint_state(joints_goal_dict[act])
-      time.sleep(delay)
-      tutorial.capture_srv_client_handler(act)
-      # time.sleep(delay)
+    print "============ Press `Enter` to begin calibration ============"    
+    raw_input()   
 
-# sleep pose
-    print("sleep pose -->")
+    while is_device_ready:
+      for act in actions:
+        tutorial.go_to_next_joint_state(joints_goal_dict[act])
+        time.sleep(delay)
+        tutorial.capture_srv_client_handler(act)
+        # time.sleep(delay)
+
+        # sleep pose
+      print("sleep pose -->")
+      
+
+      pose_goal.position.x =  0.0811047406103
+      pose_goal.position.y =  -1.34901728646e-05
+      pose_goal.position.z =  0.128741153434
+      pose_goal.orientation.x = -1.40023979928e-05
+      pose_goal.orientation.y = 0.290732882379
+      pose_goal.orientation.z = -6.39239167946e-05
+      pose_goal.orientation.w = 0.956804257318
+      
+
+      tutorial.set_go_pose_goal(pose_goal)
+
+      tutorial.calibrate_srv_client_handler()
+      while True:
+        key = raw_input("Change the device and please press 'Y/y' and press N/n to finish \n")
+      
+        if key == 'y' or key == 'Y':
+          is_device_ready = True
+          break
+        elif key == 'n' or key == 'N':
+          is_device_ready = False
+          break
+        else:
+          print("Invalid key pressed!!")
     
-
-    pose_goal.position.x =  0.0811047406103
-    pose_goal.position.y =  -1.34901728646e-05
-    pose_goal.position.z =  0.128741153434
-    pose_goal.orientation.x = -1.40023979928e-05
-    pose_goal.orientation.y = 0.290732882379
-    pose_goal.orientation.z = -6.39239167946e-05
-    pose_goal.orientation.w = 0.956804257318
-    
-
-    tutorial.set_go_pose_goal(pose_goal)
-
-    tutorial.calibrate_srv_client_handler()
-
-    print "============ Python arm calibration complete!"
+    print "============ Python arm calibration complete! ============"
+    rospy.signal_shutdown("Finished calibration")
   except rospy.ROSInterruptException:
     print("EERRRRROOORRR_----------------------------------------------")
     return

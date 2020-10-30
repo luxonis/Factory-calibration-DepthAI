@@ -20,7 +20,7 @@ import shutil
 import consts.resource_paths
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-
+import shutil
 from depthai_helpers.calibration_utils import *
 
 from depthai_helpers import utils
@@ -103,6 +103,7 @@ class depthai_calibration_node:
                 # print("SERVICE NOT ACTIVE")
                 if not hasattr(self, "pipeline"):
                     self.start_device()
+                    # print("restarting device---->")
                 _, data_list = self.pipeline.get_available_nnet_and_data_packets()
                 for packet in data_list:    
                     # print("found packets:")
@@ -135,7 +136,7 @@ class depthai_calibration_node:
         recent_right = None
         finished = False
         self.is_service_active = True
-        now = rospy.get_rostime()
+        # now = rospy.get_rostime()
         while not finished:
             _, data_list = self.pipeline.get_available_nnet_and_data_packets()
             # print(len(data_list))
@@ -155,9 +156,10 @@ class depthai_calibration_node:
                 finished = True
 
             # print("looping")
-        is_board_found_l = find_chessboard(recent_left)
-        is_board_found_r = find_chessboard(recent_right)
-        
+        # is_board_found_l = find_chessboard(recent_left)
+        # is_board_found_r = find_chessboard(recent_right)
+        is_board_found_l = True
+        is_board_found_r = True
         if is_board_found_l and is_board_found_r:
             print("Found------------------------->")
         else:
@@ -172,10 +174,7 @@ class depthai_calibration_node:
     def calibration_servive_handler(self, req):
         self.is_service_active = True
         print("Capture image Service Started")
-        # if hasattr(self, "pipeline"):
-        #     print("Removing")
-        #     del self.pipeline
-        #     del self.device
+
         flags = [self.config['board_config']['stereo_center_crop']]
         cal_data = StereoCalibration()
         avg_epipolar_error, calib_data = cal_data.calibrate(
@@ -209,8 +208,14 @@ class depthai_calibration_node:
         dev_config["_board"]['mesh_right'] = [0.0]
         dev_config["_board"]['mesh_left'] =  [0.0]        
 
-        self.device.set_eeprom(dev_config)
+        self.device.write_eeprom_data(dev_config)
+
+        mx_serial_id = self.device.get_mx_id()
+        calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
+        calib_dest_path = os.path.join(arg['calib_path'], "obc_" + mx_serial_id + ".calib")
+        shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
+
         print(avg_epipolar_error)
         print('Validating...')
         is_write_succesful = False
@@ -264,6 +269,10 @@ if __name__ == "__main__":
     arg["board"] = rospy.get_param('~brd') ## Add  capture_checkerboard to launch file
     arg["capture_service_name"] = rospy.get_param('~capture_service_name') ## Add  capture_checkerboard to launch file
     arg["calibration_service_name"] = rospy.get_param('~calibration_service_name') ## Add  capture_checkerboard to launch file
+    arg["depthai_path"] = rospy.get_param('~depthai_path') ## Path of depthai repo
+ 
+    arg["calib_path"] = rospy.get_param('~calib_path') ## local path to store calib files with using mx device id.
+
 
     if arg['board']:
         board_path = Path(arg['board'])
