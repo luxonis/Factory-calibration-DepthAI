@@ -9,6 +9,7 @@ import depthai
 import platform
 import signal
 import subprocess
+import json
 
 from calibration.srv import Capture
 import time
@@ -40,8 +41,8 @@ class depthai_calibration_node:
         self.is_service_active = False
         self.config = {
             'streams':
-                ['left', 'right'] if not on_embedded else
-                [{'name': 'left', "max_fps": 30.0}, {'name': 'right', "max_fps": 30.0}],
+                ['left', 'right', 'meta_d2h'] if not on_embedded else
+                [{'name': 'left', "max_fps": 30.0}, {'name': 'right', "max_fps": 30.0}, {'name': 'meta_d2h', "max_fps": 30.0}],
             'depth':
                 {
                     'calibration_file': consts.resource_paths.calib_fpath,
@@ -60,7 +61,7 @@ class depthai_calibration_node:
                     'swap_left_and_right_cameras': self.args['swap_lr'],
                     'left_fov_deg':  self.args['field_of_view'],
                     'left_to_right_distance_cm': self.args['baseline'],
-                    'override_eeprom': True,
+                    'override_eeprom': False,
                     'stereo_center_crop': True,
                 },
             'camera':
@@ -73,7 +74,18 @@ class depthai_calibration_node:
                     },
                 },
         }
-        
+
+        if arg['board']:
+            board_path = Path(arg['board'])
+            if not board_path.exists():
+                board_path = Path(consts.resource_paths.boards_dir_path) / Path(arg['board'].upper()).with_suffix('.json')
+                print(board_path)
+                if not board_path.exists():
+                    raise ValueError('Board config not found: {}'.format(board_path))
+            with open(board_path) as fp:
+                self.board_config = json.load(fp)
+        utils.merge(self.board_config, self.config)
+
         self.start_device()
         self.capture_srv = rospy.Service(self.args["capture_service_name"], Capture, self.capture_servive_handler)
         self.calib_srv = rospy.Service(self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
@@ -83,8 +95,8 @@ class depthai_calibration_node:
     def start_device(self):
         self.device = depthai.Device('', False)
         self.pipeline = self.device.create_pipeline(self.config)
+        self.mx_id = self.device.get_mx_id()
         
-
     def publisher(self):
         while not rospy.is_shutdown():
             if not self.is_service_active:
@@ -104,7 +116,6 @@ class depthai_calibration_node:
                         recent_right = packet.getData()
                         self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
 
-        
     def parse_frame(self, frame, stream_name, file_name):
 
         file_name += '.png'
@@ -162,20 +173,11 @@ class depthai_calibration_node:
             
     def calibration_servive_handler(self, req):
         self.is_service_active = True
-        print("caalibrate image Service Started")
-        # if hasattr(self, "pipeline"):
-        #     print("Removing")
-        #     try:
-        #         del self.pipeline
-        #         del self.device
-        #     except:
-        #         print("catching")
-        print("starting calinratin-- ->")
-        
+        print("Capture image Service Started")
+
         flags = [self.config['board_config']['stereo_center_crop']]
         cal_data = StereoCalibration()
-        print("starting calinratin")
-        avg_epipolar_error = cal_data.calibrate(
+        avg_epipolar_error, calib_data = cal_data.calibrate(
                             self.package_path + "/dataset",
                             self.args['square_size_cm'],
                             self.args['depthai_path'] + "/resources/depthai.calib", 
@@ -186,6 +188,28 @@ class depthai_calibration_node:
         if avg_epipolar_error > 0.5:
             return (False, "Failed use to high calibration error")
         # self.rundepthai()
+
+        dev_config = {
+            'board': {},
+            '_board': {}
+        }
+        dev_config["board"]["clear-eeprom"] = False;
+        dev_config["board"]["store-to-eeprom"] = True;
+        dev_config["board"]["override-eeprom"] = False;
+        dev_config["board"]["swap-left-and-right-cameras"] = self.board_config['board_config']['swap_left_and_right_cameras']
+        dev_config["board"]["left_fov_deg"] = self.board_config['board_config']['left_fov_deg']
+        dev_config["board"]["rgb_fov_deg"] = self.board_config['board_config']['rgb_fov_deg']
+        dev_config["board"]["left_to_right_distance_m"] = self.board_config['board_config']['left_to_right_distance_cm'] / 100
+        dev_config["board"]["left_to_rgb_distance_m"] = self.board_config['board_config']['left_to_rgb_distance_cm'] / 100
+        dev_config["board"]["name"] = self.board_config['board_config']['name']
+        dev_config["board"]["stereo_center_crop"] = True
+        dev_config["board"]["revision"] = self.board_config['board_config']['revision']
+        dev_config["_board"]['calib_data'] = list(calib_data)
+        dev_config["_board"]['mesh_right'] = [0.0]
+        dev_config["_board"]['mesh_left'] =  [0.0]        
+
+        self.device.write_eeprom_data(dev_config)
+
         mx_serial_id = self.device.get_mx_id()
         calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         if not os.path.exists(arg['calib_path']):
@@ -193,9 +217,33 @@ class depthai_calibration_node:
         calib_dest_path = os.path.join(arg['calib_path'], 'obc_' + mx_serial_id + '.calib')
         shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
+
         print(avg_epipolar_error)
+        print('Validating...')
+        is_write_succesful = False
+        run_thread = True
+        while run_thread:
+            _, data_packets = self.pipeline.get_available_nnet_and_data_packets(blocking=True)
+            for packet in data_packets:
+                if packet.stream_name == 'meta_d2h':                        
+                    str_ = packet.getDataAsStr()
+                    dict_ = json.loads(str_)
+                    if 'logs' in dict_:
+                        for log in dict_['logs']:
+                            print(log)
+                            if 'EEPROM' in log:
+                                if 'write OK' in log:
+                                    is_write_succesful = True
+                                    run_thread = False
+                                elif 'FAILED' in log:
+                                    is_write_succesful = False
+                                    run_thread = False
+
         self.is_service_active = False
-        return (True, "EEPROM written succesfully")
+        if is_write_succesful:
+            return (True, "EEPROM written succesfully")
+        else:
+            return (False, "EEPROM write Failed!!")
 
     def rundepthai(self):
         test_cmd = "python3 " + self.args['depthai_path'] + "/depthai_demo.py -e -brd " + self.args['brd']
@@ -219,13 +267,24 @@ if __name__ == "__main__":
     arg["square_size_cm"] = rospy.get_param('~square_size_cm')
     arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
 
+    arg["depthai_path"] = rospy.get_param('~depthai_path') ## Add  capture_checkerboard to launch file
+    arg["board"] = rospy.get_param('~brd') ## Add  capture_checkerboard to launch file
+    arg["capture_service_name"] = rospy.get_param('~capture_service_name') ## Add  capture_checkerboard to launch file
+    arg["calibration_service_name"] = rospy.get_param('~calibration_service_name') ## Add  capture_checkerboard to launch file
     arg["depthai_path"] = rospy.get_param('~depthai_path') ## Path of depthai repo
+ 
     arg["calib_path"] = rospy.get_param('~calib_path') ## local path to store calib files with using mx device id.
 
-    arg["brd"] = rospy.get_param('~brd') ## board name (Mostly of no use in future)
-    arg["capture_service_name"] = rospy.get_param('~capture_service_name') ## get service capture_checkerboard from launch file
-    arg["calibration_service_name"] = rospy.get_param('~calibration_service_name') ## get calibration service from launch file
 
+    if arg['board']:
+        board_path = Path(arg['board'])
+        if not board_path.exists():
+            board_path = Path(consts.resource_paths.boards_dir_path) / Path(arg['board'].upper()).with_suffix('.json')
+            print(board_path)
+            if not board_path.exists():
+                raise ValueError('Board config not found: {}'.format(board_path))
+        with open(board_path) as fp:
+            board_config = json.load(fp)
     assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
         Please add the correct path using depthai_path:=[path] while executing launchfile")
 

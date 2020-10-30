@@ -122,6 +122,11 @@ class StereoCalibration(object):
             fp.write(d2_coeff_fp32.tobytes()) # distortion coeff of right camera
             fp.write(d3_coeff_fp32.tobytes()) # distortion coeff of rgb camera - currently zeros
 
+        data_list = [R1_fp32, R2_fp32, M1_fp32, M2_fp32, R_fp32, T_fp32, M3_fp32, R_rgb_fp32, T_rgb_fp32, d1_coeff_fp32, d2_coeff_fp32, d3_coeff_fp32]
+        self.calib_data = np.array([],dtype=np.float32)
+        for data in data_list:
+            self.calib_data = np.concatenate((self.calib_data, data.reshape(-1)))
+
         if 0: # Print matrices, to compare with device data
             np.set_printoptions(suppress=True, precision=6)
             print("\nR1 (left)");  print(R1_fp32)
@@ -165,9 +170,9 @@ class StereoCalibration(object):
         print("\tTook %i seconds to run image processing." % (round(time.time() - start_time, 2)))
         
         if type == 'charuco':
-            return self.test_epipolar_charuco(filepath)
+            return self.test_epipolar_charuco(filepath) , self.calib_data
         else:
-            return self.test_epipolar_checker(filepath)
+            return self.test_epipolar_checker(filepath) , self.calib_data
 
         
     def analyze_charuco(self, images):
