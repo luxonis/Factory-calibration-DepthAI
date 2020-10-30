@@ -188,7 +188,9 @@ class depthai_calibration_node:
         # self.rundepthai()
         mx_serial_id = self.device.get_mx_id()
         calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
-        calib_dest_path = os.path.join(arg['calib_path'], "obc_" + mx_serial_id + ".calib")
+        if not os.path.exists(arg['calib_path']):
+            os.makedirs(arg['calib_path'])
+        calib_dest_path = os.path.join(arg['calib_path'], 'obc_' + mx_serial_id + '.calib')
         shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
         print(avg_epipolar_error)

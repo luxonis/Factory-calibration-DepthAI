@@ -582,7 +582,13 @@ def main():
 
       tutorial.set_go_pose_goal(pose_goal)
 
-      tutorial.calibrate_srv_client_handler()
+      response = tutorial.calibrate_srv_client_handler()
+
+      if not response.success:
+        print(response.error)
+        print("Repeat the calibrtion by adusting the device or move to next device by marking this device")
+
+
       while True:
         key = raw_input("Change the device and please press 'Y/y' and press N/n to finish \n")
       
