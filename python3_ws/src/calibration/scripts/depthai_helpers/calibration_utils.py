@@ -71,15 +71,19 @@ class StereoCalibration(object):
         start_time = time.time()
         # init object data
         if type == 'charuco':
-            self.aruco_dictionary = aruco.Dictionary_get(aruco.DICT_4X4_100)
+            self.aruco_dictionary = aruco.Dictionary_get(aruco.DICT_4X4_1000)
             # parameters = aruco.DetectorParameters_create()
             assert mrk_size != None,  "ERROR: marker size not set"
             self.board = aruco.CharucoBoard_create(
-                11,8,
+                22,16,
                 square_size,
                 mrk_size,
                 self.aruco_dictionary)
-            
+            # self.board = aruco.CharucoBoard_create(
+            #     11,8,
+            #     square_size,
+            #     mrk_size,
+            #     self.aruco_dictionary)
             self.calibrate_charuco3D(filepath)
         else:
             self.objp = np.zeros((9 * 6, 3), np.float32)
@@ -558,22 +562,30 @@ class StereoCalibration(object):
         assert len(images_right) != 0, "ERROR: Images not read correctly"
         criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
         
+        # if not use_homo:
+        mapx_l, mapy_l = cv2.initUndistortRectifyMap(self.M1, self.d1, self.R1, self.P1, self.img_shape, cv2.CV_32FC1)
+        mapx_r, mapy_r = cv2.initUndistortRectifyMap(self.M2, self.d2, self.R2, self.P2, self.img_shape, cv2.CV_32FC1)
+
         image_data_pairs = []
         for image_left, image_right in zip(images_left, images_right):
             # read images
             img_l = cv2.imread(image_left, 0)
             img_r = cv2.imread(image_right, 0)
             # warp right image
-            img_l = cv2.warpPerspective(img_l, self.H1, img_l.shape[::-1],
-                                        cv2.INTER_CUBIC +
-                                        cv2.WARP_FILL_OUTLIERS +
-                                        cv2.WARP_INVERSE_MAP)
             
-            img_r = cv2.warpPerspective(img_r, self.H2, img_r.shape[::-1],
-                                        cv2.INTER_CUBIC +
-                                        cv2.WARP_FILL_OUTLIERS +
-                                        cv2.WARP_INVERSE_MAP)
+            # img_l = cv2.warpPerspective(img_l, self.H1, img_l.shape[::-1],
+            #                             cv2.INTER_CUBIC +
+            #                             cv2.WARP_FILL_OUTLIERS +
+            #                             cv2.WARP_INVERSE_MAP)
+            
+            # img_r = cv2.warpPerspective(img_r, self.H2, img_r.shape[::-1],
+            #                             cv2.INTER_CUBIC +
+            #                             cv2.WARP_FILL_OUTLIERS +
+            #                             cv2.WARP_INVERSE_MAP)
 
+
+            img_l = cv2.remap(img_l, mapx_l, mapy_l, cv2.INTER_LINEAR)
+            img_r = cv2.remap(img_r, mapx_r, mapy_r, cv2.INTER_LINEAR)
 
             image_data_pairs.append((img_l, img_r))
 
@@ -634,11 +646,11 @@ class StereoCalibration(object):
             
             imgpoints_l.extend(corners_l)
             imgpoints_r.extend(corners_r)
-            # epi_error_sum = 0
-            # for l_pt, r_pt in zip(corners_l, corners_r):
-            #     epi_error_sum += abs(l_pt[0][1] - r_pt[0][1])
+            epi_error_sum = 0
+            for l_pt, r_pt in zip(corners_l, corners_r):
+                epi_error_sum += abs(l_pt[0][1] - r_pt[0][1])
 
-            # print("Average Epipolar Error per image on host: " + str(epi_error_sum / len(corners_l)))
+            print("Average Epipolar Error per image on host: " + str(epi_error_sum / len(corners_l)))
 
         epi_error_sum = 0
         for l_pt, r_pt in zip(imgpoints_l, imgpoints_r):

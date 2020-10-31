@@ -175,12 +175,15 @@ class depthai_calibration_node:
         self.is_service_active = True
         print("Capture image Service Started")
 
+        mx_serial_id = self.device.get_mx_id()
+        calib_dest_path = os.path.join(arg['calib_path'], 'obc_' + mx_serial_id + '.calib')
+
         flags = [self.config['board_config']['stereo_center_crop']]
         cal_data = StereoCalibration()
         avg_epipolar_error, calib_data = cal_data.calibrate(
                             self.package_path + "/dataset",
                             self.args['square_size_cm'],
-                            self.args['depthai_path'] + "/resources/depthai.calib", 
+                            calib_dest_path, 
                             flags, 
                             req.name, 
                             self.args['marker_size_cm'])
@@ -193,9 +196,9 @@ class depthai_calibration_node:
             'board': {},
             '_board': {}
         }
-        dev_config["board"]["clear-eeprom"] = False;
-        dev_config["board"]["store-to-eeprom"] = True;
-        dev_config["board"]["override-eeprom"] = False;
+        dev_config["board"]["clear-eeprom"] = False
+        dev_config["board"]["store-to-eeprom"] = True
+        dev_config["board"]["override-eeprom"] = False
         dev_config["board"]["swap-left-and-right-cameras"] = self.board_config['board_config']['swap_left_and_right_cameras']
         dev_config["board"]["left_fov_deg"] = self.board_config['board_config']['left_fov_deg']
         dev_config["board"]["rgb_fov_deg"] = self.board_config['board_config']['rgb_fov_deg']
@@ -210,12 +213,8 @@ class depthai_calibration_node:
 
         self.device.write_eeprom_data(dev_config)
 
-        mx_serial_id = self.device.get_mx_id()
-        calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
-        if not os.path.exists(arg['calib_path']):
-            os.makedirs(arg['calib_path'])
-        calib_dest_path = os.path.join(arg['calib_path'], 'obc_' + mx_serial_id + '.calib')
-        shutil.copy(calib_src_path, calib_dest_path)
+        # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
+        # shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
 
         print(avg_epipolar_error)
@@ -275,7 +274,9 @@ if __name__ == "__main__":
  
     arg["calib_path"] = rospy.get_param('~calib_path') ## local path to store calib files with using mx device id.
 
-
+    if not os.path.exists(arg['calib_path']):
+        os.makedirs(arg['calib_path'])
+    
     if arg['board']:
         board_path = Path(arg['board'])
         if not board_path.exists():
