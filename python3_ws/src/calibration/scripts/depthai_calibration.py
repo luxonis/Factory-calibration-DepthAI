@@ -23,6 +23,10 @@ from sensor_msgs.msg import Image
 import shutil
 from depthai_helpers.calibration_utils import *
 
+from depthai_helpers.pygame_checkbox import Checkbox, pygame_render_text
+import pygame
+from pygame.locals import *
+
 from depthai_helpers import utils
 on_embedded = platform.machine().startswith('arm') or platform.machine().startswith('aarch64')
 
@@ -32,6 +36,12 @@ def find_chessboard(frame):
     return cv2.findChessboardCorners(small_frame, (9, 6), chessboard_flags)[0] and \
            cv2.findChessboardCorners(frame, (9, 6), chessboard_flags)[0]
 
+white  = [255, 255, 255]
+orange = [143, 122, 4]
+red    = [230, 9, 9]
+green  = [4, 143, 7]
+black  = [0, 0, 0]
+pygame.init()
 
 class depthai_calibration_node:
     def __init__(self, depthai_args):
@@ -89,8 +99,35 @@ class depthai_calibration_node:
         self.start_device()
         self.capture_srv = rospy.Service(self.args["capture_service_name"], Capture, self.capture_servive_handler)
         self.calib_srv = rospy.Service(self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
+        self.dev_status_srv = rospy.Service("device_status", Capture, self.device_status_handler)
         self.image_pub_left = rospy.Publisher("left",Image, queue_size=10)
         self.image_pub_right = rospy.Publisher("right",Image, queue_size=10)
+
+        self.disp = pygame.display
+        self.screen = self.disp.set_mode((800, 600))
+        self.screen.fill(white)
+        self.disp.set_caption("Calibration - Device check ")
+        self.auto_checkbox_names = ["USB3", "Left camera connected", "Right camera connected", 
+                                    "Left Stream", "Right Stream"]
+        
+        y = 110
+        x = 200
+        
+        font = pygame.font.Font(None, 20)
+        self.auto_checkbox_dict = {}
+        for i in range(len(self.auto_checkbox_names)):
+            w, h = font.size(self.auto_checkbox_names[i])
+            x_axis = x - w
+            y_axis = y +  (40*i)
+            font_surf = font.render(self.auto_checkbox_names[i], True, green)
+            self.screen.blit(font_surf, (x_axis,y_axis))
+            self.auto_checkbox_dict[self.auto_checkbox_names[i]] = Checkbox(self.screen, x + 10, y_axis-5, outline_color=green, 
+                                                        check_color=green, check=False)
+
+        # text = 'call rosservice of device_status_handler to update the device status'
+        for i in range(len(self.auto_checkbox_names)):
+            self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
+        self.disp.update()
 
     def start_device(self):
         self.device = depthai.Device('', False)
@@ -99,6 +136,8 @@ class depthai_calibration_node:
         
     def publisher(self):
         while not rospy.is_shutdown():
+            self.disp.update()
+            # print("updating dis-----")
             if not self.is_service_active:
                 # print("SERVICE NOT ACTIVE")
                 if not hasattr(self, "pipeline"):
@@ -117,7 +156,6 @@ class depthai_calibration_node:
                         self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
 
     def parse_frame(self, frame, stream_name, file_name):
-
         file_name += '.png'
         # filename = image_filename(stream_name, self.current_polygon, self.images_captured)
         print(self.package_path + "/dataset/{}/{}".format(stream_name, file_name))
@@ -155,28 +193,131 @@ class depthai_calibration_node:
             if recent_left is not None and recent_right is not None:
                 finished = True
 
-            # print("looping")
+        # print("looping")
         # is_board_found_l = find_chessboard(recent_left)
         # is_board_found_r = find_chessboard(recent_right)
-        is_board_found_l = True
-        is_board_found_r = True
-        if is_board_found_l and is_board_found_r:
-            print("Found------------------------->")
-        else:
-            print("Not found--------------------->")
+        # is_board_found_l = True
+        # is_board_found_r = True
+        # if is_board_found_l and is_board_found_r:
+        #     print("Found------------------------->")
+        # else:
+        #     print("Not found--------------------->")
         self.parse_frame(recent_left, "left", req.name)
         self.parse_frame(recent_right, "right", req.name)
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
         print("Service ending")
         self.is_service_active = False
         return (True, "No Error")
+    
+    def device_status_handler(self, req):
+        self.is_service_active = True
+        print(self.device.is_device_changed())
+        # print(self.device.reset_device_changed())
+        print(self.device.is_device_changed())
+
+        while self.device.is_device_changed():
+            print(self.device.is_device_changed())
+            is_usb3 = self.device.is_usb3()
+            left_status = self.device.is_left_connected()
+            right_status = self.device.is_right_connected()
+            left_mipi = False
+            right_mipi = False
             
+            if left_status and right_status:
+                # mipi check using 20 iterations
+                # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
+                # self.auto_checkbox_dict["USB3"].check()
+                # self.auto_checkbox_dict["Left camera connected"].check()
+                # self.auto_checkbox_dict["Right camera connected"].check()
+                # print("inside")
+                time.sleep(1)
+                for _ in range(60):
+                    _, data_list = self.pipeline.get_available_nnet_and_data_packets()
+                    print(len(data_list))
+                    for packet in data_list:    
+                        # print("found packets:")
+                        # print(packet.stream_name)
+                        if packet.stream_name == "left":
+                            recent_left = packet.getData()
+                            left_mipi = True
+                            self.image_pub_left.publish(self.bridge.cv2_to_imgmsg(recent_left, "passthrough"))
+                        elif packet.stream_name == "right":
+                            recent_right = packet.getData()
+                            right_mipi = True
+                            self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
+                    if left_mipi and right_mipi:
+                        if is_usb3:
+                            self.device.reset_device_changed()
+                        # for i in range(len(self.auto_checkbox_names)):
+                        #     self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
+                        # print("device reste")
+                        # print(self.device.is_device_changed())
+                        break
+
+            if not is_usb3:
+                # img = np.zeros((720, 1280, 3), np.uint8)
+                # img[:] = (0, 0, 255)
+                # cv2.putText(img, "USB-3",  (100, 300), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
+                # cv2.putText(img, "FAILED", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
+                # cv2.imshow('USB3 Failed', img)
+                self.auto_checkbox_dict["USB3"].uncheck()
+            else:
+                self.auto_checkbox_dict["USB3"].check()
+            
+            if not left_status:
+                # img = np.zeros((720, 1280, 3), np.uint8)
+                # img[:] = (0, 0, 255)
+                # cv2.putText(img, "Left i2c",  (100, 300), cv2.FONT_HERSHEY_DUPLEX, 10.0, (0,0,0), 20)
+                # cv2.putText(img, "Failed ", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
+                # cv2.imshow('Left i2c camera failed', img)
+                self.auto_checkbox_dict["Left camera connected"].uncheck()
+            else:
+                self.auto_checkbox_dict["Left camera connected"].check()
+
+
+            if not left_mipi:
+                # img = np.zeros((720, 1280, 3), np.uint8)
+                # img[:] = (0, 0, 255)
+                # cv2.putText(img, "Left mipi",  (100, 300), cv2.FONT_HERSHEY_DUPLEX, 10.0, (0,0,0), 20)
+                # cv2.putText(img, "Failed ", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
+                # cv2.imshow('Left mipi camera failed', img)
+                self.auto_checkbox_dict["Left Stream"].uncheck()
+            else:
+                self.auto_checkbox_dict["Left Stream"].check()
+
+            if not right_status:
+                # img = np.zeros((720, 1280, 3), np.uint8)
+                # img[:] = (0, 0, 255)
+                # cv2.putText(img, "right i2c",  (100, 300), cv2.FONT_HERSHEY_DUPLEX, 10.0, (0,0,0), 20)
+                # cv2.putText(img, "Failed ", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
+                # cv2.imshow('right i2c camera failed', img)
+                self.auto_checkbox_dict["Right camera connected"].uncheck()
+            else:
+                self.auto_checkbox_dict["Right camera connected"].check()
+
+            if not right_mipi:
+                # img = np.zeros((720, 1280, 3), np.uint8)
+                # img[:] = (0, 0, 255)
+                # cv2.putText(img, "right mipi",  (100, 300), cv2.FONT_HERSHEY_DUPLEX, 10.0, (0,0,0), 20)
+                # cv2.putText(img, "Failed ", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
+                # cv2.imshow('right mipi camera failed', img)
+                self.auto_checkbox_dict["Right Stream"].uncheck()
+            else:
+                self.auto_checkbox_dict["Right Stream"].check()
+
+            for i in range(len(self.auto_checkbox_names)):
+                self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
+
+        self.is_service_active = False
+        return (True, self.device.get_mx_id())
+
+
     def calibration_servive_handler(self, req):
         self.is_service_active = True
         print("Capture image Service Started")
 
         mx_serial_id = self.device.get_mx_id()
-        calib_dest_path = os.path.join(arg['calib_path'], 'obc_' + mx_serial_id + '.calib')
+        calib_dest_path = os.path.join(arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.calib')
 
         flags = [self.config['board_config']['stereo_center_crop']]
         cal_data = StereoCalibration()

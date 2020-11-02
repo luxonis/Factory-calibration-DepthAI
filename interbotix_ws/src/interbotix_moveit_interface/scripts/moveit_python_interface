@@ -2,16 +2,25 @@
 
 import sys
 import copy
+import pygame
+from pygame.locals import *
+from math import pi
+import time
+
 import rospy
 import moveit_commander
 import moveit_msgs.msg
 import geometry_msgs.msg
-from math import pi
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from calibration.srv import Capture
-## END_SUB_TUTORIAL
-import time
+
+white  = [255, 255, 255]
+orange = [143, 122, 4]
+red    = [230, 9, 9]
+green  = [4, 143, 7]
+black  = [0, 0, 0]
+pygame.init()
 
 def all_close(goal, actual, tolerance):
   """
@@ -521,6 +530,7 @@ class MoveGroupPythonIntefaceTutorial(object):
 
 def main():
   is_device_ready = True
+  delay = 0.5
   try:
     
     tutorial = MoveGroupPythonIntefaceTutorial()
@@ -544,24 +554,42 @@ def main():
 
     joints_goal_dict = joints_goal_dict_15mm
 
-    # box_name = "back_box"
-    # res = tutorial.add_box(box_name, [-0.1, 0, 0.5], (0.1, 0.4, 0.6))
-    delay = 0.5
-    box_name = "base_box"
-    
+    disp = pygame.display
+    scree = disp.set_mode((800, 600))
+    screen.fill(white)
+    disp.set_caption("Arm Control ")
+    title = "Arm Control"
+    pygame_render_text(screen, title, (200,20), orange, 50)
+
     ## adding virtual base of the robot
+    box_name = "base_box"
     res = tutorial.add_box(box_name, [0, 0, -0.01],(0.6, 0.6, 0.02))
 
     pose_goal = geometry_msgs.msg.Pose()
     
     # actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
     actions = ['start', 'left_1', 'left_3', 'start', 'top_1', 'bottom_1',  'right_1']
-
+    
+    device_status_srv = rospy.ServiceProxy('/device_status', Capture) 
+    
     print("============ Press `Enter` to begin calibration ============")    
+    
     temp = raw_input()   
-
     while is_device_ready:
+      heading = "Waiting for device status..."
+      pygame_render_text(screen, heading, (250,70), black, 30)
+      disp.update()
+      resp = device_status_srv("checking_device_status")
+
+      if resp.success:
+        dev = "Device with Mx id: " +  error + " Connected"
+        pygame_render_text(screen, dev, (250,70), black, 30)
+
+      capture_count = 0
       for act in actions:
+        capture_count += 1
+        dev = "capturing" + str(capture_count)
+        pygame_render_text(screen, dev, (260,70), black, 30)
         tutorial.go_to_next_joint_state(joints_goal_dict[act])
         time.sleep(delay)
         tutorial.capture_srv_client_handler(act)
@@ -581,25 +609,67 @@ def main():
       
 
       tutorial.set_go_pose_goal(pose_goal)
-
+      dev = "Starting calibration service"
+      pygame_render_text(screen, dev, (260,70), black, 30)
       response = tutorial.calibrate_srv_client_handler()
 
       if not response.success:
         print(response.error)
         print("Repeat the calibrtion by adusting the device or move to next device by marking this device")
+        dev = "Calibration Failed!!"
+        pygame_render_text(screen, dev, (260,70), black, 30)
 
-
-      while True:
-        key = raw_input("Change the device and please press 'Y/y' and press N/n to finish \n")
+      yes_button =  pygame.Rect(600, 430, 60, 35)
+      pygame.draw.rect(screen, orange, yes_button)
+      pygame_render_text(screen, 'Yes', (605, 440))
+      is_saved = False
+      no_button =  pygame.Rect(600, 400, 60, 35)
+      pygame.draw.rect(screen, orange, no_button)
+      pygame_render_text(screen, 'Yes', (605, 440))
       
-        if key == 'y' or key == 'Y':
-          is_device_ready = True
-          break
-        elif key == 'n' or key == 'N':
-          is_device_ready = False
-          break
-        else:
-          print("Invalid key pressed!!")
+      while True:
+        for event in pygame.event.get():
+          if event.type == pygame.MOUSEMOTION:
+              x, y = event.pos
+              px, py, w, h = yes_button
+              if px < x < px + w and py < y < py + h:
+                  yes_active = True
+                  pygame.draw.rect(screen, green, yes_button)
+                  pygame_render_text(screen, 'Yes', (605, 440))
+              else:
+                  yes_active = False
+                  pygame.draw.rect(screen, orange, yes_button)
+                  pygame_render_text(screen, 'Yes', (605, 440))
+              px, py, w, h = no_button
+              if px < x < px + w and py < y < py + h:
+                  no_active = True
+                  pygame.draw.rect(screen, green, save_button)
+                  pygame_render_text(screen, 'Yes', (605, 440))
+              else:
+                  no_active = False
+                  pygame.draw.rect(screen, orange, yes_button)
+                  pygame_render_text(screen, 'Yes', (605, 440))
+  
+          if event.type == pygame.MOUSEBUTTONDOWN and (yes_active or no_active):
+              click = True
+          if event.type == pygame.MOUSEBUTTONUP:
+              if yes_active and click:
+                  break
+              if no_active and click:
+                is_device_ready = False
+                break
+                
+      # while True:
+      #   key = raw_input("Change the device and please press 'Y/y' and press N/n to finish \n")
+      
+      #   if key == 'y' or key == 'Y':
+      #     is_device_ready = True
+      #     break
+      #   elif key == 'n' or key == 'N':
+      #     is_device_ready = False
+      #     break
+      #   else:
+      #     print("Invalid key pressed!!")
     
     print "============ Python arm calibration complete! ============"
     rospy.signal_shutdown("Finished calibration")
