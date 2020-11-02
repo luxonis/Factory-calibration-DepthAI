@@ -5,7 +5,7 @@
   <arg name="baseline"                  default="7.5"/>
   <arg name="square_size_cm"            default="2"/>
   <arg name="marker_size_cm"            default="1.5"/>
-  <arg name="depthai_path"              default="/home/sachin/Desktop/luxonis/depthai"/>
+  <arg name="depthai_path"              default="/home/nuc/Desktop/depthai"/>
   <arg name="calib_path"              default="/home/nuc/Desktop/calib_files"/>
   <arg name="brd"                       default="bw1098obc"/>
   <arg name="capture_service_name"      default="capture_checkerboard"/>

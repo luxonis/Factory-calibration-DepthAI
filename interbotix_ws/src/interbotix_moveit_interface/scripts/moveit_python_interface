@@ -22,6 +22,12 @@ green  = [4, 143, 7]
 black  = [0, 0, 0]
 pygame.init()
 
+def pygame_render_text(surface, text, pose, color=(0,0,0), font_size = 30 ):
+    font = pygame.font.Font(None, font_size)
+    font_surf = font.render(text, True, color)
+    surface.blit(font_surf, pose)
+
+
 def all_close(goal, actual, tolerance):
   """
   Convenience method for testing if a list of values are within a tolerance of their counterparts in another list
@@ -555,11 +561,11 @@ def main():
     joints_goal_dict = joints_goal_dict_15mm
 
     disp = pygame.display
-    scree = disp.set_mode((800, 600))
+    screen = disp.set_mode((800, 600))
     screen.fill(white)
     disp.set_caption("Arm Control ")
     title = "Arm Control"
-    pygame_render_text(screen, title, (200,20), orange, 50)
+    pygame_render_text(screen, title, (350,20), orange, 50)
 
     ## adding virtual base of the robot
     box_name = "base_box"
@@ -576,28 +582,37 @@ def main():
     
     temp = raw_input()   
     while is_device_ready:
+      relpace_rect =  pygame.Rect(0, 60, 800, 540)
+      pygame.draw.rect(screen, white, relpace_rect)
       heading = "Waiting for device status..."
-      pygame_render_text(screen, heading, (250,70), black, 30)
+      pygame_render_text(screen, heading, (220,70), black, 30)
       disp.update()
       resp = device_status_srv("checking_device_status")
-
+      
       if resp.success:
-        dev = "Device with Mx id: " +  error + " Connected"
-        pygame_render_text(screen, dev, (250,70), black, 30)
+        relpace_rect =  pygame.Rect(100, 70, 650, 35)
+        pygame.draw.rect(screen, white, relpace_rect)
+        dev = "Device with Mx id: " +  resp.error + " Connected"
+        pygame_render_text(screen, dev, (200,70), black, 30)
+        disp.update()
 
-      capture_count = 0
+      capture_count = -1
       for act in actions:
         capture_count += 1
-        dev = "capturing" + str(capture_count)
-        pygame_render_text(screen, dev, (260,70), black, 30)
+        relpace_rect =  pygame.Rect(150, 115, 300, 35)
+        pygame.draw.rect(screen, white, relpace_rect)
+        dev = "capturing - " + str(capture_count)
+        pygame_render_text(screen, dev, (270,115), black, 30)
+        disp.update()
         tutorial.go_to_next_joint_state(joints_goal_dict[act])
         time.sleep(delay)
         tutorial.capture_srv_client_handler(act)
         # time.sleep(delay)
 
         # sleep pose
-      print("sleep pose -->")
+      print("Stand pose -->")
       
+      tutorial.go_to_next_joint_state(joints_goal_dict['start'])
 
       pose_goal.position.x =  0.0811047406103
       pose_goal.position.y =  -1.34901728646e-05
@@ -606,28 +621,50 @@ def main():
       pose_goal.orientation.y = 0.290732882379
       pose_goal.orientation.z = -6.39239167946e-05
       pose_goal.orientation.w = 0.956804257318
-      
+      # tutorial.set_go_pose_goal(pose_goal)
 
-      tutorial.set_go_pose_goal(pose_goal)
+
+
+      relpace_rect =  pygame.Rect(100, 115, 400, 35)
+      pygame.draw.rect(screen, white, relpace_rect)
       dev = "Starting calibration service"
-      pygame_render_text(screen, dev, (260,70), black, 30)
+      pygame_render_text(screen, dev, (200,115), black, 30)
+      disp.update()
+
       response = tutorial.calibrate_srv_client_handler()
+      relpace_rect =  pygame.Rect(150, 115, 500, 35)
+      pygame.draw.rect(screen, white, relpace_rect)
 
       if not response.success:
         print(response.error)
         print("Repeat the calibrtion by adusting the device or move to next device by marking this device")
-        dev = "Calibration Failed!!"
-        pygame_render_text(screen, dev, (260,70), black, 30)
-
-      yes_button =  pygame.Rect(600, 430, 60, 35)
-      pygame.draw.rect(screen, orange, yes_button)
-      pygame_render_text(screen, 'Yes', (605, 440))
-      is_saved = False
-      no_button =  pygame.Rect(600, 400, 60, 35)
-      pygame.draw.rect(screen, orange, no_button)
-      pygame_render_text(screen, 'Yes', (605, 440))
+        dev = "Calibration Failed!!  " + response.error
+        pygame_render_text(screen, dev, (200,115), red, 30)
+        
+      else:
+        dev = "Calibration data successfyully written to EEPROM!!"
+        pygame_render_text(screen, dev, (200,115), green, 30)
       
-      while True:
+      text = "Change the device or reconnect the device"
+      pygame_render_text(screen, text, (150,200), green, 30)
+      text = "and click on \"YES\" to recalibrate or "
+      pygame_render_text(screen, text, (150,235), green, 30)
+      text = " click on \"No\" to finish calibration"
+      pygame_render_text(screen, text, (150,270), green, 30)
+
+
+      yes_button =  pygame.Rect(410, 400, 60, 35)
+      pygame.draw.rect(screen, orange, yes_button)
+      pygame_render_text(screen, 'Yes', (415, 405))
+
+      no_button =  pygame.Rect(330, 400, 60, 35)
+      pygame.draw.rect(screen, orange, no_button)
+      pygame_render_text(screen, 'No', (335, 405))
+      disp.update()
+
+      is_clicked = False
+      while not is_clicked:
+        disp.update()
         for event in pygame.event.get():
           if event.type == pygame.MOUSEMOTION:
               x, y = event.pos
@@ -635,29 +672,37 @@ def main():
               if px < x < px + w and py < y < py + h:
                   yes_active = True
                   pygame.draw.rect(screen, green, yes_button)
-                  pygame_render_text(screen, 'Yes', (605, 440))
+                  pygame_render_text(screen, 'Yes', (415, 405))
               else:
                   yes_active = False
                   pygame.draw.rect(screen, orange, yes_button)
-                  pygame_render_text(screen, 'Yes', (605, 440))
+                  pygame_render_text(screen, 'Yes', (415, 405))
               px, py, w, h = no_button
               if px < x < px + w and py < y < py + h:
                   no_active = True
-                  pygame.draw.rect(screen, green, save_button)
-                  pygame_render_text(screen, 'Yes', (605, 440))
+                  pygame.draw.rect(screen, green, no_button)
+                  pygame_render_text(screen, 'No', (335, 405))
               else:
                   no_active = False
-                  pygame.draw.rect(screen, orange, yes_button)
-                  pygame_render_text(screen, 'Yes', (605, 440))
+                  pygame.draw.rect(screen, orange, no_button)
+                  pygame_render_text(screen, 'No', (335, 405))
   
           if event.type == pygame.MOUSEBUTTONDOWN and (yes_active or no_active):
+              print("setting click")
               click = True
           if event.type == pygame.MOUSEBUTTONUP:
+              print("button up")
               if yes_active and click:
-                  break
-              if no_active and click:
-                is_device_ready = False
+                print("yes clicked")
+                is_clicked = True
                 break
+              if no_active and click:
+                print("No clicked")
+                is_clicked = True
+                is_device_ready = False
+                tutorial.set_go_pose_goal(pose_goal)
+                break
+              
                 
       # while True:
       #   key = raw_input("Change the device and please press 'Y/y' and press N/n to finish \n")
