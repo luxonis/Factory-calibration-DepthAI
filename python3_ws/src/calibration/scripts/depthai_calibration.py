@@ -140,6 +140,7 @@ class depthai_calibration_node:
     def publisher(self):
         while not rospy.is_shutdown():
             if self.start_disp:
+                pygame.event.pump()
                 self.disp.update()
             # print("updating dis-----")
             if not self.is_service_active:
@@ -220,7 +221,12 @@ class depthai_calibration_node:
             text = "Waiting for device change"
             pygame_render_text(self.screen, text, (250,400), orange, 40)
         
+        # to remove waiting for device change
         fill_color =  pygame.Rect(200, 400, 400, 55)
+        pygame.draw.rect(self.screen, white, fill_color)
+
+        # to remove previous date and stuff
+        fill_color =  pygame.Rect(400, 70, 400, 545)
         pygame.draw.rect(self.screen, white, fill_color)
         now_time = datetime.datetime.now()
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
@@ -228,8 +234,7 @@ class depthai_calibration_node:
         text = "device Mx_id : " + self.device.get_mx_id()
         pygame_render_text(self.screen, text, (400,120), black, 30)
         
-        fill_color =  pygame.Rect(400, 155, 350, 445)
-        pygame.draw.rect(self.screen, white, fill_color)
+        
 
         while self.device.is_device_changed():
             print(self.device.is_device_changed())
@@ -321,7 +326,7 @@ class depthai_calibration_node:
                             req.name, 
                             self.args['marker_size_cm'])
 
-        text = "Avg Epipolar error : " + str(avg_epipolar_error)
+        text = "Avg Epipolar error : " + format(avg_epipolar_error, '.6f')
         pygame_render_text(self.screen, text, (400,160), green, 30)
         if avg_epipolar_error > 0.5:
             text = "Failed use to high calibration error"

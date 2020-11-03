@@ -537,10 +537,11 @@ class MoveGroupPythonIntefaceTutorial(object):
 def main():
   is_device_ready = True
   delay = 0.5
+  tutorial = MoveGroupPythonIntefaceTutorial()
+
   try:
     
-    tutorial = MoveGroupPythonIntefaceTutorial()
-
+    
     # creating a dict of all the joints pose of the arm. Some are redundant here
     joints_goal_dict_15mm = {
       'start'    : [0,0,0,0,0,0],
@@ -717,13 +718,15 @@ def main():
       #     print("Invalid key pressed!!")
     
     print "============ Python arm calibration complete! ============"
+  except :
+    tutorial.set_go_pose_goal(pose_goal)
+  # except rospy.ROSInterruptException:  
+  #   print("EERRRRROOORRR_----------------------------------------------")
+  #   return
+  # except KeyboardInterrupt:
+  #   print("EERRRRROOORRR_----------------------------------------------")
+  #   return
     rospy.signal_shutdown("Finished calibration")
-  except rospy.ROSInterruptException:
-    print("EERRRRROOORRR_----------------------------------------------")
-    return
-  except KeyboardInterrupt:
-    print("EERRRRROOORRR_----------------------------------------------")
-    return
 
 if __name__ == '__main__':
   main()
