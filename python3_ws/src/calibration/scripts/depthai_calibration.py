@@ -10,6 +10,7 @@ import platform
 import signal
 import subprocess
 import json
+import datetime
 
 from calibration.srv import Capture
 import time
@@ -108,13 +109,13 @@ class depthai_calibration_node:
         self.screen.fill(white)
         self.disp.set_caption("Calibration - Device check ")
         title = "Device Status"
-        pygame_render_text(screen, title, (350,20), orange, 50)
+        pygame_render_text(self.screen, title, (350,20), orange, 50)
         self.auto_checkbox_names = ["USB3", "Left camera connected", "Right camera connected", 
                                     "Left Stream", "Right Stream"]
         
         y = 110
         x = 200
-        
+        self.start_disp = False
         font = pygame.font.Font(None, 20)
         self.auto_checkbox_dict = {}
         for i in range(len(self.auto_checkbox_names)):
@@ -129,7 +130,7 @@ class depthai_calibration_node:
         # text = 'call rosservice of device_status_handler to update the device status'
         for i in range(len(self.auto_checkbox_names)):
             self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
-        self.disp.update()
+        # self.disp.update()
 
     def start_device(self):
         self.device = depthai.Device('', False)
@@ -138,7 +139,8 @@ class depthai_calibration_node:
         
     def publisher(self):
         while not rospy.is_shutdown():
-            self.disp.update()
+            if self.start_disp:
+                self.disp.update()
             # print("updating dis-----")
             if not self.is_service_active:
                 # print("SERVICE NOT ACTIVE")
@@ -213,9 +215,21 @@ class depthai_calibration_node:
     
     def device_status_handler(self, req):
         self.is_service_active = True
-        print(self.device.is_device_changed())
-        # print(self.device.reset_device_changed())
-        print(self.device.is_device_changed())
+        self.start_disp = True
+        while not self.device.is_device_changed():
+            text = "Waiting for device change"
+            pygame_render_text(self.screen, text, (250,400), orange, 40)
+        
+        fill_color =  pygame.Rect(200, 400, 400, 55)
+        pygame.draw.rect(self.screen, white, fill_color)
+        now_time = datetime.datetime.now()
+        text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
+        pygame_render_text(self.screen, text, (400,80), black, 30)
+        text = "device Mx_id : " + self.device.get_mx_id()
+        pygame_render_text(self.screen, text, (400,120), black, 30)
+        
+        fill_color =  pygame.Rect(400, 155, 350, 445)
+        pygame.draw.rect(self.screen, white, fill_color)
 
         while self.device.is_device_changed():
             print(self.device.is_device_changed())
@@ -228,11 +242,7 @@ class depthai_calibration_node:
             if left_status and right_status:
                 # mipi check using 20 iterations
                 # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
-                # self.auto_checkbox_dict["USB3"].check()
-                # self.auto_checkbox_dict["Left camera connected"].check()
-                # self.auto_checkbox_dict["Right camera connected"].check()
-                # print("inside")
-                time.sleep(1) # this is needed to avoid iterating fastly over 
+                # time.sleep(1) # this is needed to avoid iterating fastly over 
                 for _ in range(60):
                     _, data_list = self.pipeline.get_available_nnet_and_data_packets(True)
                     print(len(data_list))
@@ -257,42 +267,22 @@ class depthai_calibration_node:
                         break
 
             if not is_usb3:
-                # img = np.zeros((720, 1280, 3), np.uint8)
-                # img[:] = (0, 0, 255)
-                # cv2.putText(img, "USB-3",  (100, 300), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
-                # cv2.putText(img, "FAILED", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
-                # cv2.imshow('USB3 Failed', img)
                 self.auto_checkbox_dict["USB3"].uncheck()
             else:
                 self.auto_checkbox_dict["USB3"].check()
             
             if not left_status:
-                # img = np.zeros((720, 1280, 3), np.uint8)
-                # img[:] = (0, 0, 255)
-                # cv2.putText(img, "Left i2c",  (100, 300), cv2.FONT_HERSHEY_DUPLEX, 10.0, (0,0,0), 20)
-                # cv2.putText(img, "Failed ", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
-                # cv2.imshow('Left i2c camera failed', img)
                 self.auto_checkbox_dict["Left camera connected"].uncheck()
             else:
                 self.auto_checkbox_dict["Left camera connected"].check()
 
 
             if not left_mipi:
-                # img = np.zeros((720, 1280, 3), np.uint8)
-                # img[:] = (0, 0, 255)
-                # cv2.putText(img, "Left mipi",  (100, 300), cv2.FONT_HERSHEY_DUPLEX, 10.0, (0,0,0), 20)
-                # cv2.putText(img, "Failed ", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
-                # cv2.imshow('Left mipi camera failed', img)
                 self.auto_checkbox_dict["Left Stream"].uncheck()
             else:
                 self.auto_checkbox_dict["Left Stream"].check()
 
             if not right_status:
-                # img = np.zeros((720, 1280, 3), np.uint8)
-                # img[:] = (0, 0, 255)
-                # cv2.putText(img, "right i2c",  (100, 300), cv2.FONT_HERSHEY_DUPLEX, 10.0, (0,0,0), 20)
-                # cv2.putText(img, "Failed ", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
-                # cv2.imshow('right i2c camera failed', img)
                 self.auto_checkbox_dict["Right camera connected"].uncheck()
             else:
                 self.auto_checkbox_dict["Right camera connected"].check()
@@ -331,10 +321,14 @@ class depthai_calibration_node:
                             req.name, 
                             self.args['marker_size_cm'])
 
+        text = "Avg Epipolar error : " + str(avg_epipolar_error)
+        pygame_render_text(self.screen, text, (400,160), green, 30)
         if avg_epipolar_error > 0.5:
+            text = "Failed use to high calibration error"
+            pygame_render_text(self.screen, text, (400,200), red, 30)
             return (False, "Failed use to high calibration error")
         # self.rundepthai()
-
+        
         dev_config = {
             'board': {},
             '_board': {}
@@ -375,12 +369,15 @@ class depthai_calibration_node:
                             print(log)
                             if 'EEPROM' in log:
                                 if 'write OK' in log:
+                                    text = "EEPROM Write succesfull"
+                                    pygame_render_text(self.screen, text, (400,200), green, 30)
                                     is_write_succesful = True
                                     run_thread = False
                                 elif 'FAILED' in log:
+                                    text = "EEPROM write Failed"
+                                    pygame_render_text(self.screen, text, (400,200), red, 30)
                                     is_write_succesful = False
                                     run_thread = False
-
         self.is_service_active = False
         if is_write_succesful:
             return (True, "EEPROM written succesfully")
