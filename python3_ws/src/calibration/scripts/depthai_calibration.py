@@ -107,6 +107,8 @@ class depthai_calibration_node:
         self.screen = self.disp.set_mode((800, 600))
         self.screen.fill(white)
         self.disp.set_caption("Calibration - Device check ")
+        title = "Device Status"
+        pygame_render_text(screen, title, (350,20), orange, 50)
         self.auto_checkbox_names = ["USB3", "Left camera connected", "Right camera connected", 
                                     "Left Stream", "Right Stream"]
         
@@ -230,9 +232,9 @@ class depthai_calibration_node:
                 # self.auto_checkbox_dict["Left camera connected"].check()
                 # self.auto_checkbox_dict["Right camera connected"].check()
                 # print("inside")
-                time.sleep(1)
+                time.sleep(1) # this is needed to avoid iterating fastly over 
                 for _ in range(60):
-                    _, data_list = self.pipeline.get_available_nnet_and_data_packets()
+                    _, data_list = self.pipeline.get_available_nnet_and_data_packets(True)
                     print(len(data_list))
                     for packet in data_list:    
                         # print("found packets:")
