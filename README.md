@@ -15,3 +15,5 @@ Follow thw video [here](https://youtu.be/oxK4ykVh1EE) till 30 min. and then pip 
 ## Example Calibration Result
 
 ![Successful Automated Calibration](https://user-images.githubusercontent.com/32992551/98423514-0ba68d80-204c-11eb-8562-119cefe3c158.jpg)
+![Calibrated Object Localization](https://user-images.githubusercontent.com/32992551/98423642-87083f00-204c-11eb-8445-6da38587797c.jpg)
+
