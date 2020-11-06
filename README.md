@@ -9,6 +9,9 @@ The reason for two workspace is because we need python3 for depthai and python2 
 ![DepthAI Automated Calibration Example](https://user-images.githubusercontent.com/32992551/98047330-f4b43100-1de8-11eb-8315-3cad43df8966.jpg)
 
 
-## Python3 on ros melodic.
+## Python3 on ROS Melodic
 Follow thw video [here](https://youtu.be/oxK4ykVh1EE) till 30 min. and then pip install depthai.  
 
+## Example Calibration Result
+
+![Successful Automated Calibration](https://user-images.githubusercontent.com/32992551/98423514-0ba68d80-204c-11eb-8562-119cefe3c158.jpg)
