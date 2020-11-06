@@ -97,6 +97,12 @@ class depthai_calibration_node:
                 self.board_config = json.load(fp)
         utils.merge(self.board_config, self.config)
 
+        self.aruco_dictionary = cv2.aruco.Dictionary_get(cv2.aruco.DICT_4X4_1000)
+        # self.charuco_board = aruco.CharucoBoard_create(
+        #                                     22,16,
+        #                                     self.args['square_size_cm'],
+        #                                     self.args['marker_size_cm'],
+        #                                     self.aruco_dictionary)
         self.start_device()
         self.capture_srv = rospy.Service(self.args["capture_service_name"], Capture, self.capture_servive_handler)
         self.calib_srv = rospy.Service(self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
@@ -173,6 +179,11 @@ class depthai_calibration_node:
         print("py: Saved image as: " + str(file_name))
         return True
 
+    def is_markers_found(self, frame):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        marker_corners, _, _ = cv2.aruco.detectMarkers(gray, self.aruco_dictionary)
+        return not (len(marker_corners) == 0)
+
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
         recent_left = None
@@ -203,12 +214,16 @@ class depthai_calibration_node:
         # is_board_found_r = find_chessboard(recent_right)
         # is_board_found_l = True
         # is_board_found_r = True
-        # if is_board_found_l and is_board_found_r:
-        #     print("Found------------------------->")
-        # else:
-        #     print("Not found--------------------->")
-        self.parse_frame(recent_left, "left", req.name)
-        self.parse_frame(recent_right, "right", req.name)
+        is_board_found_l = self.is_markers_found(recent_left)
+        is_board_found_r = self.is_markers_found(recent_right)
+        if is_board_found_l and is_board_found_r:
+            print("Found------------------------->")
+            self.parse_frame(recent_left, "left", req.name)
+            self.parse_frame(recent_right, "right", req.name)
+        else:
+            print("Not found--------------------->")
+            self.is_service_active = False
+            return (False, "Calibration board not found")
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
         print("Service ending")
         self.is_service_active = False
@@ -233,8 +248,6 @@ class depthai_calibration_node:
         pygame_render_text(self.screen, text, (400,80), black, 30)
         text = "device Mx_id : " + self.device.get_mx_id()
         pygame_render_text(self.screen, text, (400,120), black, 30)
-        
-        
 
         while self.device.is_device_changed():
             print(self.device.is_device_changed())
@@ -395,7 +408,7 @@ class depthai_calibration_node:
         # test_cmd = """python3 depthai.py -brd bw1098obc -e""" ## TODO(sachin): Parameterize the board name
         self.p = subprocess.Popen(test_cmd, shell=True, preexec_fn=os.setsid)
         time.sleep(4)
-        os.killpg(os.getpgid(self.p.pid), signal.SIGTERM)
+        os.killpg(os.getpgid(self.p.pid), signal.SIGKILL)
 
         time.sleep(1)    
         
