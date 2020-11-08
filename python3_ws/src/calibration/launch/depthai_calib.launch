@@ -16,7 +16,8 @@
     pkg="calibration"
     type="depthai_calibration.py"
     respawn="false"
-    output="screen">
+    output="screen"
+    required="true">
     
     <param name="package_path"             value="$(find calibration)"/>
     <param name="swap_lr"                  value="$(arg swap_lr)"/>

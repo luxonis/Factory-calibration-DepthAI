@@ -6,6 +6,8 @@ import pygame
 from pygame.locals import *
 from math import pi
 import time
+import warnings
+import signal
 
 import rospy
 import moveit_commander
@@ -161,7 +163,7 @@ class MoveGroupPythonIntefaceTutorial(object):
     group.go(joint_goal, wait=True)
 
     # Calling ``stop()`` ensures that there is no residual movement
-    # group.stop()
+    group.stop()
 
     ## END_SUB_TUTORIAL
 
@@ -169,10 +171,13 @@ class MoveGroupPythonIntefaceTutorial(object):
     # Note that since this section of code will not be included in the tutorials
     # we use the class variable rather than the copied state variable
     current_joints = self.group.get_current_joint_values()
-    # print(current_pose)
-
+    print("currrent Joints------------------ ->")
+    print(current_joints)
     return all_close(joint_goal, current_joints, 0.01)
 
+  def get_current_joint_values(self):
+    return self.group.get_current_joint_values()
+    
   def capture_srv_client_handler(self, file_id):
     try:
       response = self.capture_srv(file_id)
@@ -533,17 +538,116 @@ class MoveGroupPythonIntefaceTutorial(object):
     # We wait for the planning scene to update.
     return self.wait_for_state_update(box_is_attached=False, box_is_known=False, timeout=timeout)
 
+def shutdown_handler():
+  
+  print("~~~~~~~~~~~~~~~Finishing up~~~~~~~~~~~~~~~~")
+  if arm_control is not None:
+    print("Moving to sleep pose -->")
+    arm_control.go_to_next_joint_state(sleep_pose)
+    rospy.sleep(2)
+  # sys.exit(0)
+
+def change_device_render():
+  text = "Change the device or reconnect the device"
+  pygame_render_text(screen, text, (150,200), green, 30)
+  text = "and click on \"YES\" to recalibrate or "
+  pygame_render_text(screen, text, (150,235), green, 30)
+  text = " click on \"Exit\" to finish calibration"
+  pygame_render_text(screen, text, (150,270), green, 30)
+
+
+def capture_calibrate_continue():
+  yes_button =  pygame.Rect(410, 400, 60, 35)
+  pygame.draw.rect(screen, orange, yes_button)
+  pygame_render_text(screen, 'Yes', (415, 405))
+  is_clicked = False
+  yes_active = False
+  no_active = False
+  while not is_clicked:
+    disp.update()
+    for event in pygame.event.get():
+      if event.type == pygame.MOUSEMOTION:
+        x, y = event.pos
+        px, py, w, h = yes_button
+        if px < x < px + w and py < y < py + h:
+          yes_active = True
+          pygame.draw.rect(screen, green, yes_button)
+          pygame_render_text(screen, 'Yes', (415, 405))
+        else:
+          yes_active = False
+          pygame.draw.rect(screen, orange, yes_button)
+          pygame_render_text(screen, 'Yes', (415, 405))
+        px, py, w, h = no_button
+        if px < x < px + w and py < y < py + h:
+          no_active = True
+          pygame.draw.rect(screen, orange, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+        else:
+          no_active = False
+          pygame.draw.rect(screen, red, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+
+      if event.type == pygame.MOUSEBUTTONDOWN and (yes_active or no_active):
+        print("setting click")
+        click = True
+      if event.type == pygame.MOUSEBUTTONUP:
+        print("button up")
+        if yes_active and click:
+          print("yes clicked")
+          is_clicked = True
+          return True
+          break
+        if no_active and click:
+          print("No clicked")
+          is_clicked = True
+          is_device_ready = False
+          arm_control.go_to_next_joint_state(sleep_pose)
+          return False
+          break
+
+  return True
+  # return is_device_ready
+
+
+def capture_exit():
+  is_clicked = False
+  no_active = False
+  for event in pygame.event.get():
+    if event.type == pygame.MOUSEMOTION:
+      x, y = event.pos
+      px, py, w, h = no_button
+      if px < x < px + w and py < y < py + h:
+          no_active = True
+          pygame.draw.rect(screen, orange, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+      else:
+          no_active = False
+          pygame.draw.rect(screen, red, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+  
+    if event.type == pygame.MOUSEBUTTONDOWN and no_active:
+        print("setting click")
+        click = True
+    if event.type == pygame.MOUSEBUTTONUP:
+        if no_active and click:
+          print("No clicked")
+          is_clicked = True
+          # is_device_ready = False
+          # if arm_control is not None:
+            # arm_control.go_to_next_joint_state(joints_goal_dict['sleep'])
+          break
+  pygame.event.pump()
+  return is_clicked
 
 def main():
+  global screen, disp, arm_control
+  rospy.on_shutdown(shutdown_handler)
+  # signal.signal(signal.SIGINT, shutdown_handler)
   is_device_ready = True
   delay = 0.5
-  tutorial = MoveGroupPythonIntefaceTutorial()
-
-  try:
-    
-    
-    # creating a dict of all the joints pose of the arm. Some are redundant here
-    joints_goal_dict_15mm = {
+  arm_control = MoveGroupPythonIntefaceTutorial()
+  # creating a dict of all the joints pose of the arm. Some are redundant here
+  joints_goal_dict = {
       'start'    : [0,0,0,0,0,0],
       'left_1'   : [0.7730087577658563, 0.3276961983717477, 0.401425728, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618],
       'left_2'   : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
@@ -556,155 +660,181 @@ def main():
       'bottom_3' : [0.14705021881303204, 0.8619704018470852, -0.41301399722681215, 0.1753433807927659, 1.830020125895237, 0.021073375261441003],
       'right_1'  : [-0.725572943687439, 0.2914563715457916, 0.4080389142036438, -1.6275537014007568, 1.3299614191055298, 1.7824857234954834],
       'right_2'  : [-0.725572943687439, 0.41264083981513977, 0.5936505794525146, -1.6275537014007568, 1.3284274339675903, 1.7824857234954834],
-      'right_3'  : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705]
+      'right_3'  : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705],
+      'sleep'    : sleep_pose
     }
+  ## Sleep pose
+  pose_goal = geometry_msgs.msg.Pose()
+  pose_goal.position.x =  0.0811047406103
+  pose_goal.position.y =  -1.34901728646e-05
+  pose_goal.position.z =  0.128741153434
+  pose_goal.orientation.x = -1.40023979928e-05
+  pose_goal.orientation.y = 0.290732882379
+  pose_goal.orientation.z = -6.39239167946e-05
+  pose_goal.orientation.w = 0.956804257318
+      # arm_control.set_go_pose_goal(pose_goal)
 
-    joints_goal_dict = joints_goal_dict_15mm
-
+  # joints_goal_dict = joints_goal_dict_15mm
+  try:
     disp = pygame.display
     screen = disp.set_mode((800, 600))
     screen.fill(white)
     disp.set_caption("Arm Control ")
+
+    ## rendering window title and exit button
     title = "Arm Control"
     pygame_render_text(screen, title, (350,20), orange, 50)
+    pygame.draw.rect(screen, orange, no_button)
+    pygame_render_text(screen, 'Exit', (500, 505))
 
     ## adding virtual base of the robot
     box_name = "base_box"
-    res = tutorial.add_box(box_name, [0, 0, -0.01],(0.6, 0.6, 0.02))
+    res = arm_control.add_box(box_name, [0, 0, -0.01],(0.6, 0.6, 0.02))
 
-    pose_goal = geometry_msgs.msg.Pose()
     
     # actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
     actions = ['start', 'left_1', 'left_3', 'start', 'top_1', 'bottom_1',  'right_1']
     
     device_status_srv = rospy.ServiceProxy('/device_status', Capture) 
     
-    print("============ Press `Enter` to begin calibration ============")    
+    # print("============ Press `Enter` to begin calibration ============")    
     
-    temp = raw_input()   
+    # temp = raw_input()   
+
+    text = "Click on \"yes\" below to start calibration procedure "
+    pygame_render_text(screen, text, (150,200), green, 30)
+    is_device_ready = capture_calibrate_continue()
+
     while is_device_ready:
       relpace_rect =  pygame.Rect(0, 60, 800, 540)
       pygame.draw.rect(screen, white, relpace_rect)
       heading = "Waiting for device status..."
       pygame_render_text(screen, heading, (220,70), black, 30)
+      pygame.draw.rect(screen, orange, no_button)
+      pygame_render_text(screen, 'Exit', (500, 505))
       disp.update()
+  
       resp = device_status_srv("checking_device_status")
-      
-      if resp.success:
+      if capture_exit():
+        is_device_ready = False
+        break
+
+      if resp is not None:
+        if resp.success:
+          relpace_rect =  pygame.Rect(100, 70, 650, 35)
+          pygame.draw.rect(screen, white, relpace_rect)
+          dev = "Device with Mx id: " +  resp.error + " Connected"
+          pygame_render_text(screen, dev, (200,70), black, 30)
+          disp.update()
+      else:
+        print("couldn't reach device status service")
         relpace_rect =  pygame.Rect(100, 70, 650, 35)
         pygame.draw.rect(screen, white, relpace_rect)
-        dev = "Device with Mx id: " +  resp.error + " Connected"
+        dev = "couldn't reach device status service"
         pygame_render_text(screen, dev, (200,70), black, 30)
-        disp.update()
+        is_device_ready = capture_calibrate_continue()
+        continue
 
-      capture_count = -1
+      if capture_exit():
+        is_device_ready = False
+        break
+
+      if not is_device_ready:
+        break
+
+      capture_count = 0
       for act in actions:
-        capture_count += 1
+        ## UI update
         relpace_rect =  pygame.Rect(150, 115, 300, 35)
         pygame.draw.rect(screen, white, relpace_rect)
         dev = "capturing - " + str(capture_count)
         pygame_render_text(screen, dev, (270,115), black, 30)
         disp.update()
-        tutorial.go_to_next_joint_state(joints_goal_dict[act])
-        time.sleep(delay)
-        tutorial.capture_srv_client_handler(act)
-        # time.sleep(delay)
-
-        # sleep pose
-      print("Stand pose -->")
-      
-      tutorial.go_to_next_joint_state(joints_goal_dict['start'])
-
-      pose_goal.position.x =  0.0811047406103
-      pose_goal.position.y =  -1.34901728646e-05
-      pose_goal.position.z =  0.128741153434
-      pose_goal.orientation.x = -1.40023979928e-05
-      pose_goal.orientation.y = 0.290732882379
-      pose_goal.orientation.z = -6.39239167946e-05
-      pose_goal.orientation.w = 0.956804257318
-      # tutorial.set_go_pose_goal(pose_goal)
-
-
-
-      relpace_rect =  pygame.Rect(100, 115, 400, 35)
-      pygame.draw.rect(screen, white, relpace_rect)
-      dev = "Starting calibration service"
-      pygame_render_text(screen, dev, (200,115), black, 30)
-      disp.update()
-
-      response = tutorial.calibrate_srv_client_handler()
-      relpace_rect =  pygame.Rect(150, 115, 500, 35)
-      pygame.draw.rect(screen, white, relpace_rect)
-
-      if not response.success:
-        print(response.error)
-        print("Repeat the calibrtion by adusting the device or move to next device by marking this device")
-        dev = "Calibration Failed!!  " + response.error
-        pygame_render_text(screen, dev, (200,115), red, 30)
+        if capture_exit():
+          is_device_ready = False
+          break
         
-      else:
-        dev = "Calibration data successfyully written to EEPROM!!"
-        pygame_render_text(screen, dev, (200,115), green, 30)
+        ## arm control
+        arm_control.go_to_next_joint_state(joints_goal_dict[act])
+        time.sleep(delay)
+        ## calling capture service
+        capture_resp = arm_control.capture_srv_client_handler(act)
+        ## Evaulating response after capture
+        if capture_resp is not None:
+          ## increasing capture count if capture is success
+          if capture_resp.success:
+            capture_count += 1
+          ## error on capture fail
+          else:
+            pygame.draw.rect(screen, white, relpace_rect)
+            dev = "calibration board is out of camera's viewscope." 
+            pygame_render_text(screen, dev, (270,115), red, 30)
+            dev = "Adjust the calibration board position and restart"
+            pygame_render_text(screen, dev, (270,145), red, 30)
+            disp.update()
+            break
+        ## Service fails to send response when service 
+        ## node crashes or fails to gets stuck
+        else:
+          pygame.draw.rect(screen, white, relpace_rect)
+          dev = "calibration node failed!! device lost!." 
+          pygame_render_text(screen, dev, (270,115), red, 30)
+          dev = "Restart the calibration node"
+          pygame_render_text(screen, dev, (270,145), red, 30)
+          disp.update()
+          break
+            
+      ## reset position to start
+      print("Stand pose -->")
+      arm_control.go_to_next_joint_state(joints_goal_dict['start'])
+      print("Stand pose finished-->")
+
+      ## breaking incase exit was pressed during capturing service above
+      if not is_device_ready:
+        break
       
-      text = "Change the device or reconnect the device"
-      pygame_render_text(screen, text, (150,200), green, 30)
-      text = "and click on \"YES\" to recalibrate or "
-      pygame_render_text(screen, text, (150,235), green, 30)
-      text = " click on \"No\" to finish calibration"
-      pygame_render_text(screen, text, (150,270), green, 30)
+      ## Sleep pose
+      # pose_goal.position.x =  0.0811047406103
+      # pose_goal.position.y =  -1.34901728646e-05
+      # pose_goal.position.z =  0.128741153434
+      # pose_goal.orientation.x = -1.40023979928e-05
+      # pose_goal.orientation.y = 0.290732882379
+      # pose_goal.orientation.z = -6.39239167946e-05
+      # pose_goal.orientation.w = 0.956804257318
+      # arm_control.set_go_pose_goal(pose_goal)
 
-
-      yes_button =  pygame.Rect(410, 400, 60, 35)
-      pygame.draw.rect(screen, orange, yes_button)
-      pygame_render_text(screen, 'Yes', (415, 405))
-
-      no_button =  pygame.Rect(330, 400, 60, 35)
-      pygame.draw.rect(screen, orange, no_button)
-      pygame_render_text(screen, 'No', (335, 405))
-      disp.update()
-
-      is_clicked = False
-      while not is_clicked:
+      ## capture capture service was succesfull in capturing all services then start calibration service
+      if capture_count == len(actions): 
+        ## UI rendering
+        relpace_rect =  pygame.Rect(100, 115, 400, 35)
+        pygame.draw.rect(screen, white, relpace_rect)
+        dev = "Starting calibration service"
+        pygame_render_text(screen, dev, (200,115), black, 30)
         disp.update()
-        for event in pygame.event.get():
-          if event.type == pygame.MOUSEMOTION:
-              x, y = event.pos
-              px, py, w, h = yes_button
-              if px < x < px + w and py < y < py + h:
-                  yes_active = True
-                  pygame.draw.rect(screen, green, yes_button)
-                  pygame_render_text(screen, 'Yes', (415, 405))
-              else:
-                  yes_active = False
-                  pygame.draw.rect(screen, orange, yes_button)
-                  pygame_render_text(screen, 'Yes', (415, 405))
-              px, py, w, h = no_button
-              if px < x < px + w and py < y < py + h:
-                  no_active = True
-                  pygame.draw.rect(screen, green, no_button)
-                  pygame_render_text(screen, 'No', (335, 405))
-              else:
-                  no_active = False
-                  pygame.draw.rect(screen, orange, no_button)
-                  pygame_render_text(screen, 'No', (335, 405))
-  
-          if event.type == pygame.MOUSEBUTTONDOWN and (yes_active or no_active):
-              print("setting click")
-              click = True
-          if event.type == pygame.MOUSEBUTTONUP:
-              print("button up")
-              if yes_active and click:
-                print("yes clicked")
-                is_clicked = True
-                break
-              if no_active and click:
-                print("No clicked")
-                is_clicked = True
-                is_device_ready = False
-                tutorial.set_go_pose_goal(pose_goal)
-                break
-              
-                
+        if capture_exit():
+          is_device_ready = False
+          break
+
+        response = arm_control.calibrate_srv_client_handler()
+        relpace_rect =  pygame.Rect(150, 115, 500, 35)
+        pygame.draw.rect(screen, white, relpace_rect)
+        if response is not None:
+          if not response.success:
+            print(response.error)
+            print("Repeat the calibrtion by adusting the device or move to next device by marking this device")
+            dev = "Calibration Failed!!  " + response.error
+            pygame_render_text(screen, dev, (200,115), red, 30)
+            
+          else:
+            dev = "Calibration data successfyully written to EEPROM!!"
+            pygame_render_text(screen, dev, (200,115), green, 30)
+        else:
+            dev = "Calibration service failed. check calibration node error."
+            pygame_render_text(screen, dev, (200,115), green, 30)
+      
+      change_device_render()
+      is_device_ready = capture_calibrate_continue()
+
       # while True:
       #   key = raw_input("Change the device and please press 'Y/y' and press N/n to finish \n")
       
@@ -718,15 +848,34 @@ def main():
       #     print("Invalid key pressed!!")
     
     print "============ Python arm calibration complete! ============"
-  except :
-    tutorial.set_go_pose_goal(pose_goal)
-  # except rospy.ROSInterruptException:  
-  #   print("EERRRRROOORRR_----------------------------------------------")
+  except Exception as e :
+    print("Warining ----------------------------------------------->")
+    print(e)
+    warnings.warn(str(e))
+    print("~~~~~~~~~~~~~~~~~~EXIT~~~~~~~~~~~~~~~")
+  except rospy.ROSInterruptException:  
+    print("ROSInterruptException EERRRRROOORRR_----------------------------------------------")
+  except KeyboardInterrupt:
+    print("KeyboardInterrupt EERRRRROOORRR_----------------------------------------------")
+    shutdown_handler()
   #   return
-  # except KeyboardInterrupt:
-  #   print("EERRRRROOORRR_----------------------------------------------")
-  #   return
-    rospy.signal_shutdown("Finished calibration")
+  print("Moving to sleep pose before finishinh----->")
+
+
+
+  arm_control.set_go_pose_goal(pose_goal)
+
+  arm_control.go_to_next_joint_state(sleep_pose)
+  rospy.sleep(2)
+  print("finished Moving to sleep pose before finishinh----->")
+
+  rospy.signal_shutdown("Finished calibration")
+  # del arm_control
+  # sys.exit(0)
+
+no_button =  pygame.Rect(500, 500, 65, 35)
+sleep_pose = [0.05, -1.76, -1.55, 0.05, -0.8, 0.05]
+arm_control = None
 
 if __name__ == '__main__':
   main()

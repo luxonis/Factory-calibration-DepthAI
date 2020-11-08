@@ -31,6 +31,7 @@
     type="moveit_python_interface"
     respawn="false"
     output="screen"
+    required="true"
     ns="$(arg robot_name)">
     <param name="robot_name" value="$(arg robot_name)"/>
     <param name="dof" value="$(arg dof)"/>
@@ -39,3 +40,4 @@
   </node>
 
 </launch>
+    <!-- required="true" -->

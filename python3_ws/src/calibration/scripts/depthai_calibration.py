@@ -180,8 +180,9 @@ class depthai_calibration_node:
         return True
 
     def is_markers_found(self, frame):
-        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-        marker_corners, _, _ = cv2.aruco.detectMarkers(gray, self.aruco_dictionary)
+        # print(frame.shape)
+        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        marker_corners, _, _ = cv2.aruco.detectMarkers(frame, self.aruco_dictionary)
         return not (len(marker_corners) == 0)
 
     def capture_servive_handler(self, req):
@@ -223,6 +224,8 @@ class depthai_calibration_node:
         else:
             print("Not found--------------------->")
             self.is_service_active = False
+            self.parse_frame(recent_left, "left_not", req.name)
+            self.parse_frame(recent_right, "right_not", req.name)
             return (False, "Calibration board not found")
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
         print("Service ending")
