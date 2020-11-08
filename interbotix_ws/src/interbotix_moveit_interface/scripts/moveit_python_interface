@@ -550,14 +550,13 @@ def shutdown_handler():
 def change_device_render():
   text = "Change the device or reconnect the device"
   pygame_render_text(screen, text, (150,200), green, 30)
-  text = "and click on \"YES\" to recalibrate or "
+  text = "and click on \"YES\" to calibrate"
   pygame_render_text(screen, text, (150,235), green, 30)
-  text = " click on \"Exit\" to finish calibration"
-  pygame_render_text(screen, text, (150,270), green, 30)
+  # text = " click on \"Exit\" to finish calibration"
+  # pygame_render_text(screen, text, (150,270), green, 30)
 
 
 def capture_calibrate_continue():
-  yes_button =  pygame.Rect(410, 400, 60, 35)
   pygame.draw.rect(screen, orange, yes_button)
   pygame_render_text(screen, 'Yes', (415, 405))
   is_clicked = False
@@ -873,7 +872,8 @@ def main():
   # del arm_control
   # sys.exit(0)
 
-no_button =  pygame.Rect(500, 500, 65, 35)
+yes_button =  pygame.Rect(390, 400, 80, 45)
+no_button =  pygame.Rect(490, 500, 80, 45)
 sleep_pose = [0.05, -1.76, -1.55, 0.05, -0.8, 0.05]
 arm_control = None
 
