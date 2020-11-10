@@ -136,7 +136,42 @@ class depthai_calibration_node:
         # text = 'call rosservice of device_status_handler to update the device status'
         for i in range(len(self.auto_checkbox_names)):
             self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
+        pygame.draw.rect(self.screen, red, no_button)
+        pygame_render_text(self.screen, 'Exit', (500, 505))
+        self.no_active = False
+        self.click = False
         # self.disp.update()
+
+    def capture_exit(self):
+        is_clicked = False
+        for event in pygame.event.get():
+            # self.disp.update()
+            if event.type == pygame.MOUSEMOTION:
+                x, y = event.pos
+                px, py, w, h = no_button
+                if px < x < px + w and py < y < py + h:
+                    self.no_active = True
+                    pygame.draw.rect(self.screen, orange, no_button)
+                    pygame_render_text(self.screen, 'Exit', (500, 505))
+                else:
+                    self.no_active = False
+                    pygame.draw.rect(self.screen, red, no_button)
+                    pygame_render_text(self.screen, 'Exit', (500, 505))
+        
+            if event.type == pygame.MOUSEBUTTONDOWN and self.no_active:
+                print("setting click")
+                self.click = True
+            if event.type == pygame.MOUSEBUTTONUP:
+                if self.no_active and self.click:
+                    print("No clicked")
+                    is_clicked = True
+                    # is_device_ready = False
+                    # if arm_control is not None:
+                        # arm_control.go_to_next_joint_state(joints_goal_dict['sleep'])
+                    break
+        # pygame.event.pump()
+        return is_clicked
+    
 
     def start_device(self):
         self.device = depthai.Device('', False)
@@ -145,11 +180,16 @@ class depthai_calibration_node:
         
     def publisher(self):
         while not rospy.is_shutdown():
+            if self.capture_exit():
+                print("signaling...")
+                rospy.signal_shutdown("Finished calibration")
             if self.start_disp:
-                pygame.event.pump()
+                
                 self.disp.update()
             # print("updating dis-----")
             if not self.is_service_active:
+                # pygame.draw.rect(self.screen, red, no_button)
+                # pygame_render_text(self.screen, 'Exit', (500, 505))
                 # print("SERVICE NOT ACTIVE")
                 if not hasattr(self, "pipeline"):
                     self.start_device()
@@ -165,6 +205,7 @@ class depthai_calibration_node:
                     elif packet.stream_name == "right":
                         recent_right = packet.getData()
                         self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
+
 
     def parse_frame(self, frame, stream_name, file_name):
         file_name += '.png'
@@ -192,6 +233,7 @@ class depthai_calibration_node:
         finished = False
         self.is_service_active = True
         # now = rospy.get_rostime()
+        pygame.draw.rect(self.screen, white, no_button)
         while not finished:
             _, data_list = self.pipeline.get_available_nnet_and_data_packets()
             # print(len(data_list))
@@ -235,6 +277,7 @@ class depthai_calibration_node:
     def device_status_handler(self, req):
         self.is_service_active = True
         self.start_disp = True
+        pygame.draw.rect(self.screen, white, no_button)
         while not self.device.is_device_changed():
             text = "Waiting for device change"
             pygame_render_text(self.screen, text, (250,400), orange, 40)
@@ -253,20 +296,25 @@ class depthai_calibration_node:
         pygame_render_text(self.screen, text, (400,120), black, 30)
 
         while self.device.is_device_changed():
-            print(self.device.is_device_changed())
+            # print(self.device.is_device_changed())
+            # if self.capture_exit():
+            #     print("signaling...")
+            #     rospy.signal_shutdown("Finished calibration")
             is_usb3 = self.device.is_usb3()
             left_status = self.device.is_left_connected()
             right_status = self.device.is_right_connected()
             left_mipi = False
             right_mipi = False
-            
+            if self.capture_exit():
+                rospy.signal_shutdown("Finished calibration")
+            # else
             if left_status and right_status:
                 # mipi check using 20 iterations
                 # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
                 # time.sleep(1) # this is needed to avoid iterating fastly over 
                 for _ in range(60):
                     _, data_list = self.pipeline.get_available_nnet_and_data_packets(True)
-                    print(len(data_list))
+                    # print(len(data_list))
                     for packet in data_list:    
                         # print("found packets:")
                         # print(packet.stream_name)
@@ -328,6 +376,7 @@ class depthai_calibration_node:
     def calibration_servive_handler(self, req):
         self.is_service_active = True
         print("Capture image Service Started")
+        pygame.draw.rect(self.screen, white, no_button)
 
         mx_serial_id = self.device.get_mx_id()
         calib_dest_path = os.path.join(arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.calib')
@@ -415,7 +464,8 @@ class depthai_calibration_node:
 
         time.sleep(1)    
         
-    
+no_button =  pygame.Rect(490, 500, 80, 45)
+
 if __name__ == "__main__":
     
     rospy.init_node('depthai_calibration', anonymous=True)

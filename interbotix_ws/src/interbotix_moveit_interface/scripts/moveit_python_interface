@@ -832,8 +832,6 @@ def main():
 
       ## capture capture service was succesfull in capturing all services then start calibration service
       if capture_count == len(actions): 
-         
-
         ## UI rendering
         relpace_rect =  pygame.Rect(100, 115, 400, 35)
         pygame.draw.rect(screen, white, relpace_rect)
