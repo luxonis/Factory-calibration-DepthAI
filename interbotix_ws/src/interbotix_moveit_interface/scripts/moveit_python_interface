@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import copy
 import pygame
@@ -17,6 +18,8 @@ import geometry_msgs.msg
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from calibration.srv import Capture
+
+os.environ['SDL_VIDEO_WINDOW_POS'] = '1000,50'
 
 white  = [255, 255, 255]
 orange = [143, 122, 4]

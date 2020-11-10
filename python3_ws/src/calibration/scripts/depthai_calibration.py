@@ -29,7 +29,10 @@ import pygame
 from pygame.locals import *
 
 from depthai_helpers import utils
+os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
+
 on_embedded = platform.machine().startswith('arm') or platform.machine().startswith('aarch64')
+
 
 def find_chessboard(frame):
     chessboard_flags = cv2.CALIB_CB_ADAPTIVE_THRESH + cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE
@@ -184,8 +187,9 @@ class depthai_calibration_node:
                 print("signaling...")
                 rospy.signal_shutdown("Finished calibration")
             if self.start_disp:
-                
                 self.disp.update()
+            # else:
+            #     pygameX.event.pump()
             # print("updating dis-----")
             if not self.is_service_active:
                 # pygame.draw.rect(self.screen, red, no_button)
