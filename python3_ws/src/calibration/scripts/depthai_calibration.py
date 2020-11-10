@@ -154,7 +154,7 @@ class depthai_calibration_node:
                 if not hasattr(self, "pipeline"):
                     self.start_device()
                     # print("restarting device---->")
-                _, data_list = self.pipeline.get_available_nnet_and_data_packets()
+                _, data_list = self.pipeline.get_available_nnet_and_data_packets(True)
                 for packet in data_list:    
                     # print("found packets:")
                     # print(packet.stream_name)

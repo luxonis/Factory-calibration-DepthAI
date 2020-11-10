@@ -9,6 +9,7 @@ import time
 import warnings
 import signal
 
+import rosservice
 import rospy
 import moveit_commander
 import moveit_msgs.msg
@@ -638,6 +639,26 @@ def capture_exit():
   pygame.event.pump()
   return is_clicked
 
+def check_service(service_name):
+  relpace_rect =  pygame.Rect(150, 115, 500, 35)
+  pygame.draw.rect(screen, white, relpace_rect)
+  is_exit = False
+  while True:
+    is_exit = capture_exit()
+    service_list = rosservice.get_service_list()
+    print(service_list)
+    if service_name in service_list:
+      break
+    else :
+      dev = service_name + " doesn't exist check if calibration node is running!!"
+      pygame_render_text(screen, dev, (200,115), red, 30)
+    
+    if is_exit:
+      break
+    disp.update()
+  return is_exit
+
+
 def main():
   global screen, disp, arm_control
   rospy.on_shutdown(shutdown_handler)
@@ -705,6 +726,10 @@ def main():
     is_device_ready = capture_calibrate_continue()
 
     while is_device_ready:
+      ## check if service is available
+      if check_service('/device_status'):
+        break
+
       relpace_rect =  pygame.Rect(0, 60, 800, 540)
       pygame.draw.rect(screen, white, relpace_rect)
       heading = "Waiting for device status..."
@@ -742,14 +767,17 @@ def main():
         break
 
       capture_count = 0
-      for act in actions:
+      while capture_count < len(actions):
+        act = actions[capture_count]        
+
         ## UI update
         relpace_rect =  pygame.Rect(150, 115, 300, 35)
         pygame.draw.rect(screen, white, relpace_rect)
         dev = "capturing - " + str(capture_count)
         pygame_render_text(screen, dev, (270,115), black, 30)
         disp.update()
-        if capture_exit():
+        ## check if service is available
+        if check_service('/capture_checkerboard'):
           is_device_ready = False
           break
         
@@ -774,14 +802,14 @@ def main():
             break
         ## Service fails to send response when service 
         ## node crashes or fails to gets stuck
-        else:
-          pygame.draw.rect(screen, white, relpace_rect)
-          dev = "calibration node failed!! device lost!." 
-          pygame_render_text(screen, dev, (270,115), red, 30)
-          dev = "Restart the calibration node"
-          pygame_render_text(screen, dev, (270,145), red, 30)
-          disp.update()
-          break
+        # else:
+        #   pygame.draw.rect(screen, white, relpace_rect)
+        #   dev = "calibration node failed!! device lost!." 
+        #   pygame_render_text(screen, dev, (270,115), red, 30)
+        #   dev = "Restart the calibration node"
+        #   pygame_render_text(screen, dev, (270,145), red, 30)
+        #   disp.update()
+        #   break
             
       ## reset position to start
       print("Stand pose -->")
@@ -804,13 +832,16 @@ def main():
 
       ## capture capture service was succesfull in capturing all services then start calibration service
       if capture_count == len(actions): 
+         
+
         ## UI rendering
         relpace_rect =  pygame.Rect(100, 115, 400, 35)
         pygame.draw.rect(screen, white, relpace_rect)
         dev = "Starting calibration service"
         pygame_render_text(screen, dev, (200,115), black, 30)
         disp.update()
-        if capture_exit():
+        # checking service available
+        if check_service('/calibrate_stereo'):
           is_device_ready = False
           break
 
@@ -829,7 +860,7 @@ def main():
             pygame_render_text(screen, dev, (200,115), green, 30)
         else:
             dev = "Calibration service failed. check calibration node error."
-            pygame_render_text(screen, dev, (200,115), green, 30)
+            pygame_render_text(screen, dev, (200,115), red, 30)
       
       change_device_render()
       is_device_ready = capture_calibrate_continue()
@@ -879,5 +910,3 @@ arm_control = None
 
 if __name__ == '__main__':
   main()
-
-

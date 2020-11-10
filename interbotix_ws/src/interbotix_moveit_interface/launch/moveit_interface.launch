@@ -40,4 +40,5 @@
   </node>
 
 </launch>
-    <!-- required="true" -->
+    <!-- required="true"
+    launch-prefix="xterm -e" -->
