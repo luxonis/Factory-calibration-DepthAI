@@ -778,28 +778,44 @@ def main():
       pygame.draw.rect(screen, orange, no_button)
       pygame_render_text(screen, 'Exit', (500, 505))
       disp.update()
-  
-      resp = device_status_srv("checking_device_status")
-      if capture_exit():
-        is_device_ready = False
-        break
 
-      if resp is not None:
-        if resp.success:
+      try:
+        resp = device_status_srv("checking_device_status")
+        if capture_exit():
+          is_device_ready = False
+          break
+
+        if resp is not None:
+          if resp.success:
+            relpace_rect =  pygame.Rect(100, 70, 650, 35)
+            pygame.draw.rect(screen, white, relpace_rect)
+            dev = "Device with Mx id: " +  resp.error + " Connected"
+            pygame_render_text(screen, dev, (200,70), black, 30)
+            disp.update()
+        else:
+          print("couldn't reach device status service")
           relpace_rect =  pygame.Rect(100, 70, 650, 35)
           pygame.draw.rect(screen, white, relpace_rect)
-          dev = "Device with Mx id: " +  resp.error + " Connected"
+          dev = "couldn't reach device status service"
           pygame_render_text(screen, dev, (200,70), black, 30)
-          disp.update()
-      else:
-        print("couldn't reach device status service")
-        relpace_rect =  pygame.Rect(100, 70, 650, 35)
-        pygame.draw.rect(screen, white, relpace_rect)
-        dev = "couldn't reach device status service"
-        pygame_render_text(screen, dev, (200,70), black, 30)
-        is_device_ready = capture_calibrate_continue()
-        continue
-
+          is_device_ready = capture_calibrate_continue()
+          continue
+      except Exception as e:
+          print("couldn't reach device status service")
+          relpace_rect =  pygame.Rect(100, 70, 650, 35)
+          pygame.draw.rect(screen, white, relpace_rect)
+          dev = "Depthai calibration is not running"
+          pygame_render_text(screen, dev, (150,170), red, 30)
+          
+          # relpace_rect =  pygame.Rect(100, 200, 650, 35)
+          # pygame.draw.rect(screen, white, relpace_rect)
+          text = "Fix depthai calibration node"
+          pygame_render_text(screen, text, (150,200), red, 30)
+          text = "and click on \"YES\" to calibrate"
+          pygame_render_text(screen, text, (150,235), red, 30)
+          is_device_ready = capture_calibrate_continue()
+          continue
+  
       if capture_exit():
         is_device_ready = False
         break
