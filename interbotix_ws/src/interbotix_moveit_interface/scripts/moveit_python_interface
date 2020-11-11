@@ -68,6 +68,11 @@ class MoveGroupPythonIntefaceTutorial(object):
                     anonymous=True)
 
     print("waiting for service--------------------------------->")
+    relpace_rect =  pygame.Rect(0, 60, 800, 540)
+    pygame.draw.rect(screen, white, relpace_rect)
+    text = "Waiting for depthai calibration to start "
+    pygame_render_text(screen, text, (150,200), green, 30)
+    disp.update()
     rospy.wait_for_service('/capture_checkerboard')
 
     try:
@@ -639,27 +644,55 @@ def capture_exit():
           # if arm_control is not None:
             # arm_control.go_to_next_joint_state(joints_goal_dict['sleep'])
           break
-  pygame.event.pump()
+  # pygame.event.pump()
   return is_clicked
+# ['/vx300s/move_group_commander_wrappers_1605038418821432540/set_logger_level', '/joint_state_publisher/set_logger_level', '/vx300s/move_group_commander_wrappers_1604956211368963110/set_logger_level', '/vx300s/move_group/trajectory_execution/set_parameters', '/vx300s/arm_node/set_logger_level', '/vx300s/move_group_commander_wrappers_1604964639644519152/get_loggers', '/vx300s/get_robot_info', '/vx300s/move_group/load_map', '/vx300s/robot_state_publisher/set_logger_level', '/vx300s/robot_state_publisher/get_loggers', '/vx300s/move_group_commander_wrappers_1604956211368963110/get_loggers', '/depthai_calibration/set_logger_level', '/vx300s/move_group_commander_wrappers_1604967194001355966/get_loggers', '/vx300s/get_planner_params', '/vx300s/move_group_commander_wrappers_1605038685961350168/get_loggers', '/vx300s/move_group_commander_wrappers_1604964639644519152/set_logger_level', '/vx300s/move_group_commander_wrappers_1604953724340728701/set_logger_level', '/vx300s/set_motor_register_values', '/vx300s/compute_cartesian_path', '/vx300s/move_group_commander_wrappers_1604956650108983771/get_loggers', '/calibrate_stereo', '/vx300s/move_group_commander_wrappers_1604967194001355966/set_logger_level', '/vx300s/move_group_commander_wrappers_1604953456915697911/set_logger_level', '/vx300s/move_group_commander_wrappers_1605042666062787097/set_logger_level', '/vx300s/move_group_commander_wrappers_1604952697277012625/get_loggers', '/vx300s/move_group_commander_wrappers_1604956650108983771/set_logger_level', '/vx300s/check_state_validity', '/vx300s/move_group_commander_wrappers_1604959949037350953/set_logger_level', '/rosout/set_logger_level', '/vx300s/move_group_commander_wrappers_1604953456915697911/get_loggers', '/vx300s/move_group_commander_wrappers_1604953544625766310/set_logger_level', '/vx300s/get_motor_register_values', '/vx300s/torque_joints_on', '/vx300s/move_group_commander_wrappers_1605034911545858998/set_logger_level', '/vx300s/set_firmware_pid_gains', '/vx300s/move_group_commander_wrappers_1604965579895518885/get_loggers', '/vx300s/move_group_commander_wrappers_1604964616771412444/set_logger_level', '/vx300s/move_group_commander_wrappers_1604960318163314868/set_logger_level', '/vx300s/clear_octomap', '/vx300s/apply_planning_scene', '/joint_state_publisher/get_loggers', '/depthai_calibration/get_loggers', '/vx300s/move_group_commander_wrappers_1605034632903561945/set_logger_level', '/capture_checkerboard', '/vx300s/move_group_commander_wrappers_1604967069728605309/set_logger_level', '/vx300s/move_group_commander_wrappers_1604960318163314868/get_loggers', '/vx300s/move_group/set_logger_level', '/device_status', '/vx300s/move_group_commander_wrappers_1604965579895518885/set_logger_level', '/vx300s/move_group/planning_scene_monitor/set_parameters', '/vx300s/move_group/get_loggers', '/vx300s/get_planning_scene', '/vx300s/move_group_commander_wrappers_1605034632903561945/get_loggers', '/vx300s/move_group_commander_wrappers_1604953544625766310/get_loggers', '/vx300s/arm_node/get_loggers', '/vx300s/move_group/ompl/set_parameters', '/vx300s/move_group_commander_wrappers_1604959949037350953/get_loggers', '/rosout/get_loggers', '/vx300s/move_group_commander_wrappers_1604953671841657556/set_logger_level', '/vx300s/compute_fk', '/vx300s/move_group_commander_wrappers_1605041756192291576/set_logger_level', '/vx300s/move_group_commander_wrappers_1605044313555995370/set_logger_level', '/vx300s/move_group_commander_wrappers_1605042666062787097/get_loggers', '/vx300s/move_group_commander_wrappers_1604967069728605309/get_loggers', '/vx300s/move_group_commander_wrappers_1604952697277012625/set_logger_level', '/vx300s/move_group_commander_wrappers_1605034851435062165/set_logger_level', '/vx300s/move_group_commander_wrappers_1605041756192291576/get_loggers', '/vx300s/move_group_commander_wrappers_1604953724340728701/get_loggers', '/vx300s/query_planner_interface', '/vx300s/move_group_commander_wrappers_1605042918637614568/set_logger_level', '/vx300s/move_group_commander_wrappers_1605038685961350168/set_logger_level', '/vx300s/compute_ik', '/vx300s/moveit_python_interface/get_loggers', '/vx300s/set_operating_modes', '/vx300s/move_group/plan_execution/set_parameters', '/vx300s/move_group_commander_wrappers_1605038418821432540/get_loggers', '/vx300s/plan_kinematic_path', '/vx300s/move_group_commander_wrappers_1604953671841657556/get_loggers', '/vx300s/moveit_python_interface/set_logger_level', '/vx300s/move_group_commander_wrappers_1605034851435062165/get_loggers', '/vx300s/move_group_commander_wrappers_1605034911545858998/get_loggers', '/vx300s/move_group_commander_wrappers_1604964616771412444/get_loggers', '/vx300s/move_group_commander_wrappers_1605042918637614568/get_loggers', '/vx300s/torque_joints_off', '/vx300s/move_group/save_map', '/vx300s/move_group/sense_for_plan/set_parameters', '/vx300s/set_planner_params', '/vx300s/move_group_commander_wrappers_1605044313555995370/get_loggers']
+# ['/vx300s/move_group_commander_wrappers_1605038418821432540/set_logger_level', '/joint_state_publisher/set_logger_level', '/vx300s/move_group_commander_wrappers_1604956211368963110/set_logger_level', '/vx300s/move_group/trajectory_execution/set_parameters', '/vx300s/arm_node/set_logger_level', '/vx300s/move_group_commander_wrappers_1604964639644519152/get_loggers', '/vx300s/get_robot_info', '/vx300s/move_group/load_map', '/vx300s/robot_state_publisher/set_logger_level', '/vx300s/robot_state_publisher/get_loggers', '/vx300s/move_group_commander_wrappers_1604956211368963110/get_loggers', '/depthai_calibration/set_logger_level', '/vx300s/move_group_commander_wrappers_1604967194001355966/get_loggers', '/vx300s/get_planner_params', '/vx300s/move_group_commander_wrappers_1605038685961350168/get_loggers', '/vx300s/move_group_commander_wrappers_1604964639644519152/set_logger_level', '/vx300s/move_group_commander_wrappers_1604953724340728701/set_logger_level', '/vx300s/set_motor_register_values', '/vx300s/compute_cartesian_path', '/vx300s/move_group_commander_wrappers_1604956650108983771/get_loggers', '/calibrate_stereo', '/vx300s/move_group_commander_wrappers_1604967194001355966/set_logger_level', '/vx300s/move_group_commander_wrappers_1604953456915697911/set_logger_level', '/vx300s/move_group_commander_wrappers_1605042666062787097/set_logger_level', '/vx300s/move_group_commander_wrappers_1604952697277012625/get_loggers', '/vx300s/move_group_commander_wrappers_1604956650108983771/set_logger_level', '/vx300s/check_state_validity', '/vx300s/move_group_commander_wrappers_1604959949037350953/set_logger_level', '/rosout/set_logger_level', '/vx300s/move_group_commander_wrappers_1604953456915697911/get_loggers', '/vx300s/move_group_commander_wrappers_1604953544625766310/set_logger_level', '/vx300s/get_motor_register_values', '/vx300s/torque_joints_on', '/vx300s/move_group_commander_wrappers_1605034911545858998/set_logger_level', '/vx300s/set_firmware_pid_gains', '/vx300s/move_group_commander_wrappers_1604965579895518885/get_loggers', '/vx300s/move_group_commander_wrappers_1604964616771412444/set_logger_level', '/vx300s/move_group_commander_wrappers_1604960318163314868/set_logger_level', '/vx300s/clear_octomap', '/vx300s/apply_planning_scene', '/joint_state_publisher/get_loggers', '/depthai_calibration/get_loggers', '/vx300s/move_group_commander_wrappers_1605034632903561945/set_logger_level', '/capture_checkerboard', '/vx300s/move_group_commander_wrappers_1604967069728605309/set_logger_level', '/vx300s/move_group_commander_wrappers_1604960318163314868/get_loggers', '/vx300s/move_group/set_logger_level', '/device_status', '/vx300s/move_group_commander_wrappers_1604965579895518885/set_logger_level', '/vx300s/move_group/planning_scene_monitor/set_parameters', '/vx300s/move_group/get_loggers', '/vx300s/get_planning_scene', '/vx300s/move_group_commander_wrappers_1605034632903561945/get_loggers', '/vx300s/move_group_commander_wrappers_1604953544625766310/get_loggers', '/vx300s/arm_node/get_loggers', '/vx300s/move_group/ompl/set_parameters', '/vx300s/move_group_commander_wrappers_1604959949037350953/get_loggers', '/rosout/get_loggers', '/vx300s/move_group_commander_wrappers_1604953671841657556/set_logger_level', '/vx300s/compute_fk', '/vx300s/move_group_commander_wrappers_1605041756192291576/set_logger_level', '/vx300s/move_group_commander_wrappers_1605044313555995370/set_logger_level', '/vx300s/move_group_commander_wrappers_1605042666062787097/get_loggers', '/vx300s/move_group_commander_wrappers_1604967069728605309/get_loggers', '/vx300s/move_group_commander_wrappers_1604952697277012625/set_logger_level', '/vx300s/move_group_commander_wrappers_1605034851435062165/set_logger_level', '/vx300s/move_group_commander_wrappers_1605041756192291576/get_loggers', '/vx300s/move_group_commander_wrappers_1604953724340728701/get_loggers', '/vx300s/query_planner_interface', '/vx300s/move_group_commander_wrappers_1605042918637614568/set_logger_level', '/vx300s/move_group_commander_wrappers_1605038685961350168/set_logger_level', '/vx300s/compute_ik', '/vx300s/moveit_python_interface/get_loggers', '/vx300s/set_operating_modes', '/vx300s/move_group/plan_execution/set_parameters', '/vx300s/move_group_commander_wrappers_1605038418821432540/get_loggers', '/vx300s/plan_kinematic_path', '/vx300s/move_group_commander_wrappers_1604953671841657556/get_loggers', '/vx300s/moveit_python_interface/set_logger_level', '/vx300s/move_group_commander_wrappers_1605034851435062165/get_loggers', '/vx300s/move_group_commander_wrappers_1605034911545858998/get_loggers', '/vx300s/move_group_commander_wrappers_1604964616771412444/get_loggers', '/vx300s/move_group_commander_wrappers_1605042918637614568/get_loggers', '/vx300s/torque_joints_off', '/vx300s/move_group/save_map', '/vx300s/move_group/sense_for_plan/set_parameters', '/vx300s/set_planner_params', '/vx300s/move_group_commander_wrappers_1605044313555995370/get_loggers']
 
 def check_service(service_name):
   relpace_rect =  pygame.Rect(150, 115, 500, 35)
   pygame.draw.rect(screen, white, relpace_rect)
-  is_exit = False
+  is_clicked = False
+  no_active = False
   while True:
-    is_exit = capture_exit()
+    for event in pygame.event.get():
+      if event.type == pygame.MOUSEMOTION:
+        x, y = event.pos
+        px, py, w, h = no_button
+        if px < x < px + w and py < y < py + h:
+            no_active = True
+            pygame.draw.rect(screen, orange, no_button)
+            pygame_render_text(screen, 'Exit', (500, 505))
+        else:
+            no_active = False
+            pygame.draw.rect(screen, red, no_button)
+            pygame_render_text(screen, 'Exit', (500, 505))
+    
+      if event.type == pygame.MOUSEBUTTONDOWN and no_active:
+          print("setting click")
+          click = True
+      if event.type == pygame.MOUSEBUTTONUP:
+          if no_active and click:
+            print("No clicked")
+            is_clicked = True
+            # is_device_ready = False
+            # if arm_control is not None:
+              # arm_control.go_to_next_joint_state(joints_goal_dict['sleep'])
+            break
+    if is_clicked:
+      break
     service_list = rosservice.get_service_list()
-    print(service_list)
+    # print(service_list)
     if service_name in service_list:
+      print("Service found")
       break
     else :
-      dev = service_name + " doesn't exist check if calibration node is running!!"
+      dev = service_name + " service doesn't exist."
       pygame_render_text(screen, dev, (200,115), red, 30)
-    
-    if is_exit:
-      break
+      dev = "check if calibration node is running!!"
+      pygame_render_text(screen, dev, (200,150), black, 30)
     disp.update()
-  return is_exit
+  return is_clicked
 
 
 def main():
@@ -668,6 +701,19 @@ def main():
   # signal.signal(signal.SIGINT, shutdown_handler)
   is_device_ready = True
   delay = 0.5
+
+  disp = pygame.display
+  screen = disp.set_mode((800, 600))
+  screen.fill(white)
+  disp.set_caption("Arm Control ")
+
+  ## rendering window title and exit button
+  title = "Arm Control"
+  pygame_render_text(screen, title, (350,20), orange, 50)
+  pygame.draw.rect(screen, orange, no_button)
+  pygame_render_text(screen, 'Exit', (500, 505))
+
+
   arm_control = MoveGroupPythonIntefaceTutorial()
   # creating a dict of all the joints pose of the arm. Some are redundant here
   joints_goal_dict = {
@@ -699,16 +745,6 @@ def main():
 
   # joints_goal_dict = joints_goal_dict_15mm
   try:
-    disp = pygame.display
-    screen = disp.set_mode((800, 600))
-    screen.fill(white)
-    disp.set_caption("Arm Control ")
-
-    ## rendering window title and exit button
-    title = "Arm Control"
-    pygame_render_text(screen, title, (350,20), orange, 50)
-    pygame.draw.rect(screen, orange, no_button)
-    pygame_render_text(screen, 'Exit', (500, 505))
 
     ## adding virtual base of the robot
     box_name = "base_box"
@@ -723,7 +759,9 @@ def main():
     # print("============ Press `Enter` to begin calibration ============")    
     
     # temp = raw_input()   
-
+    relpace_rect =  pygame.Rect(0, 60, 800, 540)
+    pygame.draw.rect(screen, white, relpace_rect)
+    
     text = "Click on \"yes\" below to start calibration procedure "
     pygame_render_text(screen, text, (150,200), green, 30)
     is_device_ready = capture_calibrate_continue()
@@ -768,11 +806,14 @@ def main():
 
       if not is_device_ready:
         break
+      
+      if check_service('/capture_checkerboard'):
+        break
 
       capture_count = 0
       while capture_count < len(actions):
         act = actions[capture_count]        
-
+        print("moving to pose ----> " + act)
         ## UI update
         relpace_rect =  pygame.Rect(150, 115, 300, 35)
         pygame.draw.rect(screen, white, relpace_rect)
@@ -780,7 +821,7 @@ def main():
         pygame_render_text(screen, dev, (270,115), black, 30)
         disp.update()
         ## check if service is available
-        if check_service('/capture_checkerboard'):
+        if capture_exit():
           is_device_ready = False
           break
         
@@ -803,16 +844,18 @@ def main():
             pygame_render_text(screen, dev, (270,145), red, 30)
             disp.update()
             break
+        # else:
+        #   print("capture response is not none------------>")
         ## Service fails to send response when service 
         ## node crashes or fails to gets stuck
-        # else:
-        #   pygame.draw.rect(screen, white, relpace_rect)
-        #   dev = "calibration node failed!! device lost!." 
-        #   pygame_render_text(screen, dev, (270,115), red, 30)
-        #   dev = "Restart the calibration node"
-        #   pygame_render_text(screen, dev, (270,145), red, 30)
-        #   disp.update()
-        #   break
+        else:
+          pygame.draw.rect(screen, white, relpace_rect)
+          dev = "calibration node failed!! device lost!." 
+          pygame_render_text(screen, dev, (270,115), red, 30)
+          dev = "Restart the calibration node"
+          pygame_render_text(screen, dev, (270,145), red, 30)
+          disp.update()
+          break
             
       ## reset position to start
       print("Stand pose -->")

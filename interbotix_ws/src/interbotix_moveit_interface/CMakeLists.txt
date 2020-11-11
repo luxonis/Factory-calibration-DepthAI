@@ -71,10 +71,64 @@ add_dependencies(moveit_interface_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${cat
 ## Install ##
 #############
 
+set(DESKTOP_APP_DIR "$ENV{HOME}/.local/share/applications")
+set(DESKTOP_ICON_DIR ${DESKTOP_APP_DIR})
+set(DESKTOP_APP_SUFFIX " (local)")
+message(${CMAKE_CURRENT_BINARY_DIR})
+message(${CMAKE_BINARY_DIR})
+# Create directory for the desktop file/icon
+install(DIRECTORY DESTINATION
+  ${DESKTOP_APP_DIR}
+)
+install(DIRECTORY DESTINATION
+  ${DESKTOP_ICON_DIR}
+)
+
+configure_file(
+  scripts/arm_exec.bash.in
+  scripts/arm_exec.bash
+  @ONLY
+)
+
+# Install bash scripts
+install(
+  PROGRAMS
+  ${CMAKE_CURRENT_BINARY_DIR}/scripts/arm_exec.bash
+  DESTINATION
+  ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+message(${CATKIN_PACKAGE_BIN_DESTINATION})
+
+configure_file(
+  desktop/arm_control.desktop.in
+  desktop/arm_control.desktop
+)
+
+install(
+    FILES
+    ${CMAKE_CURRENT_BINARY_DIR}/desktop/arm_control.desktop
+    DESTINATION
+    ${DESKTOP_APP_DIR}
+)
+
+install(
+  FILES
+  desktop/arm_control.png
+  DESTINATION
+  ${DESKTOP_ICON_DIR}
+)
 ## Mark executable scripts (Python etc.) for installation
 ## in contrast to setup.py, you can choose the destination
 catkin_install_python(PROGRAMS
   scripts/moveit_python_interface
   scripts/location_capture_moveit
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
+)
+
+## Mark other files for installation (e.g. launch and bag files, etc.)
+install(
+  DIRECTORY
+  launch
+  DESTINATION
+  ${CATKIN_PACKAGE_SHARE_DESTINATION}
 )

@@ -55,8 +55,8 @@ class depthai_calibration_node:
         self.is_service_active = False
         self.config = {
             'streams':
-                ['left', 'right', 'meta_d2h'] if not on_embedded else
-                [{'name': 'left', "max_fps": 30.0}, {'name': 'right', "max_fps": 30.0}, {'name': 'meta_d2h', "max_fps": 30.0}],
+                ['left', 'right', 'meta_d2h', 'color'] if not on_embedded else
+                [{'name': 'left', "max_fps": 30.0}, {'name': 'right', "max_fps": 30.0}, {'name': 'meta_d2h', "max_fps": 30.0}, {'name': 'color', "max_fps": 30.0}],
             'depth':
                 {
                     'calibration_file': consts.resource_paths.calib_fpath,
@@ -107,11 +107,6 @@ class depthai_calibration_node:
         #                                     self.args['marker_size_cm'],
         #                                     self.aruco_dictionary)
         self.start_device()
-        self.capture_srv = rospy.Service(self.args["capture_service_name"], Capture, self.capture_servive_handler)
-        self.calib_srv = rospy.Service(self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
-        self.dev_status_srv = rospy.Service("device_status", Capture, self.device_status_handler)
-        self.image_pub_left = rospy.Publisher("left",Image, queue_size=10)
-        self.image_pub_right = rospy.Publisher("right",Image, queue_size=10)
 
         self.disp = pygame.display
         self.screen = self.disp.set_mode((800, 600))
@@ -144,6 +139,12 @@ class depthai_calibration_node:
         self.no_active = False
         self.click = False
         # self.disp.update()
+        ## creating services and publishers at the end to avoid calls before initialization 
+        self.capture_srv = rospy.Service(self.args["capture_service_name"], Capture, self.capture_servive_handler)
+        self.calib_srv = rospy.Service(self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
+        self.dev_status_srv = rospy.Service("device_status", Capture, self.device_status_handler)
+        self.image_pub_left = rospy.Publisher("left",Image, queue_size=10)
+        self.image_pub_right = rospy.Publisher("right",Image, queue_size=10)
 
     def capture_exit(self):
         is_clicked = False
@@ -237,7 +238,7 @@ class depthai_calibration_node:
         finished = False
         self.is_service_active = True
         # now = rospy.get_rostime()
-        pygame.draw.rect(self.screen, white, no_button)
+        # pygame.draw.rect(self.screen, white, no_button)
         while not finished:
             _, data_list = self.pipeline.get_available_nnet_and_data_packets()
             # print(len(data_list))
@@ -281,24 +282,24 @@ class depthai_calibration_node:
     def device_status_handler(self, req):
         self.is_service_active = True
         self.start_disp = True
-        pygame.draw.rect(self.screen, white, no_button)
+        # pygame.draw.rect(self.screen, white, no_button)
         while not self.device.is_device_changed():
             text = "Waiting for device change"
             pygame_render_text(self.screen, text, (250,400), orange, 40)
         
         # to remove waiting for device change
-        fill_color =  pygame.Rect(200, 400, 400, 55)
+        fill_color =  pygame.Rect(200, 400, 450, 55)
         pygame.draw.rect(self.screen, white, fill_color)
 
         # to remove previous date and stuff
-        fill_color =  pygame.Rect(400, 70, 400, 545)
+        fill_color =  pygame.Rect(400, 70, 500, 150)
         pygame.draw.rect(self.screen, white, fill_color)
         now_time = datetime.datetime.now()
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
         pygame_render_text(self.screen, text, (400,80), black, 30)
         text = "device Mx_id : " + self.device.get_mx_id()
         pygame_render_text(self.screen, text, (400,120), black, 30)
-
+        # rospy.sleep(5)
         while self.device.is_device_changed():
             # print(self.device.is_device_changed())
             # if self.capture_exit():
@@ -349,7 +350,6 @@ class depthai_calibration_node:
             else:
                 self.auto_checkbox_dict["Left camera connected"].check()
 
-
             if not left_mipi:
                 self.auto_checkbox_dict["Left Stream"].uncheck()
             else:
@@ -379,8 +379,8 @@ class depthai_calibration_node:
 
     def calibration_servive_handler(self, req):
         self.is_service_active = True
-        print("Capture image Service Started")
-        pygame.draw.rect(self.screen, white, no_button)
+        print("calibration Service Started")
+        # pygame.draw.rect(self.screen, white, no_button)
 
         mx_serial_id = self.device.get_mx_id()
         calib_dest_path = os.path.join(arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.calib')
@@ -398,9 +398,9 @@ class depthai_calibration_node:
         text = "Avg Epipolar error : " + format(avg_epipolar_error, '.6f')
         pygame_render_text(self.screen, text, (400,160), green, 30)
         if avg_epipolar_error > 0.5:
-            text = "Failed use to high calibration error"
+            text = "Failed due to high calibration error"
             pygame_render_text(self.screen, text, (400,200), red, 30)
-            return (False, "Failed use to high calibration error")
+            return (False, text)
         # self.rundepthai()
         
         dev_config = {
@@ -481,14 +481,15 @@ if __name__ == "__main__":
     arg["square_size_cm"] = rospy.get_param('~square_size_cm')
     arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
 
-    arg["depthai_path"] = rospy.get_param('~depthai_path') ## Add  capture_checkerboard to launch file
+    # arg["depthai_path"] = rospy.get_param('~depthai_path') ## Add  capture_checkerboard to launch file
     arg["board"] = rospy.get_param('~brd') ## Add  capture_checkerboard to launch file
     arg["capture_service_name"] = rospy.get_param('~capture_service_name') ## Add  capture_checkerboard to launch file
     arg["calibration_service_name"] = rospy.get_param('~calibration_service_name') ## Add  capture_checkerboard to launch file
     arg["depthai_path"] = rospy.get_param('~depthai_path') ## Path of depthai repo
  
-    arg["calib_path"] = rospy.get_param('~calib_path') ## local path to store calib files with using mx device id.
-
+    arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path') ## local path to store calib files with using mx device id.
+    # print("Hone------------------------>")
+    # print(str(Path.home()))
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])
     
@@ -501,8 +502,8 @@ if __name__ == "__main__":
                 raise ValueError('Board config not found: {}'.format(board_path))
         with open(board_path) as fp:
             board_config = json.load(fp)
-    assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
-        Please add the correct path using depthai_path:=[path] while executing launchfile")
+    # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
+    #     Please add the correct path using depthai_path:=[path] while executing launchfile")
 
     depthai_dev = depthai_calibration_node(arg)
     depthai_dev.publisher()
