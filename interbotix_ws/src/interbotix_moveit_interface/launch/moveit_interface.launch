@@ -9,6 +9,8 @@
   <arg name="use_actual"                  default="false"/>
   <arg name="use_fake"                    default="false"/>
   <arg name="dof"                         default="5"/>
+  <!-- swap_pose can be right_swap/left_swap/center_swap/right_start/left_start -->
+  <arg name="swap_pose"                   default="right_swap"/>
   <!-- <arg name="use_cpp_interface"           default="false"/> -->
   <!-- <arg name="moveit_interface_gui"        default="true"/> -->
   <!-- <arg name="use_python_interface"        default="false"/> -->
@@ -33,10 +35,11 @@
     output="screen"
     required="true"
     ns="$(arg robot_name)">
-    <param name="robot_name" value="$(arg robot_name)"/>
-    <param name="dof" value="$(arg dof)"/>
+    <param name="robot_name"  value="$(arg robot_name)"/>
+    <param name="dof"         value="$(arg dof)"/>
+    <param name="swap_pose"   value="$(arg swap_pose)"/>
     <remap from="/attached_collision_object" to="/$(arg robot_name)/attached_collision_object"/>
-    <remap from="/collision_object" to="/$(arg robot_name)/collision_object"/>
+    <remap from="/collision_object"          to="/$(arg robot_name)/collision_object"/>
   </node>
 
 </launch>
