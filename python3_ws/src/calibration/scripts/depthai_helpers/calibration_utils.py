@@ -95,16 +95,17 @@ class StereoCalibration(object):
             self.aruco_dictionary = aruco.Dictionary_get(aruco.DICT_4X4_1000)
             # parameters = aruco.DetectorParameters_create()
             assert mrk_size != None,  "ERROR: marker size not set"
-            self.board = aruco.CharucoBoard_create(
-                22, 16,
-                square_size,
-                mrk_size,
-                self.aruco_dictionary)
             # self.board = aruco.CharucoBoard_create(
-            #     11,8,
+            #     22, 16,
             #     square_size,
             #     mrk_size,
             #     self.aruco_dictionary)
+            self.board = aruco.CharucoBoard_create(
+                11, 8,
+                square_size,
+                mrk_size,
+                self.aruco_dictionary)
+            self.data_path = filepath
             self.calibrate_charuco3D(filepath)
         else:
             self.objp = np.zeros((9 * 6, 3), np.float32)
@@ -120,18 +121,71 @@ class StereoCalibration(object):
 
         self.stereo_calib_two_homo()
 
+        # rgb-right extrinsic calibration
+
+        # things to do.
+        # First: change the center and other thigns of the calibration matrix of rgb camera
+
+        flags = 0
+        #flags |= cv2.CALIB_FIX_ASPECT_RATIO
+        # flags |= cv2.CALIB_FIX_INTRINSIC
+        flags |= cv2.CALIB_USE_INTRINSIC_GUESS
+        #flags |= cv2.CALIB_SAME_FOCAL_LENGTH
+        #flags |= cv2.CALIB_ZERO_TANGENT_DIST
+        flags |= cv2.CALIB_RATIONAL_MODEL
+        #flags |= cv2.CALIB_FIX_K1
+        #flags |= cv2.CALIB_FIX_K2
+        #flags |= cv2.CALIB_FIX_K3
+        #flags |= cv2.CALIB_FIX_K4
+        #flags |= cv2.CALIB_FIX_K5
+        #flags |= cv2.CALIB_FIX_K6
+        # flags |= cv::CALIB_ZERO_TANGENT_DIST
+
+        stereocalib_criteria = (cv2.TERM_CRITERIA_COUNT +
+                                cv2.TERM_CRITERIA_EPS, 100, 1e-5)
+
+        # stereo calibration procedure
+        # TODO(Sachin): change this hardcoded later
+        # (800, 1280)
+        # (3040, 4056)
+        scale_width = 1280/4056
+        m_scale = [[scale_width,      0,   0],
+                   [0, scale_width,   0],
+                   [0,      0,    1]]
+        M_RGB = np.matmul(m_scale, self.M3)
+        height = round(3040 * scale_width)
+        if height > 800:
+            diff = (height - 800) / 2
+            M_RGB[1, 2] -= diff
+
+        ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
+            self.objpoints_rgb_r, self.imgpoints_rgb, self.imgpoints_rgb_right,
+            M_RGB, self.d3, self.M2, self.d2, self.img_shape,
+            criteria=stereocalib_criteria, flags=flags)
+        print("~~~~~~Stereo calibration RMS error~~~~~~~~")
+        print(ret)
+
+        # Rectification is only to test the epipolar
+        self.R1_rgb, self.R2_rgb, self.P1_rgb, self.P2_rgb, self.Q_rgb, validPixROI1, validPixROI2 = cv2.stereoRectify(
+            M_RGB,
+            self.d3,
+            self.M2,
+            self.d2,
+            self.img_shape, self.R_rgb, self.T_rgb)
+
         R1_fp32 = self.R1.astype(np.float32)
         R2_fp32 = self.R2.astype(np.float32)
         M1_fp32 = self.M1.astype(np.float32)
         M2_fp32 = self.M2.astype(np.float32)
         R_fp32 = self.R.astype(np.float32)
         T_fp32 = self.T.astype(np.float32)
-        M3_fp32 = np.zeros((3, 3), dtype=np.float32)
-        R_rgb_fp32 = np.zeros((3, 3), dtype=np.float32)
-        T_rgb_fp32 = np.zeros(3, dtype=np.float32)
+        M3_fp32 = self.M3.astype(np.float32)
+        R_rgb_fp32 = self.R_rgb.astype(np.float32)
+        T_rgb_fp32 = self.T_rgb.astype(np.float32)
         d1_coeff_fp32 = self.d1.astype(np.float32)
         d2_coeff_fp32 = self.d2.astype(np.float32)
-        d3_coeff_fp32 = np.zeros(14, dtype=np.float32)
+        d3_coeff_fp32 = self.d3.astype(np.float32)
+
         print(out_filepath)
         with open(out_filepath, "wb") as fp:
             fp.write(R1_fp32.tobytes())  # goes to left camera
@@ -156,11 +210,12 @@ class StereoCalibration(object):
         data_list = [R1_fp32, R2_fp32, M1_fp32, M2_fp32, R_fp32, T_fp32, M3_fp32,
                      R_rgb_fp32, T_rgb_fp32, d1_coeff_fp32, d2_coeff_fp32, d3_coeff_fp32]
         self.calib_data = np.array([], dtype=np.float32)
+
         for data in data_list:
             self.calib_data = np.concatenate(
                 (self.calib_data, data.reshape(-1)))
 
-        if 0:  # Print matrices, to compare with device data
+        if 1:  # Print matrices, to compare with device data
             np.set_printoptions(suppress=True, precision=6)
             print("\nR1 (left)")
             print(R1_fp32)
@@ -176,6 +231,10 @@ class StereoCalibration(object):
             print(T_fp32)
             print("\nM3 (rgb)")
             print(M3_fp32)
+            print("\R (rgb)")
+            print(R_rgb_fp32)
+            print("\nT (rgb)")
+            print(T_rgb_fp32)
 
         if 0:  # Print computed homography, to compare with device data
             np.set_printoptions(suppress=True, precision=6)
@@ -211,11 +270,26 @@ class StereoCalibration(object):
               (round(time.time() - start_time, 2)))
 
         if type == 'charuco':
+            self.test_epipolar_charuco_rgb(filepath, M_RGB)
             return self.test_epipolar_charuco(filepath), self.calib_data
         else:
             return self.test_epipolar_checker(filepath), self.calib_data
 
-    def analyze_charuco(self, images):
+    def parse_frame(self, frame, stream_name, file_name):
+        file_name += '.png'
+        # filename = image_filename(stream_name, self.current_polygon, self.images_captured)
+        # print(self.data_path + "/{}/{}".format(stream_name, file_name))
+        ds_path = self.data_path + "/{}".format(stream_name)
+        print(ds_path)
+        if not os.path.exists(ds_path):
+            os.makedirs(ds_path)
+
+        cv2.imwrite(self.data_path +
+                    "/{}/{}".format(stream_name, file_name), frame)
+        print("py: Saved image as: " + str(file_name))
+        return True
+
+    def analyze_charuco(self, images, scale_req=False, req_resolution=(800, 1280)):
         """
         Charuco base pose estimation.
         """
@@ -229,16 +303,53 @@ class StereoCalibration(object):
         # SUB PIXEL CORNER DETECTION CRITERION
         criteria = (cv2.TERM_CRITERIA_EPS +
                     cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
-
+        count = 0
         for im in images:
             print("=> Processing image {0}".format(im))
             frame = cv2.imread(im)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # width = scale[1]
+            expected_height = gray.shape[0]*(req_resolution[1]/gray.shape[1])
+            # print('expected height -------------------> ' + str(expected_height))
+            # print('required height -------------------> ' +
+            #       str(req_resolution))
+
+            if scale_req and not (gray.shape[0] == req_resolution[0] and gray.shape[1] == req_resolution[1]):
+                # print("scaling----------------------->")
+                if int(expected_height) == req_resolution[0]:
+                    # resizing to have both stereo and rgb to have same
+                    # resolution to capture extrinsics of the rgb-right camera
+                    gray = cv2.resize(gray, req_resolution,
+                                      interpolation=cv2.INTER_CUBIC)
+                else:
+                    # resizing and cropping to have both stereo and rgb to have same resolution
+                    # to calculate extrinsics of the rgb-right camera
+                    scale_width = req_resolution[1]/gray.shape[1]
+                    dest_res = (int(gray.shape[1] * scale_width), int(gray.shape[0] * scale_width))
+                    # print("destination resolution------>")
+                    # print(dest_res)
+                    gray = cv2.resize(
+                        gray, dest_res, interpolation=cv2.INTER_CUBIC)
+                    # print("scaled gray shape")
+                    # print(gray.shape)
+                    if gray.shape[0] < req_resolution[0]:
+                        raise RuntimeError("resizeed height of rgb is smaller than required. {0} < {1}".format(
+                            gray.shape[0], req_resolution[0]))
+                    # print(gray.shape[0] - req_resolution[0])
+                    del_height = (gray.shape[0] - req_resolution[0]) // 2
+                    gray = gray[del_height: del_height + req_resolution[0], :]
+                    # print("del height ??")
+                    # print(del_height)
+                    print("scaled gray shape")
+                    print(gray.shape)
+                count += 1
+                self.parse_frame(gray, 'rgb_resized',
+                                 'rgb_resized_'+str(count))
             marker_corners, ids, rejectedImgPoints = cv2.aruco.detectMarkers(
                 gray, self.aruco_dictionary)
             marker_corners, ids, refusd, recoverd = cv2.aruco.refineDetectedMarkers(gray, self.board,
                                                                                     marker_corners, ids, rejectedCorners=rejectedImgPoints)
-
+            print('{0} number of Markers corners detected in the above image'.format(len(marker_corners)))
             if len(marker_corners) > 0:
                 # print(len(marker_corners))
                 # SUB PIXEL DETECTION
@@ -283,31 +394,47 @@ class StereoCalibration(object):
 
         images_left = glob.glob(filepath + "/left/*")
         images_right = glob.glob(filepath + "/right/*")
-        print("Images left path------------------->")
-        print(images_left)
+        images_rgb = glob.glob(filepath + "/rgb/*")
+        # print("Images left path------------------->")
+        # print(images_left)
         images_left.sort()
         images_right.sort()
-
+        images_rgb.sort()
         print("\nAttempting to read images for left camera from dir: " +
               filepath + "/left/")
         print("Attempting to read images for right camera from dir: " +
               filepath + "/right/")
+        print("Attempting to read images for right camera from dir: " +
+              filepath + "/rgb/")
 
         assert len(
             images_left) != 0, "ERROR: Images not read correctly, check directory"
         assert len(
             images_right) != 0, "ERROR: Images not read correctly, check directory"
+        assert len(
+            images_rgb) != 0, "ERROR: Images not read correctly, check directory"
 
+        # detect checkerboard corners and marker id's
         allCorners_l, allIds_l, _, _, imsize, _ = self.analyze_charuco(
             images_left)
         allCorners_r, allIds_r, _, _, imsize, _ = self.analyze_charuco(
             images_right)
+        allCorners_rgb, allIds_rgb, _, _, imsize_rgb, _ = self.analyze_charuco(
+            images_rgb)
 
         self.img_shape = imsize[::-1]
         ret_l, self.M1, self.d1, rvecs, tvecs = self.calibrate_camera_charuco(
             allCorners_l, allIds_l, self.img_shape)
         ret_r, self.M2, self.d2, rvecs, tvecs = self.calibrate_camera_charuco(
             allCorners_r, allIds_r, self.img_shape)
+        ret_rgb, self.M3, self.d3, rvecs, tvecs = self.calibrate_camera_charuco(
+            allCorners_rgb, allIds_rgb, imsize_rgb[::-1])
+
+        print("~~~~~~~~~~~~~RMS error of RGB, right and left~~~~~~~~~~~~~~")
+        print(ret_rgb)
+        print(ret_r)
+        print(ret_l)
+
 
         left_corners_sampled = []
         right_corners_sampled = []
@@ -337,15 +464,66 @@ class StereoCalibration(object):
         self.imgpoints_l = left_corners_sampled
         self.imgpoints_r = right_corners_sampled
 
+        # rgb_right_stereo_calibration method 1 - resize rgb and center crop
+        # rgb/right camera to have same field of view and resolution
+        # Followed by getting corners of the device stereo calibration
+        allCorners_rgb_scaled, allIds_rgb_scaled, _, _, imsize_rgb_scaled, _ = self.analyze_charuco(
+            images_rgb, scale_req=True)
+
+        # rgb_right_stereo_calibration method 2 - Instead of resizing the image
+        # and finding the corners again use the previously find corners in 4k res
+        # use scale parameter to find relative low res corner and use it to find
+        #  the common points for stereo calibration. (Keep in mind about the change in fov)
+
+        # rgb_right_stereo_calibration method 3 - follows the same as above
+        # but instead it would be calibrated w.r.t rectified right and
+        # another alterative would be to use an rectified rotation of
+        # rectified right while placing everything back to rgb.
+
+        # sampling common detected corners
+        rgb_scaled_rgb_corners_sampled = []
+        rgb_scaled_right_corners_sampled = []
+        rgb_scaled_obj_pts = []
+        one_pts = self.board.chessboardCorners
+        for i in range(len(allIds_rgb_scaled)):
+            rgb_sub_corners = []
+            right_sub_corners = []
+            obj_pts_sub = []
+        #     if len(allIds_l[i]) < 70 or len(allIds_r[i]) < 70:
+        #         continue
+            for j in range(len(allIds_rgb_scaled[i])):
+                idx = np.where(allIds_r[i] == allIds_rgb_scaled[i][j])
+                if idx[0].size == 0:
+                    continue
+                rgb_sub_corners.append(allCorners_rgb_scaled[i][j])
+                right_sub_corners.append(allCorners_r[i][idx])
+                obj_pts_sub.append(one_pts[allIds_rgb_scaled[i][j]])
+
+            rgb_scaled_obj_pts.append(np.array(obj_pts_sub, dtype=np.float32))
+            rgb_scaled_rgb_corners_sampled.append(
+                np.array(rgb_sub_corners, dtype=np.float32))
+            rgb_scaled_right_corners_sampled.append(
+                np.array(right_sub_corners, dtype=np.float32))
+
+        self.objpoints_rgb_r = rgb_scaled_obj_pts
+        self.imgpoints_rgb = rgb_scaled_rgb_corners_sampled
+        self.imgpoints_rgb_right = rgb_scaled_right_corners_sampled
+
     def calibrate_camera_charuco(self, allCorners, allIds, imsize):
         """
         Calibrates the camera using the dected corners.
         """
         print("CAMERA CALIBRATION")
+        print(imsize)
+        if imsize[1] < 1000:
+            cameraMatrixInit = np.array([[857.1668,    0.0,      643.9126 ],
+                                        [  0.0,     856.0823,  387.56018],
+                                        [  0.0,        0.0,        1.0     ]])
+        else: 
+            cameraMatrixInit = np.array([[3819.8801,    0.0,     1912.8375],
+                                        [   0.0,     3819.8801, 1135.3433],
+                                        [   0.0,        0.0,        1.    ]])
 
-        cameraMatrixInit = np.array([[1000.,    0., imsize[0]/2.],
-                                     [0., 1000., imsize[1]/2.],
-                                     [0.,    0.,           1.]])
         # print(cameraMatrixInit)
 
         distCoeffsInit = np.zeros((5, 1))
@@ -493,6 +671,8 @@ class StereoCalibration(object):
             self.objpoints, self.imgpoints_l, self.imgpoints_r,
             self.M1, self.d1, self.M2, self.d2, self.img_shape,
             criteria=stereocalib_criteria, flags=flags)
+
+        print('RMS error of stereo calibration of left-right is {0}'.format(ret))
 
         self.R1, self.R2, self.P1, self.P2, self.Q, validPixROI1, validPixROI2 = cv2.stereoRectify(
             self.M1,
@@ -713,5 +893,146 @@ class StereoCalibration(object):
 
         avg_epipolar = epi_error_sum / len(imgpoints_r)
         print("Average Epipolar Error: " + str(avg_epipolar))
+
+        return avg_epipolar
+
+    def test_epipolar_charuco_rgb(self, dataset_dir, M_rgb):
+        images_rgb = glob.glob(dataset_dir + '/rgb/*.png')
+        images_right = glob.glob(dataset_dir + '/right/*.png')
+        images_rgb.sort()
+        images_right.sort()
+        print("HU IHER")
+        assert len(images_rgb) != 0, "ERROR: Images not read correctly"
+        assert len(images_right) != 0, "ERROR: Images not read correctly"
+        criteria = (cv2.TERM_CRITERIA_EPS +
+                    cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
+        scale_width = 1280/4056
+
+        # if not use_homo:
+        # mapx_rgb, mapy_rgb = cv2.initUndistortRectifyMap(
+        #     M_rgb, self.d3, self.R1_rgb, self.P1_rgb, self.img_shape, cv2.CV_32FC1)
+        # mapx_r, mapy_r = cv2.initUndistortRectifyMap(
+        #     self.M2, self.d2, self.R2_rgb, self.P2_rgb, self.img_shape, cv2.CV_32FC1)
+
+        self.H1_rgb = np.matmul(np.matmul(self.M2, self.R1_rgb),
+                            np.linalg.inv(M_rgb))
+        self.H2_r = np.matmul(np.matmul(self.M2, self.R2_rgb),
+                            np.linalg.inv(self.M2))
+
+        image_data_pairs = []
+        count = 0
+        for image_rgb, image_right in zip(images_rgb, images_right):
+            # read images
+            img_rgb = cv2.imread(image_rgb, 0)
+            img_r = cv2.imread(image_right, 0)
+
+            # TODO(sachin): replace Hard coded scaleratio for rgb resize
+            dest_res = (int(img_rgb.shape[1] * scale_width),
+                        int(img_rgb.shape[0] * scale_width))
+            img_rgb = cv2.resize(
+                img_rgb, dest_res, interpolation=cv2.INTER_CUBIC)
+            if img_rgb.shape[0] < 800:
+                raise RuntimeError("resizeed height of rgb is smaller than required. {0} < {1}".format(
+                    img_rgb.shape[0], req_resolution[0]))
+            del_height = (img_rgb.shape[0] - 800) // 2
+            print("del height ??")
+            print(del_height)
+            img_rgb = img_rgb[del_height: del_height + 800, :]
+            print("resized_shape")
+            print(img_rgb.shape)
+            self.parse_frame(img_rgb, "rectified_rgb_before", "rectified_"+str(count))
+            # warp right image
+
+            img_rgb = cv2.warpPerspective(img_rgb, self.H1_rgb, img_rgb.shape[::-1],
+                                        cv2.INTER_CUBIC +
+                                        cv2.WARP_FILL_OUTLIERS +
+                                        cv2.WARP_INVERSE_MAP)
+
+            img_r = cv2.warpPerspective(img_r, self.H2_r, img_r.shape[::-1],
+                                        cv2.INTER_CUBIC +
+                                        cv2.WARP_FILL_OUTLIERS +
+                                        cv2.WARP_INVERSE_MAP)
+            count += 1
+            # img_rgb = cv2.remap(img_rgb, mapx_rgb, mapy_rgb, cv2.INTER_LINEAR)
+            # img_r = cv2.remap(img_r, mapx_r, mapy_r, cv2.INTER_LINEAR)
+            self.parse_frame(img_rgb, "rectified_rgb", "rectified_"+str(count))
+            image_data_pairs.append((img_rgb, img_r))
+
+        
+        # here anything with _l represents rgb camera
+        # TODO(sachin): change it to _rgb once everything is stable
+        # compute metrics
+        imgpoints_r = []
+        imgpoints_l = []
+        for image_data_pair in image_data_pairs:
+            #             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            marker_corners_l, ids_l, rejectedImgPoints = cv2.aruco.detectMarkers(
+                image_data_pair[0], self.aruco_dictionary)
+            marker_corners_l, ids_l, _, _ = cv2.aruco.refineDetectedMarkers(image_data_pair[0], self.board,
+                                                                            marker_corners_l, ids_l,
+                                                                            rejectedCorners=rejectedImgPoints)
+
+            marker_corners_r, ids_r, rejectedImgPoints = cv2.aruco.detectMarkers(
+                image_data_pair[1], self.aruco_dictionary)
+            marker_corners_r, ids_r, _, _ = cv2.aruco.refineDetectedMarkers(image_data_pair[1], self.board,
+                                                                            marker_corners_r, ids_r,
+                                                                            rejectedCorners=rejectedImgPoints)
+
+#             if len(marker_corners_l)>0 and len(marker_corners_r)>0:
+#                 for corner in marker_corners_l:
+#                     cv2.cornerSubPix(image_data_pair[0], corner,
+#                                      winSize = (5,5),
+#                                      zeroZone = (-1,-1),
+#                                      criteria = criteria)
+#                 for corner in marker_corners_r:
+#                     cv2.cornerSubPix(image_data_pair[1], corner,
+#                                      winSize = (5,5),
+#                                      zeroZone = (-1,-1),
+#                                      criteria = criteria)
+            res2_l = cv2.aruco.interpolateCornersCharuco(
+                marker_corners_l, ids_l, image_data_pair[0], self.board)
+            res2_r = cv2.aruco.interpolateCornersCharuco(
+                marker_corners_r, ids_r, image_data_pair[1], self.board)
+            if res2_l[1] is not None and res2_l[2] is not None and len(res2_l[1]) > 3:
+
+                cv2.cornerSubPix(image_data_pair[0], res2_l[1],
+                                 winSize=(5, 5),
+                                 zeroZone=(-1, -1),
+                                 criteria=criteria)
+                cv2.cornerSubPix(image_data_pair[1], res2_r[1],
+                                 winSize=(5, 5),
+                                 zeroZone=(-1, -1),
+                                 criteria=criteria)
+
+            # termination criteria
+            corners_l = []
+            corners_r = []
+            for j in range(len(res2_l[2])):
+                idx = np.where(res2_r[2] == res2_l[2][j])
+                if idx[0].size == 0:
+                    continue
+                corners_l.append(res2_l[1][j])
+                corners_r.append(res2_r[1][idx])
+#                 obj_pts_sub.append(one_pts[allIds_l[i][j]])
+
+#             obj_pts.append(np.array(obj_pts_sub, dtype=np.float32))
+#             left_sub_corners_sampled.append(np.array(left_sub_corners, dtype=np.float32))
+#             right_sub_corners_sampled.append(np.array(right_sub_corners, dtype=np.float32))
+
+            imgpoints_l.extend(corners_l)
+            imgpoints_r.extend(corners_r)
+            epi_error_sum = 0
+            for l_pt, r_pt in zip(corners_l, corners_r):
+                epi_error_sum += abs(l_pt[0][1] - r_pt[0][1])
+
+            print("Average Epipolar Error per image on host on rgb_right: " +
+                  str(epi_error_sum / len(corners_l)))
+
+        epi_error_sum = 0
+        for l_pt, r_pt in zip(imgpoints_l, imgpoints_r):
+            epi_error_sum += abs(l_pt[0][1] - r_pt[0][1])
+
+        avg_epipolar = epi_error_sum / len(imgpoints_r)
+        print("Average Epipolar Error of rgb_right: " + str(avg_epipolar))
 
         return avg_epipolar

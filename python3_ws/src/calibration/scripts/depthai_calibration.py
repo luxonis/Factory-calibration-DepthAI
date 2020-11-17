@@ -238,7 +238,7 @@ class depthai_calibration_node:
                             self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
                         self.image_pub_color.publish(
                             self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-                        print(recent_color.shape)
+                        # print(recent_color.shape)
 
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
