@@ -160,6 +160,7 @@ class depthai_calibration_node:
             self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
         self.dev_status_srv = rospy.Service(
             "device_status", Capture, self.device_status_handler)
+
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
         self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
         self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
@@ -198,6 +199,11 @@ class depthai_calibration_node:
         self.device = depthai.Device('', False)
         self.pipeline = self.device.create_pipeline(self.config)
         self.mx_id = self.device.get_mx_id()
+
+        # setting manual focus to rgb camera
+        cam_c = depthai.CameraControl.CamId.RGB
+        cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
+        self.device.send_camera_control(cam_c, cmd_set_focus, '141')
 
     def publisher(self):
         while not rospy.is_shutdown():
