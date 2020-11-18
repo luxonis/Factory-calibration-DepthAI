@@ -199,11 +199,11 @@ class depthai_calibration_node:
         self.device = depthai.Device('', False)
         self.pipeline = self.device.create_pipeline(self.config)
         self.mx_id = self.device.get_mx_id()
-
+        self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_EDOF)
         # setting manual focus to rgb camera
         cam_c = depthai.CameraControl.CamId.RGB
         cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-        self.device.send_camera_control(cam_c, cmd_set_focus, '141')
+        self.device.send_camera_control(cam_c, cmd_set_focus, '111')
 
     def publisher(self):
         while not rospy.is_shutdown():
