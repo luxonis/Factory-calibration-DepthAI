@@ -260,13 +260,13 @@ class depthai_calibration_node:
         # filename = image_filename(stream_name, self.current_polygon, self.images_captured)
         print(self.package_path + "/dataset/{}/{}".format(stream_name, file_name))
         ds_path = self.package_path + "/dataset/{}".format(stream_name)
-        print(ds_path)
+        # print(ds_path)
         if not os.path.exists(ds_path):
             os.makedirs(ds_path)
 
         cv2.imwrite(self.package_path +
                     "/dataset/{}/{}".format(stream_name, file_name), frame)
-        print("py: Saved image as: " + str(file_name))
+        print("py: Saved image as: " + str(file_name) + "in folder ->" + stream_name)
         return True
 
     def is_markers_found(self, frame):
@@ -390,6 +390,10 @@ class depthai_calibration_node:
                                 self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
                     if left_mipi and right_mipi:
                         if is_usb3:
+                            # # setting manual focus to rgb camera
+                            # cam_c = depthai.CameraControl.CamId.RGB
+                            # cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
+                            # self.device.send_camera_control(cam_c, cmd_set_focus, '111')
                             self.device.reset_device_changed()
                         # for i in range(len(self.auto_checkbox_names)):
                         #     self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
