@@ -329,7 +329,7 @@ class StereoCalibration(object):
                 if int(expected_height) == req_resolution[0]:
                     # resizing to have both stereo and rgb to have same
                     # resolution to capture extrinsics of the rgb-right camera
-                    gray = cv2.resize(gray, req_resolution,
+                    gray = cv2.resize(gray, req_resolution[::-1],
                                       interpolation=cv2.INTER_CUBIC)
                 else:
                     # resizing and cropping to have both stereo and rgb to have same resolution
