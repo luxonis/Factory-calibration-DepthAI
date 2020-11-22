@@ -351,7 +351,9 @@ class StereoCalibration(object):
                             gray.shape[0], req_resolution[0]))
                     # print(gray.shape[0] - req_resolution[0])
                     del_height = (gray.shape[0] - req_resolution[0]) // 2
-                    gray = gray[del_height: del_height + req_resolution[0], :]
+                    gray = gray[: req_resolution[0], :]
+                    # gray = gray[del_height: del_height + req_resolution[0], :]
+
                     # print("del height ??")
                     # print(del_height)
                     print("scaled gray shape")
@@ -505,6 +507,7 @@ class StereoCalibration(object):
                 allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
             print("RGB callleded RMS at 720")
             print(ret_rgb_scaled)
+            print(self.M3_scaled)
             # rgb_right_stereo_calibration method 2 - Instead of resizing the image
             # and finding the corners again use the previously find corners in 4k res
             # use scale parameter to find relative low res corner and use it to find
@@ -519,6 +522,8 @@ class StereoCalibration(object):
             rgb_scaled_rgb_corners_sampled = []
             rgb_scaled_right_corners_sampled = []
             rgb_scaled_obj_pts = []
+            rgb_pts = None
+            right_pts = None
             one_pts = self.board.chessboardCorners
             for i in range(len(allIds_rgb_scaled)):
                 rgb_sub_corners = []
@@ -540,10 +545,28 @@ class StereoCalibration(object):
                     np.array(rgb_sub_corners, dtype=np.float32))
                 rgb_scaled_right_corners_sampled.append(
                     np.array(right_sub_corners, dtype=np.float32))
+                if rgb_pts is None:
+                    rgb_pts = np.array(rgb_sub_corners, dtype=np.float32)
+                    right_pts = np.array(right_sub_corners, dtype=np.float32)
+                else:
+                    np.vstack((rgb_pts,np.array(rgb_sub_corners, dtype=np.float32)))
+                    np.vstack((right_pts, np.array(right_sub_corners, dtype=np.float32)))
+                    
 
             self.objpoints_rgb_r = rgb_scaled_obj_pts
             self.imgpoints_rgb = rgb_scaled_rgb_corners_sampled
             self.imgpoints_rgb_right = rgb_scaled_right_corners_sampled
+ 
+            print(rgb_pts.shape)
+            # print(len(rgb_scaled_right_corners_sampled))
+            # print(str(type(rgb_scaled_right_corners_sampled[0])))
+            # rgb_scaled_rgb_corners_sampled = np.array(rgb_scaled_rgb_corners_sampled, dtype=np.float32).reshape(-1,2)
+            # rgb_scaled_right_corners_sampled = np.array(rgb_scaled_right_corners_sampled, dtype=np.float32).reshape(-1,2)
+            
+            H_right_rgb, _ = cv2.findHomography(right_pts, rgb_pts)
+            print('Homogrephy RMS error~~~~~~~~~~~~~~~~~~~~~~~~~~')
+            print(H_right_rgb)
+
 
     def calibrate_camera_charuco(self, allCorners, allIds, imsize):
         """
