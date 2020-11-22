@@ -124,14 +124,14 @@ class StereoCalibration(object):
 
         # rgb-right extrinsic calibration
         if self.calibrate_rgb:
-        # if True:
+            # if True:
             # things to do.
             # First: change the center and other thigns of the calibration matrix of rgb camera
 
             flags = 0
             #flags |= cv2.CALIB_FIX_ASPECT_RATIO
-            # flags |= cv2.CALIB_FIX_INTRINSIC
-            flags |= cv2.CALIB_USE_INTRINSIC_GUESS
+            flags |= cv2.CALIB_FIX_INTRINSIC
+            # flags |= cv2.CALIB_USE_INTRINSIC_GUESS
             #flags |= cv2.CALIB_SAME_FOCAL_LENGTH
             #flags |= cv2.CALIB_ZERO_TANGENT_DIST
             flags |= cv2.CALIB_RATIONAL_MODEL
@@ -158,8 +158,8 @@ class StereoCalibration(object):
             # height = round(3040 * scale_width)
             # if height > 800:
             #     diff = (height - 800) / 2
-                # M_RGB[1, 2] -= diff
-            
+            # M_RGB[1, 2] -= diff
+
             self.M2_rgb = np.copy(self.M2)
             self.d2_rgb = np.copy(self.d2)
             ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
@@ -168,6 +168,8 @@ class StereoCalibration(object):
                 criteria=stereocalib_criteria, flags=flags)
             print("~~~~~~Stereo calibration rgb-right RMS error~~~~~~~~")
             print(ret)
+            print('Fundamental matrix')
+            print(F)
 
             # Rectification is only to test the epipolar
             self.R1_rgb, self.R2_rgb, self.P1_rgb, self.P2_rgb, self.Q_rgb, validPixROI1, validPixROI2 = cv2.stereoRectify(
@@ -177,20 +179,20 @@ class StereoCalibration(object):
                 self.d2_rgb,
                 self.img_shape, self.R_rgb, self.T_rgb)
         else:
-            self.M3 = np.zeros((3, 3), dtype = np.float32)
-            self.R_rgb = np.zeros((3, 3), dtype = np.float32) 
-            self.T_rgb = np.zeros(3, dtype = np.float32)  
-            self.d3 = np.zeros(14, dtype = np.float32)
+            self.M3 = np.zeros((3, 3), dtype=np.float32)
+            self.R_rgb = np.zeros((3, 3), dtype=np.float32)
+            self.T_rgb = np.zeros(3, dtype=np.float32)
+            self.d3 = np.zeros(14, dtype=np.float32)
 
-        R1_fp32       = self.R1.astype(np.float32)
-        R2_fp32       = self.R2.astype(np.float32)
-        M1_fp32       = self.M1.astype(np.float32)
-        M2_fp32       = self.M2.astype(np.float32)
-        R_fp32        = self.R.astype(np.float32)
-        T_fp32        = self.T.astype(np.float32)
-        M3_fp32       = self.M3.astype(np.float32)
-        R_rgb_fp32    = self.R_rgb.astype(np.float32)
-        T_rgb_fp32    = self.T_rgb.astype(np.float32)
+        R1_fp32 = self.R1.astype(np.float32)
+        R2_fp32 = self.R2.astype(np.float32)
+        M1_fp32 = self.M1.astype(np.float32)
+        M2_fp32 = self.M2.astype(np.float32)
+        R_fp32 = self.R.astype(np.float32)
+        T_fp32 = self.T.astype(np.float32)
+        M3_fp32 = self.M3.astype(np.float32)
+        R_rgb_fp32 = self.R_rgb.astype(np.float32)
+        T_rgb_fp32 = self.T_rgb.astype(np.float32)
         d1_coeff_fp32 = self.d1.astype(np.float32)
         d2_coeff_fp32 = self.d2.astype(np.float32)
         d3_coeff_fp32 = self.d3.astype(np.float32)
@@ -331,11 +333,13 @@ class StereoCalibration(object):
                     # resolution to capture extrinsics of the rgb-right camera
                     gray = cv2.resize(gray, req_resolution[::-1],
                                       interpolation=cv2.INTER_CUBIC)
+                    print('~~~~~~~~~~ Only resizing.... ~~~~~~~~~~~~~~~~')
                 else:
                     # resizing and cropping to have both stereo and rgb to have same resolution
                     # to calculate extrinsics of the rgb-right camera
                     scale_width = req_resolution[1]/gray.shape[1]
-                    dest_res = (int(gray.shape[1] * scale_width), int(gray.shape[0] * scale_width))
+                    dest_res = (
+                        int(gray.shape[1] * scale_width), int(gray.shape[0] * scale_width))
                     # print("destination resolution------>")
                     # print(dest_res)
                     gray = cv2.resize(
@@ -359,7 +363,8 @@ class StereoCalibration(object):
                 gray, self.aruco_dictionary)
             marker_corners, ids, refusd, recoverd = cv2.aruco.refineDetectedMarkers(gray, self.board,
                                                                                     marker_corners, ids, rejectedCorners=rejectedImgPoints)
-            print('{0} number of Markers corners detected in the above image'.format(len(marker_corners)))
+            print('{0} number of Markers corners detected in the above image'.format(
+                len(marker_corners)))
             if len(marker_corners) > 0:
                 # print(len(marker_corners))
                 # SUB PIXEL DETECTION
@@ -419,7 +424,7 @@ class StereoCalibration(object):
               filepath + "/right/")
         # print(images_right)
         # print('~~~~~~~~~~~~~~~~~~~')
-        
+
         print("Attempting to read images for right camera from dir: " +
               filepath + "/rgb/")
         # print(images_rgb)
@@ -439,12 +444,13 @@ class StereoCalibration(object):
         print("~~~~~~~~~~~ POSE ESTIMATION RIGHT CAMERA ~~~~~~~~~~~~~")
         allCorners_r, allIds_r, _, _, imsize, _ = self.analyze_charuco(
             images_right)
-        if self.calibrate_rgb:    
+        if self.calibrate_rgb:
             print("~~~~~~~~~~~ POSE ESTIMATION RGB CAMERA FULL RES~~~~~~~~~~~~~")
             allCorners_rgb, allIds_rgb, _, _, imsize_rgb, _ = self.analyze_charuco(
                 images_rgb)
 
         self.img_shape = imsize[::-1]
+        self.img_shape_rgb = imsize_rgb[::-1]
         ret_l, self.M1, self.d1, rvecs, tvecs = self.calibrate_camera_charuco(
             allCorners_l, allIds_l, self.img_shape)
         ret_r, self.M2, self.d2, rvecs, tvecs = self.calibrate_camera_charuco(
@@ -458,7 +464,6 @@ class StereoCalibration(object):
             print(ret_rgb)
         print(ret_r)
         print(ret_l)
-
 
         left_corners_sampled = []
         right_corners_sampled = []
@@ -489,16 +494,16 @@ class StereoCalibration(object):
         self.imgpoints_r = right_corners_sampled
 
         if self.calibrate_rgb:
-        # if True:
+            # if True:
             # rgb_right_stereo_calibration method 1 - resize rgb and center crop
             # rgb/right camera to have same field of view and resolution
             # Followed by getting corners of the device stereo calibration
             allCorners_rgb_scaled, allIds_rgb_scaled, _, _, imsize_rgb_scaled, _ = self.analyze_charuco(
-                images_rgb, scale_req=True)
+                images_rgb, scale_req=True, req_resolution= (720, 1280))
 
             ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
-            allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
-            print("RGB callleded RMS")
+                allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
+            print("RGB callleded RMS at 720")
             print(ret_rgb_scaled)
             # rgb_right_stereo_calibration method 2 - Instead of resizing the image
             # and finding the corners again use the previously find corners in 4k res
@@ -529,7 +534,8 @@ class StereoCalibration(object):
                     right_sub_corners.append(allCorners_r[i][idx])
                     obj_pts_sub.append(one_pts[allIds_rgb_scaled[i][j]])
 
-                rgb_scaled_obj_pts.append(np.array(obj_pts_sub, dtype=np.float32))
+                rgb_scaled_obj_pts.append(
+                    np.array(obj_pts_sub, dtype=np.float32))
                 rgb_scaled_rgb_corners_sampled.append(
                     np.array(rgb_sub_corners, dtype=np.float32))
                 rgb_scaled_right_corners_sampled.append(
@@ -546,13 +552,13 @@ class StereoCalibration(object):
         print("CAMERA CALIBRATION")
         print(imsize)
         if imsize[1] < 1000:
-            cameraMatrixInit = np.array([[857.1668,    0.0,      643.9126 ],
-                                        [  0.0,     856.0823,  387.56018],
-                                        [  0.0,        0.0,        1.0     ]])
-        else: 
+            cameraMatrixInit = np.array([[857.1668,    0.0,      643.9126],
+                                         [0.0,     856.0823,  387.56018],
+                                         [0.0,        0.0,        1.0]])
+        else:
             cameraMatrixInit = np.array([[3819.8801,    0.0,     1912.8375],
-                                        [   0.0,     3819.8801, 1135.3433],
-                                        [   0.0,        0.0,        1.    ]])
+                                         [0.0,     3819.8801, 1135.3433],
+                                         [0.0,        0.0,        1.]])
 
         # print(cameraMatrixInit)
 
@@ -702,7 +708,8 @@ class StereoCalibration(object):
             self.M1, self.d1, self.M2, self.d2, self.img_shape,
             criteria=stereocalib_criteria, flags=flags)
         print("~~~~~~~~~~~~~RMS of stereo ~>")
-        print('RMS error of stereo calibration of left-right is {0}'.format(ret))
+        print(
+            'RMS error of stereo calibration of left-right is {0}'.format(ret))
 
         self.R1, self.R2, self.P1, self.P2, self.Q, validPixROI1, validPixROI2 = cv2.stereoRectify(
             self.M1,
@@ -937,7 +944,8 @@ class StereoCalibration(object):
         assert len(images_right) != 0, "ERROR: Images not read correctly"
         criteria = (cv2.TERM_CRITERIA_EPS +
                     cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
-        scale_width = 1280/4056
+        scale_width = 1280/self.img_shape_rgb[0]
+        print('scaled using {0}'.format(self.img_shape_rgb[0]))
 
         # if not use_homo:
         mapx_rgb, mapy_rgb = cv2.initUndistortRectifyMap(
@@ -962,16 +970,17 @@ class StereoCalibration(object):
                         int(img_rgb.shape[0] * scale_width))
             img_rgb = cv2.resize(
                 img_rgb, dest_res, interpolation=cv2.INTER_CUBIC)
-            if img_rgb.shape[0] < 800:
+            if img_rgb.shape[0] < 720:
                 raise RuntimeError("resizeed height of rgb is smaller than required. {0} < {1}".format(
                     img_rgb.shape[0], req_resolution[0]))
-            del_height = (img_rgb.shape[0] - 800) // 2
+            del_height = (img_rgb.shape[0] - 720) // 2
             print("del height ??")
             print(del_height)
-            img_rgb = img_rgb[del_height: del_height + 800, :]
+            img_rgb = img_rgb[del_height: del_height + 720, :]
             print("resized_shape")
             print(img_rgb.shape)
-            self.parse_frame(img_rgb, "rectified_rgb_before", "rectified_"+str(count))
+            self.parse_frame(img_rgb, "rectified_rgb_before",
+                             "rectified_"+str(count))
             # warp right image
 
             # img_rgb = cv2.warpPerspective(img_rgb, self.H1_rgb, img_rgb.shape[::-1],
@@ -983,14 +992,13 @@ class StereoCalibration(object):
             #                             cv2.INTER_CUBIC +
             #                             cv2.WARP_FILL_OUTLIERS +
             #                             cv2.WARP_INVERSE_MAP)
-            
+
             img_rgb = cv2.remap(img_rgb, mapx_rgb, mapy_rgb, cv2.INTER_LINEAR)
             img_r = cv2.remap(img_r, mapx_r, mapy_r, cv2.INTER_LINEAR)
             self.parse_frame(img_rgb, "rectified_rgb", "rectified_"+str(count))
             image_data_pairs.append((img_rgb, img_r))
             count += 1
 
-        
         # here anything with _l represents rgb camera
         # TODO(sachin): change it to _rgb once everything is stable
         # compute metrics

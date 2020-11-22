@@ -87,13 +87,13 @@ class depthai_calibration_node:
                 {
                     'rgb':
                     {
-                        'resolution_h': 3040,
+                        'resolution_h': 1080,
                         'fps': 30.0
                     },
                     'mono':
                     {
                         # 1280x720, 1280x800, 640x400 (binning enabled)
-                        'resolution_h': 800,
+                        'resolution_h': 720,
                         'fps': 30.0,
                     },
                 },
@@ -266,7 +266,8 @@ class depthai_calibration_node:
 
         cv2.imwrite(self.package_path +
                     "/dataset/{}/{}".format(stream_name, file_name), frame)
-        print("py: Saved image as: " + str(file_name) + "in folder ->" + stream_name)
+        print("py: Saved image as: " + str(file_name) +
+              "in folder ->" + stream_name)
         return True
 
     def is_markers_found(self, frame):
