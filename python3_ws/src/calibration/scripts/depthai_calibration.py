@@ -199,7 +199,8 @@ class depthai_calibration_node:
         self.device = depthai.Device('', False)
         self.pipeline = self.device.create_pipeline(self.config)
         self.mx_id = self.device.get_mx_id()
-        self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_EDOF)
+        # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_EDOF)
+        self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
         # setting manual focus to rgb camera
         cam_c = depthai.CameraControl.CamId.RGB
         cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
