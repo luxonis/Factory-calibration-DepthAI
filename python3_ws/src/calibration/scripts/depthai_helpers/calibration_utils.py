@@ -507,6 +507,8 @@ class StereoCalibration(object):
                 allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
             print("RGB callleded RMS at 720")
             print(ret_rgb_scaled)
+            print(imsize_rgb_scaled)
+            print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
             print(self.M3_scaled)
             # rgb_right_stereo_calibration method 2 - Instead of resizing the image
             # and finding the corners again use the previously find corners in 4k res
@@ -574,7 +576,7 @@ class StereoCalibration(object):
         """
         print("CAMERA CALIBRATION")
         print(imsize)
-        if imsize[1] < 1000:
+        if imsize[1] < 1100:
             cameraMatrixInit = np.array([[857.1668,    0.0,      643.9126],
                                          [0.0,     856.0823,  387.56018],
                                          [0.0,        0.0,        1.0]])
