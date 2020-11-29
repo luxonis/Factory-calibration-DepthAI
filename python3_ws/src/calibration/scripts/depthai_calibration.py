@@ -115,8 +115,7 @@ class depthai_calibration_node:
         title = "Device Status"
         pygame_render_text(self.screen, title, (350,20), orange, 50)
         self.auto_checkbox_names = ["USB3", "Left camera connected", "Right camera connected", 
-                                    "Left Stream", "Right Stream"]
-        
+                                    "Left Stream", "Right Stream", "IMU connected"]
         y = 110
         x = 200
         self.start_disp = False
@@ -178,7 +177,9 @@ class depthai_calibration_node:
     
 
     def start_device(self):
-        self.device = depthai.Device('', False)
+        # self.device = depthai.Device('', False)
+        self.device = depthai.Device('/home/sachin/Desktop/luxonis/depthai/.fw_cache/depthai-6fc8c54e33b8aa6d16bf70ac5193d10090dcd0d8.cmd', '')
+
         self.pipeline = self.device.create_pipeline(self.config)
         self.mx_id = self.device.get_mx_id()
         
@@ -310,14 +311,16 @@ class depthai_calibration_node:
             right_status = self.device.is_right_connected()
             left_mipi = False
             right_mipi = False
+            is_IMU_connected = False
             if self.capture_exit():
                 rospy.signal_shutdown("Finished calibration")
+            
             # else
             if left_status and right_status:
                 # mipi check using 20 iterations
                 # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
                 # time.sleep(1) # this is needed to avoid iterating fastly over 
-                for _ in range(60):
+                for _ in range(90):
                     _, data_list = self.pipeline.get_available_nnet_and_data_packets(True)
                     # print(len(data_list))
                     for packet in data_list:    
@@ -331,7 +334,16 @@ class depthai_calibration_node:
                             recent_right = packet.getData()
                             right_mipi = True
                             self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
-                    if left_mipi and right_mipi:
+                        elif packet.stream_name == "meta_d2h":
+                            str_ = packet.getDataAsStr()
+                            dict_ = json.loads(str_)
+                            if 'imu' in dict_:
+                                is_IMU_connected = True
+                                text = 'IMU acc x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accel']['x'], dict_['imu']['accel']['y'], dict_['imu']['accel']['z'])
+                                pygame_render_text(self.screen, text, (50, 545), font_size=25)
+                                text = 'IMU acc-raw x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accelRaw']['x'], dict_['imu']['accelRaw']['y'], dict_['imu']['accelRaw']['z'])
+                                pygame_render_text(self.screen, text, (50, 570), font_size=25)
+                    if left_mipi and right_mipi and is_IMU_connected:
                         if is_usb3:
                             self.device.reset_device_changed()
                         # for i in range(len(self.auto_checkbox_names)):
@@ -369,6 +381,11 @@ class depthai_calibration_node:
                 self.auto_checkbox_dict["Right Stream"].uncheck()
             else:
                 self.auto_checkbox_dict["Right Stream"].check()
+            
+            if is_IMU_connected:
+                self.auto_checkbox_dict["IMU connected"].check()
+            else:
+                self.auto_checkbox_dict["IMU connected"].uncheck()
 
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
