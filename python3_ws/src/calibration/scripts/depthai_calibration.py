@@ -178,7 +178,7 @@ class depthai_calibration_node:
 
     def start_device(self):
         # self.device = depthai.Device('', False)
-        self.device = depthai.Device('/home/sachin/Desktop/luxonis/depthai/.fw_cache/depthai-6fc8c54e33b8aa6d16bf70ac5193d10090dcd0d8.cmd', '')
+        self.device = depthai.Device('/home/nuc/Desktop/depthai/.fw_cache/depthai-6fc8c54e33b8aa6d16bf70ac5193d10090dcd0d8.cmd', '')
 
         self.pipeline = self.device.create_pipeline(self.config)
         self.mx_id = self.device.get_mx_id()
@@ -211,7 +211,8 @@ class depthai_calibration_node:
                     elif packet.stream_name == "right":
                         recent_right = packet.getData()
                         self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
-
+                    elif packet.stream_name == "meta_d2h":
+                        str_ = packet.getDataAsStr()
 
     def parse_frame(self, frame, stream_name, file_name):
         file_name += '.png'
@@ -300,18 +301,23 @@ class depthai_calibration_node:
         pygame_render_text(self.screen, text, (400,80), black, 30)
         text = "device Mx_id : " + self.device.get_mx_id()
         pygame_render_text(self.screen, text, (400,120), black, 30)
-        # rospy.sleep(5)
+        rospy.sleep(3)
+        fill_color_2 =  pygame.Rect(50, 520, 400, 80)
+        pygame.draw.rect(self.screen, white, fill_color_2)
         while self.device.is_device_changed():
             # print(self.device.is_device_changed())
             # if self.capture_exit():
             #     print("signaling...")
             #     rospy.signal_shutdown("Finished calibration")
-            is_usb3 = self.device.is_usb3()
-            left_status = self.device.is_left_connected()
-            right_status = self.device.is_right_connected()
+            is_usb3 = False
             left_mipi = False
             right_mipi = False
             is_IMU_connected = False
+            is_usb3 = self.device.is_usb3()
+            left_status = self.device.is_left_connected()
+            right_status = self.device.is_right_connected()
+
+            imu_times = 0
             if self.capture_exit():
                 rospy.signal_shutdown("Finished calibration")
             
@@ -338,7 +344,12 @@ class depthai_calibration_node:
                             str_ = packet.getDataAsStr()
                             dict_ = json.loads(str_)
                             if 'imu' in dict_:
-                                is_IMU_connected = True
+                                
+                                imu_times += 1
+                                if imu_times >= 5:
+                                    is_IMU_connected = True
+                                fill_color =  pygame.Rect(50, 520, 400, 80)
+                                pygame.draw.rect(self.screen, white, fill_color)
                                 text = 'IMU acc x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accel']['x'], dict_['imu']['accel']['y'], dict_['imu']['accel']['z'])
                                 pygame_render_text(self.screen, text, (50, 545), font_size=25)
                                 text = 'IMU acc-raw x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accelRaw']['x'], dict_['imu']['accelRaw']['y'], dict_['imu']['accelRaw']['z'])
@@ -351,7 +362,11 @@ class depthai_calibration_node:
                         # print("device reste")
                         # print(self.device.is_device_changed())
                         break
-
+            
+            is_usb3 = self.device.is_usb3()
+            left_status = self.device.is_left_connected()
+            right_status = self.device.is_right_connected()
+            
             if not is_usb3:
                 self.auto_checkbox_dict["USB3"].uncheck()
             else:
