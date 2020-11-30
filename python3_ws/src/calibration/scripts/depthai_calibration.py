@@ -199,8 +199,9 @@ class depthai_calibration_node:
         self.device = depthai.Device('', False)
         self.pipeline = self.device.create_pipeline(self.config)
         self.mx_id = self.device.get_mx_id()
+        rospy.sleep(2)
         # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_EDOF)
-        self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
+        # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
         # setting manual focus to rgb camera
         cam_c = depthai.CameraControl.CamId.RGB
         cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
@@ -436,7 +437,14 @@ class depthai_calibration_node:
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox(
                 )
-
+        
+        # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
+        # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_EDOF)
+        # setting manual focus to rgb camera
+        cam_c = depthai.CameraControl.CamId.RGB
+        cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
+        self.device.send_camera_control(cam_c, cmd_set_focus, '111')
+        rospy.sleep(2)
         self.is_service_active = False
         return (True, self.device.get_mx_id())
 
