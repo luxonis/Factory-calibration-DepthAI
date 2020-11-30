@@ -871,6 +871,8 @@ def main():
         ## arm control
         arm_control.go_to_next_joint_state(joints_goal_dict[act])
         time.sleep(delay)
+        print('Press key to capture')
+        raw_input()
         ## calling capture service
         capture_resp = arm_control.capture_srv_client_handler(act)
         ## Evaulating response after capture

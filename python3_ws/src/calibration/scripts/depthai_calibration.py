@@ -160,6 +160,7 @@ class depthai_calibration_node:
             self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
         self.dev_status_srv = rospy.Service(
             "device_status", Capture, self.device_status_handler)
+        self.rgb_focus_srv = rospy.Service("set_rgb_focus", Capture, self.rgb_focus_handler)
 
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
         self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
@@ -194,7 +195,7 @@ class depthai_calibration_node:
                     break
         # pygame.event.pump()
         return is_clicked
-
+    
     def start_device(self):
         self.device = depthai.Device('', False)
         self.pipeline = self.device.create_pipeline(self.config)
@@ -206,6 +207,22 @@ class depthai_calibration_node:
         cam_c = depthai.CameraControl.CamId.RGB
         cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
         self.device.send_camera_control(cam_c, cmd_set_focus, '111')
+
+    def rgb_focus_handler(self, req):
+        is_num = req.name.isnumeric()
+        if is_num:
+            rgb_focus_val = int(req.name)
+            if rgb_focus_val >= 0 and rgb_focus_val <= 255:
+                # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
+                cam_c = depthai.CameraControl.CamId.RGB
+                self.device.send_camera_control(cam_c, depthai.CameraControl.Command.AF_MODE, '0')
+                cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
+                self.device.send_camera_control(cam_c, cmd_set_focus, req.name)
+                return True, 'Focus changed to ' + req.name
+            # else :
+                # return False, 'Invalid focus input.!! Focus number should be between 0-255'
+        # else:
+        return False, 'Invalid focus input.!! Focus number should be between 0-255'
 
     def publisher(self):
         while not rospy.is_shutdown():
