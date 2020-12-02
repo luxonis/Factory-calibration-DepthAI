@@ -98,7 +98,7 @@ class depthai_calibration_node:
                     },
                 },
         }
-
+        self.focus_value = 141
         if arg['board']:
             board_path = Path(arg['board'])
             if not board_path.exists():
@@ -204,9 +204,13 @@ class depthai_calibration_node:
         # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_EDOF)
         # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
         # setting manual focus to rgb camera
+        self.set_focus()
+
+    def set_focus(self):
         cam_c = depthai.CameraControl.CamId.RGB
+        self.device.send_camera_control(cam_c, depthai.CameraControl.Command.AF_MODE, '0')
         cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-        self.device.send_camera_control(cam_c, cmd_set_focus, '111')
+        self.device.send_camera_control(cam_c, cmd_set_focus, str(self.focus_value))
 
     def rgb_focus_handler(self, req):
         is_num = req.name.isnumeric()
