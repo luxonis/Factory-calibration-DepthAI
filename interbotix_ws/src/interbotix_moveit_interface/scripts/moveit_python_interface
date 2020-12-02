@@ -700,7 +700,7 @@ def main():
   rospy.on_shutdown(shutdown_handler)
   # signal.signal(signal.SIGINT, shutdown_handler)
   is_device_ready = True
-  delay = 0.5
+  delay = 1
 
   disp = pygame.display
   screen = disp.set_mode((800, 600))
@@ -779,7 +779,7 @@ def main():
 
     
     # actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
-    actions = ['start', 'left_1', 'left_3', 'start', 'top_1', 'bottom_1',  'right_1']
+    actions = ['start', 'left_4', 'left_3', 'center_swap', 'top_1', 'bottom_1',  'right_1']
     
     device_status_srv = rospy.ServiceProxy('/device_status', Capture) 
     
@@ -870,7 +870,7 @@ def main():
         
         ## arm control
         arm_control.go_to_next_joint_state(joints_goal_dict[act])
-        time.sleep(delay)
+        rospy.sleep(delay)
         ## calling capture service
         capture_resp = arm_control.capture_srv_client_handler(act)
         ## Evaulating response after capture
