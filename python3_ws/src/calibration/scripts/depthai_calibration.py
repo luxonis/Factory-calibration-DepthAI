@@ -347,12 +347,22 @@ class depthai_calibration_node:
                                 imu_times += 1
                                 if imu_times >= 5:
                                     is_IMU_connected = True
-                                fill_color =  pygame.Rect(50, 520, 400, 80)
+                                fill_color =  pygame.Rect(50, 540, 400, 80)
                                 pygame.draw.rect(self.screen, white, fill_color)
                                 text = 'IMU acc x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accel']['x'], dict_['imu']['accel']['y'], dict_['imu']['accel']['z'])
                                 pygame_render_text(self.screen, text, (50, 545), font_size=25)
                                 text = 'IMU acc-raw x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accelRaw']['x'], dict_['imu']['accelRaw']['y'], dict_['imu']['accelRaw']['z'])
                                 pygame_render_text(self.screen, text, (50, 570), font_size=25)
+                            if 'logs' in dict_:
+                                for log in dict_['logs']:
+                                    if log != 'IMU init FAILED':
+                                        text: 'IMU status: ' + log
+                                        is_IMU_connected = True
+                                        pygame_render_text(self.screen, text, (50, 500), font_size=25, color=green)
+                                    else:
+                                        text: 'IMU status: ' + log
+                                        pygame_render_text(self.screen, text, (50, 500), font_size=25, color=red)
+                                # print('meta_d2h LOG------------------>:', log)
                     if left_mipi and right_mipi and is_IMU_connected:
                         if is_usb3:
                             self.device.reset_device_changed()
