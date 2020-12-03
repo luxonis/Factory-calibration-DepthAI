@@ -129,6 +129,8 @@ class depthai_calibration_node:
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
         self.auto_checkbox_names = ["USB3", "Left camera connected", "Right camera connected",
                                     "Left Stream", "Right Stream"]
+        if self.args['enable_IMU_test']:
+            self.auto_checkbox_names.append("IMU connected")
 
         y = 110
         x = 200
@@ -198,6 +200,7 @@ class depthai_calibration_node:
     
     def start_device(self):
         self.device = depthai.Device('', False)
+        # self.device = depthai.Device('/home/nuc/Desktop/depthai/.fw_cache/depthai-6fc8c54e33b8aa6d16bf70ac5193d10090dcd0d8.cmd', '')
         self.pipeline = self.device.create_pipeline(self.config)
         self.mx_id = self.device.get_mx_id()
         rospy.sleep(2)
@@ -268,6 +271,8 @@ class depthai_calibration_node:
                         self.image_pub_color.publish(
                             self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
                         # print(recent_color.shape)
+                    elif packet.stream_name == "meta_d2h":
+                        str_ = packet.getDataAsStr()
 
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
@@ -277,6 +282,7 @@ class depthai_calibration_node:
         packetData = packet.getData()
         yuv420p = packetData.reshape((h * 3 // 2, w))
         return cv2.cvtColor(yuv420p, cv2.COLOR_YUV2BGR_IYUV)
+                    
 
     def parse_frame(self, frame, stream_name, file_name):
         file_name += '.png'
@@ -376,28 +382,36 @@ class depthai_calibration_node:
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
         pygame_render_text(self.screen, text, (400, 80), black, 30)
         text = "device Mx_id : " + self.device.get_mx_id()
-        pygame_render_text(self.screen, text, (400, 120), black, 30)
-        # rospy.sleep(5)
+        pygame_render_text(self.screen, text, (400,120), black, 30)
+        rospy.sleep(3)
+        fill_color_2 =  pygame.Rect(50, 520, 400, 80)
+        pygame.draw.rect(self.screen, white, fill_color_2)
         while self.device.is_device_changed():
             # print(self.device.is_device_changed())
             # if self.capture_exit():
             #     print("signaling...")
             #     rospy.signal_shutdown("Finished calibration")
+            is_usb3 = False
+            left_mipi = False
+            right_mipi = False
+            if self.args['enable_IMU_test']:
+                is_IMU_connected = False
+            else:
+                is_IMU_connected = True
             is_usb3 = self.device.is_usb3()
             left_status = self.device.is_left_connected()
             right_status = self.device.is_right_connected()
-            left_mipi = False
-            right_mipi = False
+
+            imu_times = 0
             if self.capture_exit():
                 rospy.signal_shutdown("Finished calibration")
+            
             # else
             if left_status and right_status:
                 # mipi check using 20 iterations
                 # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
-                # time.sleep(1) # this is needed to avoid iterating fastly over
-                for _ in range(60):
-                    _, data_list = self.pipeline.get_available_nnet_and_data_packets(
-                        True)
+                for _ in range(90):
+                    _, data_list = self.pipeline.get_available_nnet_and_data_packets(True)
                     # print(len(data_list))
                     for packet in data_list:
                         # print("found packets:")
@@ -410,9 +424,44 @@ class depthai_calibration_node:
                         elif packet.stream_name == "right":
                             recent_right = packet.getData()
                             right_mipi = True
-                            self.image_pub_right.publish(
-                                self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
-                    if left_mipi and right_mipi:
+                            self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
+                        elif packet.stream_name == "meta_d2h":
+                            str_ = packet.getDataAsStr()
+                            if not self.args['enable_IMU_test']:
+                                continue
+                            dict_ = json.loads(str_)
+                            if 'imu' in dict_:
+                                if imu_times >= 5:
+                                    is_IMU_connected = True
+                                fill_color =  pygame.Rect(50, 500, 400, 100)
+                                pygame.draw.rect(self.screen, white, fill_color)
+                                selected_clr = red
+
+                                if dict_['imu']['status'] == 'IMU init FAILED':
+                                    selected_clr = red
+                                else:
+                                    imu_times += 1
+                                    selected_clr = green
+                                    text = 'IMU acc x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accel']['x'], dict_['imu']['accel']['y'], dict_['imu']['accel']['z'])
+                                    pygame_render_text(self.screen, text, (50, 545), font_size=25)
+                                    text = 'IMU acc-raw x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accelRaw']['x'], dict_['imu']['accelRaw']['y'], dict_['imu']['accelRaw']['z'])
+                                    pygame_render_text(self.screen, text, (50, 570), font_size=25)
+
+                                text = 'IMU status: ' + dict_['imu']['status']
+                                pygame_render_text(self.screen, text, (50, 500), font_size=30, color=selected_clr)
+
+                            # print(dict_)
+                            # if 'logs' in dict_:
+                            #     for log in dict_['logs']:
+                            #         if log != 'IMU init FAILED':
+                            #             text = 'IMU status: ' + log
+                            #             is_IMU_connected = True
+                            #             pygame_render_text(self.screen, text, (50, 500), font_size=25, color=green)
+                            #         else:
+                            #             text = 'IMU status: ' + log
+                            #             pygame_render_text(self.screen, text, (50, 500), font_size=25, color=red)
+                                # print('meta_d2h LOG------------------>:', log)
+                    if left_mipi and right_mipi and is_IMU_connected:
                         if is_usb3:
                             # # setting manual focus to rgb camera
                             # cam_c = depthai.CameraControl.CamId.RGB
@@ -424,7 +473,11 @@ class depthai_calibration_node:
                         # print("device reste")
                         # print(self.device.is_device_changed())
                         break
-
+            
+            is_usb3 = self.device.is_usb3()
+            left_status = self.device.is_left_connected()
+            right_status = self.device.is_right_connected()
+            
             if not is_usb3:
                 self.auto_checkbox_dict["USB3"].uncheck()
             else:
@@ -454,6 +507,12 @@ class depthai_calibration_node:
                 self.auto_checkbox_dict["Right Stream"].uncheck()
             else:
                 self.auto_checkbox_dict["Right Stream"].check()
+            
+            if self.args['enable_IMU_test']:
+                if is_IMU_connected:
+                    self.auto_checkbox_dict["IMU connected"].check()
+                else:
+                    self.auto_checkbox_dict["IMU connected"].uncheck()
 
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox(
@@ -581,19 +640,16 @@ if __name__ == "__main__":
     arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
 
     # arg["depthai_path"] = rospy.get_param('~depthai_path') ## Add  capture_checkerboard to launch file
-    # Add  capture_checkerboard to launch file
-    arg["board"] = rospy.get_param('~brd')
-    arg["capture_service_name"] = rospy.get_param(
-        '~capture_service_name')  # Add  capture_checkerboard to launch file
-    arg["calibration_service_name"] = rospy.get_param(
-        '~calibration_service_name')  # Add  capture_checkerboard to launch file
-    arg["depthai_path"] = rospy.get_param(
-        '~depthai_path')  # Path of depthai repo
-
-    # local path to store calib files with using mx device id.
-    arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
+    arg["board"] = rospy.get_param('~brd') ## Add  capture_checkerboard to launch file
+    arg["capture_service_name"] = rospy.get_param('~capture_service_name') ## Add  capture_checkerboard to launch file
+    arg["calibration_service_name"] = rospy.get_param('~calibration_service_name') ## Add  capture_checkerboard to launch file
+    arg["depthai_path"] = rospy.get_param('~depthai_path') ## Path of depthai repo
+    arg["enable_IMU_test"] = rospy.get_param('~enable_IMU_test')
+    arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path') ## local path to store calib files with using mx device id.
+    
     # print("Hone------------------------>")
-    # print(str(Path.home()))
+    # print(type(arg["enable_IMU_test"]))
+    
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])
 
