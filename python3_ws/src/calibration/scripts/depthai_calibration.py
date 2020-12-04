@@ -11,6 +11,7 @@ import signal
 import subprocess
 import json
 import datetime
+from collections import deque  
 
 from calibration.srv import Capture
 import time
@@ -98,6 +99,7 @@ class depthai_calibration_node:
                     },
                 },
         }
+        self.frame_count = 0
         self.focus_value = 141
         if arg['board']:
             board_path = Path(arg['board'])
@@ -162,7 +164,8 @@ class depthai_calibration_node:
             self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
         self.dev_status_srv = rospy.Service(
             "device_status", Capture, self.device_status_handler)
-        self.rgb_focus_srv = rospy.Service("set_rgb_focus", Capture, self.rgb_focus_handler)
+        self.rgb_focus_srv = rospy.Service(
+            "set_rgb_focus", Capture, self.rgb_focus_handler)
 
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
         self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
@@ -197,7 +200,7 @@ class depthai_calibration_node:
                     break
         # pygame.event.pump()
         return is_clicked
-    
+
     def start_device(self):
         self.device = depthai.Device('', False)
         # self.device = depthai.Device('/home/nuc/Desktop/depthai/.fw_cache/depthai-6fc8c54e33b8aa6d16bf70ac5193d10090dcd0d8.cmd', '')
@@ -211,9 +214,16 @@ class depthai_calibration_node:
 
     def set_focus(self):
         cam_c = depthai.CameraControl.CamId.RGB
-        self.device.send_camera_control(cam_c, depthai.CameraControl.Command.AF_MODE, '0')
+        # Disabling AF mode
+        print('Disabling AF mode')
+        # self.device.send_camera_control(
+        #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
         cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-        self.device.send_camera_control(cam_c, cmd_set_focus, str(self.focus_value))
+        # Disabling AF mode
+        print('setting Focus')
+        print("Setting focus value to {}".format(self.focus_value))
+        self.device.send_camera_control(
+            cam_c, cmd_set_focus, str(self.focus_value))
 
     def rgb_focus_handler(self, req):
         is_num = req.name.isnumeric()
@@ -222,7 +232,8 @@ class depthai_calibration_node:
             if rgb_focus_val >= 0 and rgb_focus_val <= 255:
                 # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
                 cam_c = depthai.CameraControl.CamId.RGB
-                self.device.send_camera_control(cam_c, depthai.CameraControl.Command.AF_MODE, '0')
+                # self.device.send_camera_control(
+                #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
                 cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
                 self.device.send_camera_control(cam_c, cmd_set_focus, req.name)
                 return True, 'Focus changed to ' + req.name
@@ -266,13 +277,26 @@ class depthai_calibration_node:
                     elif packet.stream_name == "color":
                         # since getting python3 working on ros melodic is an
                         # hack cannot publish rgb. it will throw an error.
+                        self.frame_count += 1
                         recent_color = cv2.cvtColor(
                             self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
                         self.image_pub_color.publish(
                             self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-                        # print(recent_color.shape)
+                        meta = packet.getMetadata()
+                        # print(
+                        #     ' Frame seq number <-< {} '.format(meta.getSequenceNum()))
+                        # print(' Frame TS number <-< {} '.format(meta.getTimestamp()))
+
+                        # print('Local frame rate: {}'.format(self.frame_count))
                     elif packet.stream_name == "meta_d2h":
                         str_ = packet.getDataAsStr()
+                        dict_ = json.loads(str_)
+                        # print('last frame tstamp: {:.6f}'.format(
+                        #     dict_['camera']['last_frame_timestamp']))
+                        print('meta_d2h frame focus ----------?: {}'.format(
+                            dict_['camera']['rgb']['focus_pos']))
+                        # print(
+                        #     'Metad2h frame cpunt <-< {}'.format(dict_['camera']['rgb']['frame_count']))
 
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
@@ -282,7 +306,6 @@ class depthai_calibration_node:
         packetData = packet.getData()
         yuv420p = packetData.reshape((h * 3 // 2, w))
         return cv2.cvtColor(yuv420p, cv2.COLOR_YUV2BGR_IYUV)
-                    
 
     def parse_frame(self, frame, stream_name, file_name):
         file_name += '.png'
@@ -316,6 +339,13 @@ class depthai_calibration_node:
         # now = rospy.get_rostime()
         # pygame.draw.rect(self.screen, white, no_button)
         rospy.sleep(1)
+        # ts_color = None
+        # ts_color_dev = None
+        # current_focus = None
+        # current_color_pkt = None
+        rgb_check_count = 0
+        m_d2h_seq_focus = dict()
+        # color_pkt_queue = deque()  
         while not finished:
             _, data_list = self.pipeline.get_available_nnet_and_data_packets(
                 True)
@@ -332,8 +362,31 @@ class depthai_calibration_node:
                 elif packet.stream_name == "right":
                     recent_right = packet.getData()
                 elif packet.stream_name == "color":
-                    recent_color = cv2.cvtColor(
-                        self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
+                    seq_no = packet.getMetadata().getSequenceNum()
+                    if seq_no in m_d2h_seq_focus:
+                        curr_focus = m_d2h_seq_focus[seq_no]
+                        print('rgb_check_count -> {}'.format(rgb_check_count))
+                        print('seq_no -> {}'.format(seq_no))
+                        print('curr_focus -> {}'.format(curr_focus))
+                        
+                        if curr_focus < self.focus_value + 1 and curr_focus > self.focus_value - 1:
+                            rgb_check_count += 1
+                        else:
+                            self.set_focus()
+                            rgb_check_count = -2
+                            rospy.sleep(1)
+                        # color_pkt_queue.append(packet)
+                    if rgb_check_count >= 5:
+                        recent_color = cv2.cvtColor(self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
+                    else:
+                        recent_color = None
+                elif packet.stream_name == "meta_d2h":
+                    str_ = packet.getDataAsStr()
+                    dict_ = json.loads(str_)
+                    # ts_color_dev = dict_['camera']['last_frame_timestamp']
+                    # current_focus = dict_['camera']['rgb']['focus_pos']
+                    m_d2h_seq_focus[dict_['camera']['rgb']['frame_count']] = dict_['camera']['rgb']['focus_pos'] 
+                    print('series of focus ---> {}'.format(dict_['camera']['rgb']['focus_pos'] ))
 
             if recent_left is not None and recent_right is not None and recent_color is not None:
                 finished = True
@@ -382,9 +435,9 @@ class depthai_calibration_node:
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
         pygame_render_text(self.screen, text, (400, 80), black, 30)
         text = "device Mx_id : " + self.device.get_mx_id()
-        pygame_render_text(self.screen, text, (400,120), black, 30)
+        pygame_render_text(self.screen, text, (400, 120), black, 30)
         rospy.sleep(3)
-        fill_color_2 =  pygame.Rect(50, 520, 400, 80)
+        fill_color_2 = pygame.Rect(50, 520, 400, 80)
         pygame.draw.rect(self.screen, white, fill_color_2)
         while self.device.is_device_changed():
             # print(self.device.is_device_changed())
@@ -405,13 +458,14 @@ class depthai_calibration_node:
             imu_times = 0
             if self.capture_exit():
                 rospy.signal_shutdown("Finished calibration")
-            
+
             # else
             if left_status and right_status:
                 # mipi check using 20 iterations
                 # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
                 for _ in range(90):
-                    _, data_list = self.pipeline.get_available_nnet_and_data_packets(True)
+                    _, data_list = self.pipeline.get_available_nnet_and_data_packets(
+                        True)
                     # print(len(data_list))
                     for packet in data_list:
                         # print("found packets:")
@@ -424,7 +478,8 @@ class depthai_calibration_node:
                         elif packet.stream_name == "right":
                             recent_right = packet.getData()
                             right_mipi = True
-                            self.image_pub_right.publish(self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
+                            self.image_pub_right.publish(
+                                self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
                         elif packet.stream_name == "meta_d2h":
                             str_ = packet.getDataAsStr()
                             if not self.args['enable_IMU_test']:
@@ -433,8 +488,9 @@ class depthai_calibration_node:
                             if 'imu' in dict_:
                                 if imu_times >= 5:
                                     is_IMU_connected = True
-                                fill_color =  pygame.Rect(50, 500, 400, 100)
-                                pygame.draw.rect(self.screen, white, fill_color)
+                                fill_color = pygame.Rect(50, 500, 400, 100)
+                                pygame.draw.rect(
+                                    self.screen, white, fill_color)
                                 selected_clr = red
 
                                 if dict_['imu']['status'] == 'IMU init FAILED':
@@ -442,13 +498,18 @@ class depthai_calibration_node:
                                 else:
                                     imu_times += 1
                                     selected_clr = green
-                                    text = 'IMU acc x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accel']['x'], dict_['imu']['accel']['y'], dict_['imu']['accel']['z'])
-                                    pygame_render_text(self.screen, text, (50, 545), font_size=25)
-                                    text = 'IMU acc-raw x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(dict_['imu']['accelRaw']['x'], dict_['imu']['accelRaw']['y'], dict_['imu']['accelRaw']['z'])
-                                    pygame_render_text(self.screen, text, (50, 570), font_size=25)
+                                    text = 'IMU acc x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(
+                                        dict_['imu']['accel']['x'], dict_['imu']['accel']['y'], dict_['imu']['accel']['z'])
+                                    pygame_render_text(
+                                        self.screen, text, (50, 545), font_size=25)
+                                    text = 'IMU acc-raw x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(
+                                        dict_['imu']['accelRaw']['x'], dict_['imu']['accelRaw']['y'], dict_['imu']['accelRaw']['z'])
+                                    pygame_render_text(
+                                        self.screen, text, (50, 570), font_size=25)
 
                                 text = 'IMU status: ' + dict_['imu']['status']
-                                pygame_render_text(self.screen, text, (50, 500), font_size=30, color=selected_clr)
+                                pygame_render_text(
+                                    self.screen, text, (50, 500), font_size=30, color=selected_clr)
 
                             # print(dict_)
                             # if 'logs' in dict_:
@@ -473,11 +534,11 @@ class depthai_calibration_node:
                         # print("device reste")
                         # print(self.device.is_device_changed())
                         break
-            
+
             is_usb3 = self.device.is_usb3()
             left_status = self.device.is_left_connected()
             right_status = self.device.is_right_connected()
-            
+
             if not is_usb3:
                 self.auto_checkbox_dict["USB3"].uncheck()
             else:
@@ -507,7 +568,7 @@ class depthai_calibration_node:
                 self.auto_checkbox_dict["Right Stream"].uncheck()
             else:
                 self.auto_checkbox_dict["Right Stream"].check()
-            
+
             if self.args['enable_IMU_test']:
                 if is_IMU_connected:
                     self.auto_checkbox_dict["IMU connected"].check()
@@ -517,13 +578,8 @@ class depthai_calibration_node:
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox(
                 )
-        
-        # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
-        # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_EDOF)
-        # setting manual focus to rgb camera
-        cam_c = depthai.CameraControl.CamId.RGB
-        cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-        self.device.send_camera_control(cam_c, cmd_set_focus, '111')
+
+        # self.set_focus()
         rospy.sleep(2)
         self.is_service_active = False
         return (True, self.device.get_mx_id())
@@ -640,16 +696,21 @@ if __name__ == "__main__":
     arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
 
     # arg["depthai_path"] = rospy.get_param('~depthai_path') ## Add  capture_checkerboard to launch file
-    arg["board"] = rospy.get_param('~brd') ## Add  capture_checkerboard to launch file
-    arg["capture_service_name"] = rospy.get_param('~capture_service_name') ## Add  capture_checkerboard to launch file
-    arg["calibration_service_name"] = rospy.get_param('~calibration_service_name') ## Add  capture_checkerboard to launch file
-    arg["depthai_path"] = rospy.get_param('~depthai_path') ## Path of depthai repo
+    # Add  capture_checkerboard to launch file
+    arg["board"] = rospy.get_param('~brd')
+    arg["capture_service_name"] = rospy.get_param(
+        '~capture_service_name')  # Add  capture_checkerboard to launch file
+    arg["calibration_service_name"] = rospy.get_param(
+        '~calibration_service_name')  # Add  capture_checkerboard to launch file
+    arg["depthai_path"] = rospy.get_param(
+        '~depthai_path')  # Path of depthai repo
     arg["enable_IMU_test"] = rospy.get_param('~enable_IMU_test')
-    arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path') ## local path to store calib files with using mx device id.
-    
+    # local path to store calib files with using mx device id.
+    arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
+
     # print("Hone------------------------>")
     # print(type(arg["enable_IMU_test"]))
-    
+
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])
 
