@@ -206,10 +206,11 @@ class depthai_calibration_node:
         # self.device = depthai.Device('/home/nuc/Desktop/depthai/.fw_cache/depthai-6fc8c54e33b8aa6d16bf70ac5193d10090dcd0d8.cmd', '')
         self.pipeline = self.device.create_pipeline(self.config)
         self.mx_id = self.device.get_mx_id()
-        rospy.sleep(2)
+        # rospy.sleep(2)
         # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_EDOF)
         # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
         # setting manual focus to rgb camera
+        # self.set_focus()
         self.set_focus()
 
     def set_focus(self):
@@ -374,7 +375,7 @@ class depthai_calibration_node:
                         else:
                             self.set_focus()
                             rgb_check_count = -2
-                            rospy.sleep(1)
+                            # rospy.sleep(1)
                         # color_pkt_queue.append(packet)
                     if rgb_check_count >= 5:
                         recent_color = cv2.cvtColor(self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
