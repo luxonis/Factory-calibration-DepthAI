@@ -89,7 +89,9 @@ class depthai_calibration_node:
                     'rgb':
                     {
                         'resolution_h': 1080,
-                        'fps': 30.0
+                        'fps': 30.0,
+                        'initial_focus': 141,
+                        'enable_autofocus': False
                     },
                     'mono':
                     {
@@ -97,6 +99,10 @@ class depthai_calibration_node:
                         'resolution_h': 720,
                         'fps': 30.0,
                     },
+                },
+            'app':
+                {
+                    'enable_imu': True
                 },
         }
         self.frame_count = 0
@@ -214,6 +220,9 @@ class depthai_calibration_node:
         self.set_focus()
 
     def set_focus(self):
+        if 1:
+            print("RGB set_focus() disabled. TODO")
+            return
         cam_c = depthai.CameraControl.CamId.RGB
         # Disabling AF mode
         print('Disabling AF mode')
