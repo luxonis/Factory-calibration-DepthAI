@@ -11,7 +11,7 @@ import signal
 import subprocess
 import json
 import datetime
-from collections import deque  
+from collections import deque
 
 from calibration.srv import Capture
 import time
@@ -96,7 +96,7 @@ class depthai_calibration_node:
                     'mono':
                     {
                         # 1280x720, 1280x800, 640x400 (binning enabled)
-                        'resolution_h': 720,
+                        'resolution_h': 800,
                         'fps': 30.0,
                     },
                 },
@@ -105,7 +105,7 @@ class depthai_calibration_node:
                     'enable_imu': True
                 },
         }
-        self.frame_count = 0
+        # self.frame_count = 0
         self.focus_value = 141
         if arg['board']:
             board_path = Path(arg['board'])
@@ -217,7 +217,7 @@ class depthai_calibration_node:
         # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
         # setting manual focus to rgb camera
         # self.set_focus()
-        self.set_focus()
+        # self.set_focus()
 
     def set_focus(self):
         if 1:
@@ -287,12 +287,12 @@ class depthai_calibration_node:
                     elif packet.stream_name == "color":
                         # since getting python3 working on ros melodic is an
                         # hack cannot publish rgb. it will throw an error.
-                        self.frame_count += 1
+                        # self.frame_count += 1
                         recent_color = cv2.cvtColor(
                             self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
                         self.image_pub_color.publish(
                             self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-                        meta = packet.getMetadata()
+                        # meta = packet.getMetadata()
                         # print(
                         #     ' Frame seq number <-< {} '.format(meta.getSequenceNum()))
                         # print(' Frame TS number <-< {} '.format(meta.getTimestamp()))
@@ -303,8 +303,9 @@ class depthai_calibration_node:
                         dict_ = json.loads(str_)
                         # print('last frame tstamp: {:.6f}'.format(
                         #     dict_['camera']['last_frame_timestamp']))
-                        print('meta_d2h frame focus ----------?: {}'.format(
-                            dict_['camera']['rgb']['focus_pos']))
+                        if 0:
+                            print('meta_d2h frame focus ----------?: {}'.format(
+                                dict_['camera']['rgb']['focus_pos']))
                         # print(
                         #     'Metad2h frame cpunt <-< {}'.format(dict_['camera']['rgb']['frame_count']))
 
@@ -355,7 +356,8 @@ class depthai_calibration_node:
         # current_color_pkt = None
         rgb_check_count = 0
         m_d2h_seq_focus = dict()
-        # color_pkt_queue = deque()  
+        # color_pkt_queue = deque()
+        local_color_frame_count = 0
         while not finished:
             _, data_list = self.pipeline.get_available_nnet_and_data_packets(
                 True)
@@ -372,40 +374,42 @@ class depthai_calibration_node:
                 elif packet.stream_name == "right":
                     recent_right = packet.getData()
                 elif packet.stream_name == "color":
+                    local_color_frame_count += 1
                     seq_no = packet.getMetadata().getSequenceNum()
                     if seq_no in m_d2h_seq_focus:
                         curr_focus = m_d2h_seq_focus[seq_no]
                         print('rgb_check_count -> {}'.format(rgb_check_count))
                         print('seq_no -> {}'.format(seq_no))
                         print('curr_focus -> {}'.format(curr_focus))
-                        
+
                         if curr_focus < self.focus_value + 1 and curr_focus > self.focus_value - 1:
                             rgb_check_count += 1
                         else:
-                            self.set_focus()
+                            # return False, 'RGB focus was set to {}'.format(curr_focus)
+                            # self.set_focus()
                             rgb_check_count = -2
                             # rospy.sleep(1)
                         # color_pkt_queue.append(packet)
                     if rgb_check_count >= 5:
-                        recent_color = cv2.cvtColor(self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
+                        recent_color = cv2.cvtColor(
+                            self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
                     else:
                         recent_color = None
                 elif packet.stream_name == "meta_d2h":
                     str_ = packet.getDataAsStr()
                     dict_ = json.loads(str_)
-                    # ts_color_dev = dict_['camera']['last_frame_timestamp']
-                    # current_focus = dict_['camera']['rgb']['focus_pos']
-                    m_d2h_seq_focus[dict_['camera']['rgb']['frame_count']] = dict_['camera']['rgb']['focus_pos'] 
-                    print('series of focus ---> {}'.format(dict_['camera']['rgb']['focus_pos'] ))
+                    m_d2h_seq_focus[dict_['camera']['rgb']['frame_count']] = dict_[
+                        'camera']['rgb']['focus_pos']
+                    print(
+                        'series of focus ---> {}'.format(dict_['camera']['rgb']['focus_pos']))
+
+            if local_color_frame_count > 100:
+                if rgb_check_count < 5:
+                    return False, 'RGB focus was set to {}'.format(curr_focus)
 
             if recent_left is not None and recent_right is not None and recent_color is not None:
                 finished = True
 
-        # print("looping")
-        # is_board_found_l = find_chessboard(recent_left)
-        # is_board_found_r = find_chessboard(recent_right)
-        # is_board_found_l = True
-        # is_board_found_r = True
         is_board_found_l = self.is_markers_found(recent_left)
         is_board_found_r = self.is_markers_found(recent_right)
         is_board_found_rgb = self.is_markers_found(recent_color)

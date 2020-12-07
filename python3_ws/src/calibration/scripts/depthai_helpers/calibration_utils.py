@@ -150,15 +150,22 @@ class StereoCalibration(object):
             # TODO(Sachin): change this hardcoded later
             # (800, 1280)
             # (3040, 4056)
-            # scale_width = 1280/4056
-            # m_scale = [[scale_width,      0,   0],
-            #         [0, scale_width,   0],
-            #         [0,      0,    1]]
-            # M_RGB = np.matmul(m_scale, self.M3)
-            # height = round(3040 * scale_width)
-            # if height > 800:
-            #     diff = (height - 800) / 2
-            # M_RGB[1, 2] -= diff
+
+            scale_width = 1280/1920
+            m_scale = [[scale_width,      0,   0],
+                        [0, scale_width,   0],
+                        [0,      0,    1]]
+            M_RGB = np.matmul(m_scale, self.M3)
+            height = round(1920 * scale_width)
+            if height > 800:
+                diff = (height - 800) / 2
+            M_RGB[1, 2] -= diff
+
+            print('Scaled intriniscs of rgb is -->')
+            print(M_RGB)
+            print('vs. intrinisics computed after scaling the image --->')
+            print(self.M3_scaled)
+
 
             self.M2_rgb = np.copy(self.M2)
             self.d2_rgb = np.copy(self.d2)
@@ -168,8 +175,6 @@ class StereoCalibration(object):
                 criteria=stereocalib_criteria, flags=flags)
             print("~~~~~~Stereo calibration rgb-right RMS error~~~~~~~~")
             print(ret)
-            print('Fundamental matrix')
-            print(F)
 
             # Rectification is only to test the epipolar
             self.R1_rgb, self.R2_rgb, self.P1_rgb, self.P2_rgb, self.Q_rgb, validPixROI1, validPixROI2 = cv2.stereoRectify(
@@ -218,7 +223,7 @@ class StereoCalibration(object):
             # distortion coeff of rgb camera - currently zeros
             fp.write(d3_coeff_fp32.tobytes())
 
-        data_list = [R1_fp32, R2_fp32, M1_fp32, M2_fp32, R_fp32, T_fp32, M3_fp32,
+        data_list = [R1_fp32, R2_fp32, M1_fp32, M2_fp32, R_fp32, T_fp32, self.M3_scaled.astype(np.float32),
                      R_rgb_fp32, T_rgb_fp32, d1_coeff_fp32, d2_coeff_fp32, d3_coeff_fp32]
         self.calib_data = np.array([], dtype=np.float32)
 
@@ -501,11 +506,11 @@ class StereoCalibration(object):
             # rgb/right camera to have same field of view and resolution
             # Followed by getting corners of the device stereo calibration
             allCorners_rgb_scaled, allIds_rgb_scaled, _, _, imsize_rgb_scaled, _ = self.analyze_charuco(
-                images_rgb, scale_req=True, req_resolution= (720, 1280))
+                images_rgb, scale_req=True, req_resolution= (800, 1280))
 
             ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
                 allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
-            print("RGB callleded RMS at 720")
+            print("RGB callleded RMS at 800")
             print(ret_rgb_scaled)
             print(imsize_rgb_scaled)
             print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
