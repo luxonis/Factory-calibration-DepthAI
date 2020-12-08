@@ -58,6 +58,7 @@ class depthai_calibration_node:
         self.args = depthai_args
         self.bridge = CvBridge()
         self.is_service_active = False
+        self.focus_value = 130
         self.config = {
             'streams':
                 ['left', 'right', 'meta_d2h', 'color'] if not on_embedded else
@@ -90,7 +91,7 @@ class depthai_calibration_node:
                     {
                         'resolution_h': 1080,
                         'fps': 30.0,
-                        'initial_focus': 141,
+                        'initial_focus':self.focus_value ,
                         'enable_autofocus': False
                     },
                     'mono':
@@ -106,7 +107,7 @@ class depthai_calibration_node:
                 },
         }
         # self.frame_count = 0
-        self.focus_value = 141
+       
         if arg['board']:
             board_path = Path(arg['board'])
             if not board_path.exists():

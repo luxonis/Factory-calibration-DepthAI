@@ -150,16 +150,19 @@ class StereoCalibration(object):
             # TODO(Sachin): change this hardcoded later
             # (800, 1280)
             # (3040, 4056)
-
+            print('full M3')
+            print(self.M3)
             scale_width = 1280/1920
             m_scale = [[scale_width,      0,   0],
                         [0, scale_width,   0],
                         [0,      0,    1]]
             M_RGB = np.matmul(m_scale, self.M3)
-            height = round(1920 * scale_width)
+            height = round(1080 * scale_width)
+            print(height)
             if height > 800:
+                print('Modifying height')
                 diff = (height - 800) / 2
-            M_RGB[1, 2] -= diff
+                M_RGB[1, 2] -= diff
 
             print('Scaled intriniscs of rgb is -->')
             print(M_RGB)
@@ -168,6 +171,7 @@ class StereoCalibration(object):
 
 
             self.M2_rgb = np.copy(self.M2)
+            self.M2_rgb[1, 2] += 40
             self.d2_rgb = np.copy(self.d2)
             ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
                 self.objpoints_rgb_r, self.imgpoints_rgb, self.imgpoints_rgb_right,
@@ -182,7 +186,7 @@ class StereoCalibration(object):
                 self.d3_scaled,
                 self.M2_rgb,
                 self.d2_rgb,
-                self.img_shape, self.R_rgb, self.T_rgb)
+                self.img_shape_rgb_scaled, self.R_rgb, self.T_rgb)
         else:
             self.M3 = np.zeros((3, 3), dtype=np.float32)
             self.R_rgb = np.zeros((3, 3), dtype=np.float32)
@@ -506,11 +510,16 @@ class StereoCalibration(object):
             # rgb/right camera to have same field of view and resolution
             # Followed by getting corners of the device stereo calibration
             allCorners_rgb_scaled, allIds_rgb_scaled, _, _, imsize_rgb_scaled, _ = self.analyze_charuco(
-                images_rgb, scale_req=True, req_resolution= (800, 1280))
-
+                images_rgb, scale_req=True, req_resolution= (720, 1280))
+            self.img_shape_rgb_scaled = imsize_rgb_scaled[::-1]
             ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
                 allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
-            print("RGB callleded RMS at 800")
+
+            allCorners_r_rgb, allIds_r_rgb, _, _, _, _ = self.analyze_charuco(images_right,scale_req=True, req_resolution= (720, 1280))
+
+
+
+            print("RGB callleded RMS at 720")
             print(ret_rgb_scaled)
             print(imsize_rgb_scaled)
             print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
@@ -539,11 +548,11 @@ class StereoCalibration(object):
             #     if len(allIds_l[i]) < 70 or len(allIds_r[i]) < 70:
             #         continue
                 for j in range(len(allIds_rgb_scaled[i])):
-                    idx = np.where(allIds_r[i] == allIds_rgb_scaled[i][j])
+                    idx = np.where(allIds_r_rgb[i] == allIds_rgb_scaled[i][j])
                     if idx[0].size == 0:
                         continue
                     rgb_sub_corners.append(allCorners_rgb_scaled[i][j])
-                    right_sub_corners.append(allCorners_r[i][idx])
+                    right_sub_corners.append(allCorners_r_rgb[i][idx])
                     obj_pts_sub.append(one_pts[allIds_rgb_scaled[i][j]])
 
                 rgb_scaled_obj_pts.append(
@@ -979,9 +988,9 @@ class StereoCalibration(object):
 
         # if not use_homo:
         mapx_rgb, mapy_rgb = cv2.initUndistortRectifyMap(
-            self.M3_scaled, self.d3_scaled, self.R1_rgb, self.P1_rgb, self.img_shape, cv2.CV_32FC1)
+            self.M3_scaled, self.d3_scaled, self.R1_rgb, self.P1_rgb, self.img_shape_rgb_scaled, cv2.CV_32FC1)
         mapx_r, mapy_r = cv2.initUndistortRectifyMap(
-            self.M2_rgb, self.d2_rgb, self.R2_rgb, self.P2_rgb, self.img_shape, cv2.CV_32FC1)
+            self.M2_rgb, self.d2_rgb, self.R2_rgb, self.P2_rgb, self.img_shape_rgb_scaled, cv2.CV_32FC1)
 
         # self.H1_rgb = np.matmul(np.matmul(self.M2, self.R1_rgb),
         #                     np.linalg.inv(M_rgb))
@@ -994,7 +1003,7 @@ class StereoCalibration(object):
             # read images
             img_rgb = cv2.imread(image_rgb, 0)
             img_r = cv2.imread(image_right, 0)
-
+            img_r = img_r[40: 760, :]
             # TODO(sachin): replace Hard coded scaleratio for rgb resize
             dest_res = (int(img_rgb.shape[1] * scale_width),
                         int(img_rgb.shape[0] * scale_width))
