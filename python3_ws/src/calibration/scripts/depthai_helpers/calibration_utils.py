@@ -127,66 +127,7 @@ class StereoCalibration(object):
             # if True:
             # things to do.
             # First: change the center and other thigns of the calibration matrix of rgb camera
-
-            flags = 0
-            #flags |= cv2.CALIB_FIX_ASPECT_RATIO
-            flags |= cv2.CALIB_FIX_INTRINSIC
-            # flags |= cv2.CALIB_USE_INTRINSIC_GUESS
-            #flags |= cv2.CALIB_SAME_FOCAL_LENGTH
-            #flags |= cv2.CALIB_ZERO_TANGENT_DIST
-            flags |= cv2.CALIB_RATIONAL_MODEL
-            #flags |= cv2.CALIB_FIX_K1
-            #flags |= cv2.CALIB_FIX_K2
-            #flags |= cv2.CALIB_FIX_K3
-            #flags |= cv2.CALIB_FIX_K4
-            #flags |= cv2.CALIB_FIX_K5
-            #flags |= cv2.CALIB_FIX_K6
-            # flags |= cv::CALIB_ZERO_TANGENT_DIST
-
-            stereocalib_criteria = (cv2.TERM_CRITERIA_COUNT +
-                                    cv2.TERM_CRITERIA_EPS, 100, 1e-5)
-
-            # stereo calibration procedure
-            # TODO(Sachin): change this hardcoded later
-            # (800, 1280)
-            # (3040, 4056)
-            print('full M3')
-            print(self.M3)
-            scale_width = 1280/1920
-            m_scale = [[scale_width,      0,   0],
-                        [0, scale_width,   0],
-                        [0,      0,    1]]
-            M_RGB = np.matmul(m_scale, self.M3)
-            height = round(1080 * scale_width)
-            print(height)
-            if height > 800:
-                print('Modifying height')
-                diff = (height - 800) / 2
-                M_RGB[1, 2] -= diff
-
-            print('Scaled intriniscs of rgb is -->')
-            print(M_RGB)
-            print('vs. intrinisics computed after scaling the image --->')
-            print(self.M3_scaled)
-
-
-            self.M2_rgb = np.copy(self.M2)
-            self.M2_rgb[1, 2] += 40
-            self.d2_rgb = np.copy(self.d2)
-            ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
-                self.objpoints_rgb_r, self.imgpoints_rgb, self.imgpoints_rgb_right,
-                self.M3_scaled, self.d3_scaled, self.M2_rgb, self.d2_rgb, self.img_shape,
-                criteria=stereocalib_criteria, flags=flags)
-            print("~~~~~~Stereo calibration rgb-right RMS error~~~~~~~~")
-            print(ret)
-
-            # Rectification is only to test the epipolar
-            self.R1_rgb, self.R2_rgb, self.P1_rgb, self.P2_rgb, self.Q_rgb, validPixROI1, validPixROI2 = cv2.stereoRectify(
-                self.M2_rgb,
-                self.d3_scaled,
-                self.M2_rgb,
-                self.d2_rgb,
-                self.img_shape_rgb_scaled, self.R_rgb, self.T_rgb)
+            self.rgb_calibrate(filepath)
         else:
             self.M3 = np.zeros((3, 3), dtype=np.float32)
             self.R_rgb = np.zeros((3, 3), dtype=np.float32)
@@ -360,12 +301,11 @@ class StereoCalibration(object):
                             gray.shape[0], req_resolution[0]))
                     # print(gray.shape[0] - req_resolution[0])
                     del_height = (gray.shape[0] - req_resolution[0]) // 2
-                    gray = gray[: req_resolution[0], :]
-                    # gray = gray[del_height: del_height + req_resolution[0], :]
+                    # gray = gray[: req_resolution[0], :]
+                    gray = gray[del_height: del_height + req_resolution[0], :]
 
-                    # print("del height ??")
-                    # print(del_height)
-                    print("scaled gray shape")
+                    print("del height ??")
+                    print(del_height)
                     print(gray.shape)
                 count += 1
                 self.parse_frame(gray, 'rgb_resized',
@@ -504,85 +444,6 @@ class StereoCalibration(object):
         self.imgpoints_l = left_corners_sampled
         self.imgpoints_r = right_corners_sampled
 
-        if self.calibrate_rgb:
-            # if True:
-            # rgb_right_stereo_calibration method 1 - resize rgb and center crop
-            # rgb/right camera to have same field of view and resolution
-            # Followed by getting corners of the device stereo calibration
-            allCorners_rgb_scaled, allIds_rgb_scaled, _, _, imsize_rgb_scaled, _ = self.analyze_charuco(
-                images_rgb, scale_req=True, req_resolution= (720, 1280))
-            self.img_shape_rgb_scaled = imsize_rgb_scaled[::-1]
-            ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
-                allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
-
-            allCorners_r_rgb, allIds_r_rgb, _, _, _, _ = self.analyze_charuco(images_right,scale_req=True, req_resolution= (720, 1280))
-
-
-
-            print("RGB callleded RMS at 720")
-            print(ret_rgb_scaled)
-            print(imsize_rgb_scaled)
-            print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-            print(self.M3_scaled)
-            # rgb_right_stereo_calibration method 2 - Instead of resizing the image
-            # and finding the corners again use the previously find corners in 4k res
-            # use scale parameter to find relative low res corner and use it to find
-            #  the common points for stereo calibration. (Keep in mind about the change in fov)
-
-            # rgb_right_stereo_calibration method 3 - follows the same as above
-            # but instead it would be calibrated w.r.t rectified right and
-            # another alterative would be to use an rectified rotation of
-            # rectified right while placing everything back to rgb.
-
-            # sampling common detected corners
-            rgb_scaled_rgb_corners_sampled = []
-            rgb_scaled_right_corners_sampled = []
-            rgb_scaled_obj_pts = []
-            rgb_pts = None
-            right_pts = None
-            one_pts = self.board.chessboardCorners
-            for i in range(len(allIds_rgb_scaled)):
-                rgb_sub_corners = []
-                right_sub_corners = []
-                obj_pts_sub = []
-            #     if len(allIds_l[i]) < 70 or len(allIds_r[i]) < 70:
-            #         continue
-                for j in range(len(allIds_rgb_scaled[i])):
-                    idx = np.where(allIds_r_rgb[i] == allIds_rgb_scaled[i][j])
-                    if idx[0].size == 0:
-                        continue
-                    rgb_sub_corners.append(allCorners_rgb_scaled[i][j])
-                    right_sub_corners.append(allCorners_r_rgb[i][idx])
-                    obj_pts_sub.append(one_pts[allIds_rgb_scaled[i][j]])
-
-                rgb_scaled_obj_pts.append(
-                    np.array(obj_pts_sub, dtype=np.float32))
-                rgb_scaled_rgb_corners_sampled.append(
-                    np.array(rgb_sub_corners, dtype=np.float32))
-                rgb_scaled_right_corners_sampled.append(
-                    np.array(right_sub_corners, dtype=np.float32))
-                if rgb_pts is None:
-                    rgb_pts = np.array(rgb_sub_corners, dtype=np.float32)
-                    right_pts = np.array(right_sub_corners, dtype=np.float32)
-                else:
-                    np.vstack((rgb_pts,np.array(rgb_sub_corners, dtype=np.float32)))
-                    np.vstack((right_pts, np.array(right_sub_corners, dtype=np.float32)))
-                    
-
-            self.objpoints_rgb_r = rgb_scaled_obj_pts
-            self.imgpoints_rgb = rgb_scaled_rgb_corners_sampled
-            self.imgpoints_rgb_right = rgb_scaled_right_corners_sampled
- 
-            print(rgb_pts.shape)
-            # print(len(rgb_scaled_right_corners_sampled))
-            # print(str(type(rgb_scaled_right_corners_sampled[0])))
-            # rgb_scaled_rgb_corners_sampled = np.array(rgb_scaled_rgb_corners_sampled, dtype=np.float32).reshape(-1,2)
-            # rgb_scaled_right_corners_sampled = np.array(rgb_scaled_right_corners_sampled, dtype=np.float32).reshape(-1,2)
-            
-            H_right_rgb, _ = cv2.findHomography(right_pts, rgb_pts)
-            print('Homogrephy RMS error~~~~~~~~~~~~~~~~~~~~~~~~~~')
-            print(H_right_rgb)
-
 
     def calibrate_camera_charuco(self, allCorners, allIds, imsize):
         """
@@ -620,6 +481,144 @@ class StereoCalibration(object):
         # print(perViewErrors)
 
         return ret, camera_matrix, distortion_coefficients0, rotation_vectors, translation_vectors
+
+    def rgb_calibrate(self, filepath):
+        images_right = glob.glob(filepath + "/right/*")
+        images_rgb = glob.glob(filepath + "/rgb/*")
+
+        images_right.sort()
+        images_rgb.sort()
+
+        allCorners_rgb_scaled, allIds_rgb_scaled, _, _, imsize_rgb_scaled, _ = self.analyze_charuco(
+            images_rgb, scale_req=True, req_resolution=(720, 1280))
+        self.img_shape_rgb_scaled = imsize_rgb_scaled[::-1]
+
+        ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
+            allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
+
+        allCorners_r_rgb, allIds_r_rgb, _, _, _, _ = self.analyze_charuco(
+            images_right, scale_req=True, req_resolution=(720, 1280))
+
+        print("RGB callleded RMS at 720")
+        print(ret_rgb_scaled)
+        print(imsize_rgb_scaled)
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        print(self.M3_scaled)
+
+        # rgb_right_stereo_calibration method 2 - Instead of resizing the image
+        # and finding the corners again use the previously find corners in 4k res
+        # use scale parameter to find relative low res corner and use it to find
+        #  the common points for stereo calibration. (Keep in mind about the change in fov)
+
+        # rgb_right_stereo_calibration method 3 - follows the same as above
+        # but instead it would be calibrated w.r.t rectified right and
+        # another alterative would be to use an rectified rotation of
+        # rectified right while placing everything back to rgb.
+
+        # sampling common detected corners
+        rgb_scaled_rgb_corners_sampled = []
+        rgb_scaled_right_corners_sampled = []
+        rgb_scaled_obj_pts = []
+        rgb_pts = None
+        right_pts = None
+        one_pts = self.board.chessboardCorners
+        for i in range(len(allIds_rgb_scaled)):
+            rgb_sub_corners = []
+            right_sub_corners = []
+            obj_pts_sub = []
+        #     if len(allIds_l[i]) < 70 or len(allIds_r[i]) < 70:
+        #         continue
+            for j in range(len(allIds_rgb_scaled[i])):
+                idx = np.where(allIds_r_rgb[i] == allIds_rgb_scaled[i][j])
+                if idx[0].size == 0:
+                    continue
+                rgb_sub_corners.append(allCorners_rgb_scaled[i][j])
+                right_sub_corners.append(allCorners_r_rgb[i][idx])
+                obj_pts_sub.append(one_pts[allIds_rgb_scaled[i][j]])
+
+            rgb_scaled_obj_pts.append(
+                np.array(obj_pts_sub, dtype=np.float32))
+            rgb_scaled_rgb_corners_sampled.append(
+                np.array(rgb_sub_corners, dtype=np.float32))
+            rgb_scaled_right_corners_sampled.append(
+                np.array(right_sub_corners, dtype=np.float32))
+            if rgb_pts is None:
+                rgb_pts = np.array(rgb_sub_corners, dtype=np.float32)
+                right_pts = np.array(right_sub_corners, dtype=np.float32)
+            else:
+                np.vstack(
+                    (rgb_pts, np.array(rgb_sub_corners, dtype=np.float32)))
+                np.vstack((right_pts, np.array(
+                    right_sub_corners, dtype=np.float32)))
+
+        self.objpoints_rgb_r = rgb_scaled_obj_pts
+        self.imgpoints_rgb = rgb_scaled_rgb_corners_sampled
+        self.imgpoints_rgb_right = rgb_scaled_right_corners_sampled
+        
+        # H_right_rgb, _ = cv2.findHomography(right_pts, rgb_pts)
+        # print('Homogrephy RMS error~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        # print(H_right_rgb)
+        flags = 0
+        #flags |= cv2.CALIB_FIX_ASPECT_RATIO
+        flags |= cv2.CALIB_FIX_INTRINSIC
+        # flags |= cv2.CALIB_USE_INTRINSIC_GUESS
+        #flags |= cv2.CALIB_SAME_FOCAL_LENGTH
+        #flags |= cv2.CALIB_ZERO_TANGENT_DIST
+        flags |= cv2.CALIB_RATIONAL_MODEL
+        #flags |= cv2.CALIB_FIX_K1
+        #flags |= cv2.CALIB_FIX_K2
+        #flags |= cv2.CALIB_FIX_K3
+        #flags |= cv2.CALIB_FIX_K4
+        #flags |= cv2.CALIB_FIX_K5
+        #flags |= cv2.CALIB_FIX_K6
+        # flags |= cv::CALIB_ZERO_TANGENT_DIST
+
+        stereocalib_criteria = (cv2.TERM_CRITERIA_COUNT +
+                                    cv2.TERM_CRITERIA_EPS, 100, 1e-5)
+
+        # stereo calibration procedure
+        # TODO(Sachin): change this hardcoded later
+        # (800, 1280)
+        # (3040, 4056)
+        print('full M3')
+        print(self.M3)
+        scale_width = 1280/1920
+        m_scale = [[scale_width,      0,   0],
+                    [0, scale_width,   0],
+                    [0,      0,    1]]
+        M_RGB = np.matmul(m_scale, self.M3)
+        height = round(1080 * scale_width)
+        print(height)
+        if height > 720:
+            print('Modifying height')
+            diff = (height - 720) / 2
+            M_RGB[1, 2] -= diff
+
+        print('Scaled intriniscs of rgb is -->')
+        print(M_RGB)
+        print('vs. intrinisics computed after scaling the image --->')
+        print(self.M3_scaled)
+
+        self.M2_rgb = np.copy(self.M2)
+        self.M2_rgb[1, 2] -= 40
+        self.d2_rgb = np.copy(self.d2)
+        ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
+            self.objpoints_rgb_r, self.imgpoints_rgb, self.imgpoints_rgb_right,
+            self.M3_scaled, self.d3_scaled, self.M2_rgb, self.d2_rgb, self.img_shape_rgb_scaled,
+            criteria=stereocalib_criteria, flags=flags)
+        print("~~~~~~Stereo calibration rgb-right RMS error~~~~~~~~")
+        print(ret)
+
+        # Rectification is only to test the epipolar
+        self.R1_rgb, self.R2_rgb, self.P1_rgb, self.P2_rgb, self.Q_rgb, validPixROI1, validPixROI2 = cv2.stereoRectify(
+            self.M2_rgb,
+            self.d3_scaled,
+            self.M2_rgb,
+            self.d2_rgb,
+            self.img_shape_rgb_scaled, self.R_rgb, self.T_rgb)
+
+
+
 
     def process_images(self, filepath):
         """Read images, detect corners, refine corners, and save data."""
@@ -981,6 +980,7 @@ class StereoCalibration(object):
         print("HU IHER")
         assert len(images_rgb) != 0, "ERROR: Images not read correctly"
         assert len(images_right) != 0, "ERROR: Images not read correctly"
+        # criteria for marker detection/corner detections
         criteria = (cv2.TERM_CRITERIA_EPS +
                     cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
         scale_width = 1280/self.img_shape_rgb[0]

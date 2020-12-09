@@ -91,7 +91,7 @@ class depthai_calibration_node:
                     {
                         'resolution_h': 1080,
                         'fps': 30.0,
-                        'initial_focus':self.focus_value ,
+                        'initial_focus':self.focus_value,
                         'enable_autofocus': False
                     },
                     'mono':
@@ -525,18 +525,6 @@ class depthai_calibration_node:
                                 text = 'IMU status: ' + dict_['imu']['status']
                                 pygame_render_text(
                                     self.screen, text, (50, 500), font_size=30, color=selected_clr)
-
-                            # print(dict_)
-                            # if 'logs' in dict_:
-                            #     for log in dict_['logs']:
-                            #         if log != 'IMU init FAILED':
-                            #             text = 'IMU status: ' + log
-                            #             is_IMU_connected = True
-                            #             pygame_render_text(self.screen, text, (50, 500), font_size=25, color=green)
-                            #         else:
-                            #             text = 'IMU status: ' + log
-                            #             pygame_render_text(self.screen, text, (50, 500), font_size=25, color=red)
-                                # print('meta_d2h LOG------------------>:', log)
                     if left_mipi and right_mipi and is_IMU_connected:
                         if is_usb3:
                             # # setting manual focus to rgb camera
@@ -544,10 +532,6 @@ class depthai_calibration_node:
                             # cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
                             # self.device.send_camera_control(cam_c, cmd_set_focus, '111')
                             self.device.reset_device_changed()
-                        # for i in range(len(self.auto_checkbox_names)):
-                        #     self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
-                        # print("device reste")
-                        # print(self.device.is_device_changed())
                         break
 
             is_usb3 = self.device.is_usb3()
