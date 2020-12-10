@@ -450,6 +450,10 @@ class depthai_calibration_node:
         self.is_service_active = True
         self.start_disp = True
         # pygame.draw.rect(self.screen, white, no_button)
+
+        if req.name == "recalibrate":
+            self.device.override_device_changed()
+
         while not self.device.is_device_changed():
             text = "Waiting for device change"
             pygame_render_text(self.screen, text, (250, 400), orange, 40)
@@ -477,6 +481,7 @@ class depthai_calibration_node:
             is_usb3 = False
             left_mipi = False
             right_mipi = False
+            rgb_mipi = False
             if self.args['enable_IMU_test']:
                 is_IMU_connected = False
             else:
@@ -484,7 +489,7 @@ class depthai_calibration_node:
             is_usb3 = self.device.is_usb3()
             left_status = self.device.is_left_connected()
             right_status = self.device.is_right_connected()
-
+            rgb_status = self.device.is_rgb_connected()
             imu_times = 0
             if self.capture_exit():
                 rospy.signal_shutdown("Finished calibration")
@@ -493,7 +498,7 @@ class depthai_calibration_node:
             if left_status and right_status:
                 # mipi check using 20 iterations
                 # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
-                for _ in range(90):
+                for _ in range(120):
                     _, data_list = self.pipeline.get_available_nnet_and_data_packets(
                         True)
                     # print(len(data_list))
@@ -510,6 +515,12 @@ class depthai_calibration_node:
                             right_mipi = True
                             self.image_pub_right.publish(
                                 self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
+                        elif packet.stream_name == "color":
+                            rgb_mipi = True
+                            recent_color = cv2.cvtColor(
+                                self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
+                            self.image_pub_color.publish(
+                                self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
                         elif packet.stream_name == "meta_d2h":
                             str_ = packet.getDataAsStr()
                             if not self.args['enable_IMU_test']:
@@ -568,17 +579,22 @@ class depthai_calibration_node:
             else:
                 self.auto_checkbox_dict["Left Stream"].check()
 
+            if not rgb_status:
+                self.auto_checkbox_dict["RGB camera connected"].uncheck()
+            else:
+                self.auto_checkbox_dict["RGB camera connected"].check()
+
+            if not rgb_mipi:
+                self.auto_checkbox_dict["RGB Stream"].uncheck()
+            else:
+                self.auto_checkbox_dict["RGB Stream"].check()
+
             if not right_status:
                 self.auto_checkbox_dict["Right camera connected"].uncheck()
             else:
                 self.auto_checkbox_dict["Right camera connected"].check()
 
             if not right_mipi:
-                # img = np.zeros((720, 1280, 3), np.uint8)
-                # img[:] = (0, 0, 255)
-                # cv2.putText(img, "right mipi",  (100, 300), cv2.FONT_HERSHEY_DUPLEX, 10.0, (0,0,0), 20)
-                # cv2.putText(img, "Failed ", (140, 600), cv2.FONT_HERSHEY_SIMPLEX, 10.0, (0,0,0), 20)
-                # cv2.imshow('right mipi camera failed', img)
                 self.auto_checkbox_dict["Right Stream"].uncheck()
             else:
                 self.auto_checkbox_dict["Right Stream"].check()
@@ -632,16 +648,18 @@ class depthai_calibration_node:
 
         log_list.append(avg_epipolar_error_l_r)
         log_list.append(avg_epipolar_error_rgb_r)
-        
+
         log_file = self.args['log_path'] + "/calibration_logs.csv"
         with open(log_file, mode='a') as log_fopen:
-            # header = 
+            # header =
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
 
-        text = "Avg Epipolar error L-R: " + format(avg_epipolar_error_l_r, '.6f')
+        text = "Avg Epipolar error L-R: " + \
+            format(avg_epipolar_error_l_r, '.6f')
         pygame_render_text(self.screen, text, (400, 160), green, 30)
-        text = "Avg Epipolar error RGB-R: " + format(avg_epipolar_error_rgb_r, '.6f')
+        text = "Avg Epipolar error RGB-R: " + \
+            format(avg_epipolar_error_rgb_r, '.6f')
         pygame_render_text(self.screen, text, (400, 190), green, 30)
 
         if avg_epipolar_error_l_r > 0.5:
@@ -650,12 +668,10 @@ class depthai_calibration_node:
             return (False, text)
         # self.rundepthai()
 
-
         if avg_epipolar_error_rgb_r > 0.7:
             text = "Failed due to high calibration error L-R"
             pygame_render_text(self.screen, text, (400, 230), red, 30)
             return (False, text)
-
 
         dev_config = {
             'board': {},
@@ -682,7 +698,7 @@ class depthai_calibration_node:
         # shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
 
-        print(avg_epipolar_error)
+        print(avg_epipolar_error_l_r)
         print('Validating...')
         is_write_succesful = False
         run_thread = True

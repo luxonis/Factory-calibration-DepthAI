@@ -701,7 +701,7 @@ def main():
   # signal.signal(signal.SIGINT, shutdown_handler)
   is_device_ready = True
   delay = 1
-
+  recalibrate = False
   disp = pygame.display
   screen = disp.set_mode((800, 600))
   screen.fill(white)
@@ -807,7 +807,10 @@ def main():
       disp.update()
 
       try:
-        resp = device_status_srv("checking_device_status")
+        if recalibrate:
+          resp = device_status_srv("recalibrate")
+        else:
+          resp = device_status_srv("capture_device_status")
         if capture_exit():
           is_device_ready = False
           break
@@ -886,6 +889,7 @@ def main():
             dev = "Adjust the calibration board position and restart"
             pygame_render_text(screen, dev, (270,145), red, 30)
             disp.update()
+            recalibrate = True
             break
         # else:
         #   print("capture response is not none------------>")
@@ -943,8 +947,9 @@ def main():
             print("Repeat the calibrtion by adusting the device or move to next device by marking this device")
             dev = "Calibration Failed!!  " + response.error
             pygame_render_text(screen, dev, (200,115), red, 30)
-            
+            recalibrate = True
           else:
+            recalibrate = False
             dev = "Calibration data successfyully written to EEPROM!!"
             pygame_render_text(screen, dev, (200,115), green, 30)
         else:
