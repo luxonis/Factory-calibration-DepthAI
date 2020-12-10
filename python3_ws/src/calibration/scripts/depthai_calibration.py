@@ -3,26 +3,27 @@
 import cv2
 import sys
 import copy
-import rospy
-from std_msgs.msg import String
-import depthai
 import platform
 import signal
 import subprocess
 import json
 import datetime
-from collections import deque
-
-from calibration.srv import Capture
+import csv
 import time
 import numpy as np
 import os
 from pathlib import Path
 import shutil
-import consts.resource_paths
+from datetime import datetime
+
+import rospy
+from std_msgs.msg import String
+from calibration.srv import Capture
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-import shutil
+
+import depthai
+import consts.resource_paths
 from depthai_helpers.calibration_utils import *
 
 from depthai_helpers.pygame_checkbox import Checkbox, pygame_render_text
@@ -91,7 +92,7 @@ class depthai_calibration_node:
                     {
                         'resolution_h': 1080,
                         'fps': 30.0,
-                        'initial_focus':self.focus_value,
+                        'initial_focus': self.focus_value,
                         'enable_autofocus': False
                     },
                     'mono':
@@ -107,7 +108,7 @@ class depthai_calibration_node:
                 },
         }
         # self.frame_count = 0
-       
+
         if arg['board']:
             board_path = Path(arg['board'])
             if not board_path.exists():
@@ -136,16 +137,30 @@ class depthai_calibration_node:
         self.disp.set_caption("Calibration - Device check ")
         title = "Device Status"
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
-        self.auto_checkbox_names = ["USB3", "Left camera connected", "Right camera connected",
-                                    "Left Stream", "Right Stream"]
+        self.auto_checkbox_names = ["USB3", "Left camera connected", "Right camera connected", "RGB camera connected",
+                                    "Left Stream", "Right Stream", "RGB Stream"]
+        header = ['time', 'Mx_serial_id', 'USB3',
+                  'left_camera', 'right_camera', 'rgb_camera']
+
         if self.args['enable_IMU_test']:
             self.auto_checkbox_names.append("IMU connected")
+            header.append('IMU')
+
+        header.append('Epipolar error L-R')
+        header.append('Epipolar error RGB-R')
+
+        log_file = self.args['log_path'] + "/calibration_logs.csv"
+        if not os.path.exists(log_file):
+            with open(log_file, mode='w') as log_fopen:
+                log_csv_writer = csv.writer(log_fopen, delimiter=',')
+                log_csv_writer.writerow(header)
 
         y = 110
         x = 200
         self.start_disp = False
         font = pygame.font.Font(None, 20)
         self.auto_checkbox_dict = {}
+
         for i in range(len(self.auto_checkbox_names)):
             w, h = font.size(self.auto_checkbox_names[i])
             x_axis = x - w
@@ -521,7 +536,7 @@ class depthai_calibration_node:
                                         dict_['imu']['accelRaw']['x'], dict_['imu']['accelRaw']['y'], dict_['imu']['accelRaw']['z'])
                                     pygame_render_text(
                                         self.screen, text, (50, 570), font_size=25)
-
+                                self.imu_version = dict_['imu']['status']
                                 text = 'IMU status: ' + dict_['imu']['status']
                                 pygame_render_text(
                                     self.screen, text, (50, 500), font_size=30, color=selected_clr)
@@ -594,7 +609,7 @@ class depthai_calibration_node:
 
         flags = [self.config['board_config']['stereo_center_crop']]
         stereo_calib = StereoCalibration()
-        avg_epipolar_error, calib_data = stereo_calib.calibrate(
+        avg_epipolar_error_l_r, avg_epipolar_error_rgb_r, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
             self.args['square_size_cm'],
             calib_dest_path,
@@ -602,13 +617,45 @@ class depthai_calibration_node:
             req.name,
             self.args['marker_size_cm'])
 
-        text = "Avg Epipolar error : " + format(avg_epipolar_error, '.6f')
+        start_time = datetime.now()
+        time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
+
+        mx_serial_id = self.device.get_mx_id()
+        log_list = [time_stmp, mx_serial_id]
+        log_list.append(self.device.is_usb3())
+        log_list.append(self.device.is_left_connected())
+        log_list.append(self.device.is_right_connected())
+        log_list.append(self.device.is_rgb_connected())
+
+        if self.args['enable_IMU_test']:
+            log_list.append(self.imu_version)
+
+        log_list.append(avg_epipolar_error_l_r)
+        log_list.append(avg_epipolar_error_rgb_r)
+        
+        log_file = self.args['log_path'] + "/calibration_logs.csv"
+        with open(log_file, mode='a') as log_fopen:
+            # header = 
+            log_csv_writer = csv.writer(log_fopen, delimiter=',')
+            log_csv_writer.writerow(log_list)
+
+        text = "Avg Epipolar error L-R: " + format(avg_epipolar_error_l_r, '.6f')
         pygame_render_text(self.screen, text, (400, 160), green, 30)
-        if avg_epipolar_error > 0.5:
-            text = "Failed due to high calibration error"
-            pygame_render_text(self.screen, text, (400, 200), red, 30)
+        text = "Avg Epipolar error RGB-R: " + format(avg_epipolar_error_rgb_r, '.6f')
+        pygame_render_text(self.screen, text, (400, 190), green, 30)
+
+        if avg_epipolar_error_l_r > 0.5:
+            text = "Failed due to high calibration error L-R"
+            pygame_render_text(self.screen, text, (400, 230), red, 30)
             return (False, text)
         # self.rundepthai()
+
+
+        if avg_epipolar_error_rgb_r > 0.7:
+            text = "Failed due to high calibration error L-R"
+            pygame_render_text(self.screen, text, (400, 230), red, 30)
+            return (False, text)
+
 
         dev_config = {
             'board': {},
@@ -693,25 +740,28 @@ if __name__ == "__main__":
     arg["package_path"] = rospy.get_param('~package_path')
     arg["square_size_cm"] = rospy.get_param('~square_size_cm')
     arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
-
-    # arg["depthai_path"] = rospy.get_param('~depthai_path') ## Add  capture_checkerboard to launch file
-    # Add  capture_checkerboard to launch file
     arg["board"] = rospy.get_param('~brd')
-    arg["capture_service_name"] = rospy.get_param(
-        '~capture_service_name')  # Add  capture_checkerboard to launch file
-    arg["calibration_service_name"] = rospy.get_param(
-        '~calibration_service_name')  # Add  capture_checkerboard to launch file
     arg["depthai_path"] = rospy.get_param(
         '~depthai_path')  # Path of depthai repo
     arg["enable_IMU_test"] = rospy.get_param('~enable_IMU_test')
     # local path to store calib files with using mx device id.
     arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
+    arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
+
+    # Adding service names to arg
+    arg["capture_service_name"] = rospy.get_param(
+        '~capture_service_name')  # Add  capture_checkerboard to launch file
+    arg["calibration_service_name"] = rospy.get_param(
+        '~calibration_service_name')  # Add  capture_checkerboard to launch file
 
     # print("Hone------------------------>")
     # print(type(arg["enable_IMU_test"]))
 
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])
+
+    if not os.path.exists(arg['log_path']):
+        os.makedirs(arg['log_path'])
 
     if arg['board']:
         board_path = Path(arg['board'])

@@ -168,7 +168,7 @@ class StereoCalibration(object):
             # distortion coeff of rgb camera - currently zeros
             fp.write(d3_coeff_fp32.tobytes())
 
-        data_list = [R1_fp32, R2_fp32, M1_fp32, M2_fp32, R_fp32, T_fp32, self.M3_scaled.astype(np.float32),
+        data_list = [R1_fp32, R2_fp32, M1_fp32, M2_fp32, R_fp32, T_fp32, M3_fp32,
                      R_rgb_fp32, T_rgb_fp32, d1_coeff_fp32, d2_coeff_fp32, d3_coeff_fp32]
         self.calib_data = np.array([], dtype=np.float32)
 
@@ -232,10 +232,10 @@ class StereoCalibration(object):
 
         if type == 'charuco':
             if self.calibrate_rgb:
-                self.test_epipolar_charuco_rgb(filepath)
-            return self.test_epipolar_charuco(filepath), self.calib_data
+                avg_epipolar_rgb_r = self.test_epipolar_charuco_rgb(filepath)
+            return self.test_epipolar_charuco(filepath), avg_epipolar_rgb_r, self.calib_data
         else:
-            return self.test_epipolar_checker(filepath), self.calib_data
+            return self.test_epipolar_checker(filepath), None, self.calib_data
 
     def parse_frame(self, frame, stream_name, file_name):
         file_name += '.png'

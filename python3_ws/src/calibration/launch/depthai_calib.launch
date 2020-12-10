@@ -7,6 +7,7 @@
   <arg name="marker_size_cm"            default="1.5"/>
   <arg name="depthai_path"              default="/Desktop/depthai"/>
   <arg name="calib_path"                default="/Desktop/calib_files"/>
+  <arg name="log_path"                  default="/Desktop/logs"/>
   <arg name="brd"                       default="bw1098obc"/>
   <arg name="enable_IMU_test"           default="true"/>
   <arg name="capture_service_name"      default="capture_checkerboard"/>
@@ -28,6 +29,7 @@
     <param name="marker_size_cm"           value="$(arg marker_size_cm)"/>
     <param name="depthai_path"             value="$(arg depthai_path)"/>
     <param name="calib_path"               value="$(arg calib_path)"/>
+    <param name="log_path"                 value="$(arg log_path)"/>
     <param name="brd"                      value="$(arg brd)"/>
     <param name="enable_IMU_test"          value="$(arg enable_IMU_test)"/>
     <param name="capture_service_name"     value="$(arg capture_service_name)"/>
