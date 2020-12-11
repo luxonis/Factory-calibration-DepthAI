@@ -1018,8 +1018,9 @@ class StereoCalibration(object):
             img_rgb = img_rgb[del_height: del_height + 720, :]
             print("resized_shape")
             print(img_rgb.shape)
-            self.parse_frame(img_rgb, "rectified_rgb_before",
-                             "rectified_"+str(count))
+            # self.parse_frame(img_rgb, "rectified_rgb_before",
+            #                  "rectified_"+str(count))
+
             # warp right image
 
             # img_rgb = cv2.warpPerspective(img_rgb, self.H1_rgb, img_rgb.shape[::-1],
@@ -1034,7 +1035,7 @@ class StereoCalibration(object):
 
             img_rgb = cv2.remap(img_rgb, mapx_rgb, mapy_rgb, cv2.INTER_LINEAR)
             img_r = cv2.remap(img_r, mapx_r, mapy_r, cv2.INTER_LINEAR)
-            self.parse_frame(img_rgb, "rectified_rgb", "rectified_"+str(count))
+            # self.parse_frame(img_rgb, "rectified_rgb", "rectified_"+str(count))
             image_data_pairs.append((img_rgb, img_r))
             count += 1
 

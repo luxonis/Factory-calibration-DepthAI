@@ -779,7 +779,7 @@ def main():
 
     
     # actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
-    actions = ['start', 'left_4', 'left_3', 'center_swap', 'top_1', 'bottom_1',  'right_1']
+    actions = ['start', 'left_4', 'left_3', 'top_1', 'bottom_1',  'right_1']
     
     device_status_srv = rospy.ServiceProxy('/device_status', Capture) 
     
@@ -884,10 +884,13 @@ def main():
           ## error on capture fail
           else:
             pygame.draw.rect(screen, white, relpace_rect)
-            dev = "calibration board is out of camera's viewscope." 
-            pygame_render_text(screen, dev, (270,115), red, 30)
-            dev = "Adjust the calibration board position and restart"
-            pygame_render_text(screen, dev, (270,145), red, 30)
+            if 'focus' in capture_resp.error:
+              pygame_render_text(screen, capture_resp.error, (270,115), red, 30)
+            else:
+              dev = "calibration board is out of camera's viewscope." 
+              pygame_render_text(screen, dev, (270,115), red, 30)
+              dev = "Adjust the calibration board position and restart"
+              pygame_render_text(screen, dev, (270,145), red, 30)
             disp.update()
             recalibrate = True
             break

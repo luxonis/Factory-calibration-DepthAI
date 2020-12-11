@@ -394,9 +394,10 @@ class depthai_calibration_node:
                     seq_no = packet.getMetadata().getSequenceNum()
                     if seq_no in m_d2h_seq_focus:
                         curr_focus = m_d2h_seq_focus[seq_no]
-                        print('rgb_check_count -> {}'.format(rgb_check_count))
-                        print('seq_no -> {}'.format(seq_no))
-                        print('curr_focus -> {}'.format(curr_focus))
+                        if 0:
+                            print('rgb_check_count -> {}'.format(rgb_check_count))
+                            print('seq_no -> {}'.format(seq_no))
+                            print('curr_focus -> {}'.format(curr_focus))
 
                         if curr_focus < self.focus_value + 1 and curr_focus > self.focus_value - 1:
                             rgb_check_count += 1
@@ -416,12 +417,10 @@ class depthai_calibration_node:
                     dict_ = json.loads(str_)
                     m_d2h_seq_focus[dict_['camera']['rgb']['frame_count']] = dict_[
                         'camera']['rgb']['focus_pos']
-                    print(
-                        'series of focus ---> {}'.format(dict_['camera']['rgb']['focus_pos']))
-
+                    
             if local_color_frame_count > 100:
                 if rgb_check_count < 5:
-                    return False, 'RGB focus was set to {}'.format(curr_focus)
+                    return False, 'RGB camera focus was set to {}'.format(curr_focus)
 
             if recent_left is not None and recent_right is not None and recent_color is not None:
                 finished = True
@@ -456,16 +455,16 @@ class depthai_calibration_node:
 
         while not self.device.is_device_changed():
             text = "Waiting for device change"
-            pygame_render_text(self.screen, text, (250, 400), orange, 40)
+            pygame_render_text(self.screen, text, (300, 400), orange, 40)
 
         # to remove waiting for device change
-        fill_color = pygame.Rect(200, 400, 450, 55)
+        fill_color = pygame.Rect(280, 400, 450, 55)
         pygame.draw.rect(self.screen, white, fill_color)
 
         # to remove previous date and stuff
-        fill_color = pygame.Rect(400, 70, 500, 150)
+        fill_color = pygame.Rect(400, 70, 500, 300)
         pygame.draw.rect(self.screen, white, fill_color)
-        now_time = datetime.datetime.now()
+        now_time = datetime.now()
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
         pygame_render_text(self.screen, text, (400, 80), black, 30)
         text = "device Mx_id : " + self.device.get_mx_id()
@@ -473,6 +472,11 @@ class depthai_calibration_node:
         rospy.sleep(3)
         fill_color_2 = pygame.Rect(50, 520, 400, 80)
         pygame.draw.rect(self.screen, white, fill_color_2)
+
+        dataset_path = Path(self.package_path + "/dataset")
+        if dataset_path.exists():
+            shutil.rmtree(str(dataset_path))
+
         while self.device.is_device_changed():
             # print(self.device.is_device_changed())
             # if self.capture_exit():
@@ -669,8 +673,8 @@ class depthai_calibration_node:
         # self.rundepthai()
 
         if avg_epipolar_error_rgb_r > 0.7:
-            text = "Failed due to high calibration error L-R"
-            pygame_render_text(self.screen, text, (400, 230), red, 30)
+            text = "Failed due to high calibration error RGB-R"
+            pygame_render_text(self.screen, text, (400, 270), red, 30)
             return (False, text)
 
         dev_config = {
@@ -716,13 +720,13 @@ class depthai_calibration_node:
                                 if 'write OK' in log:
                                     text = "EEPROM Write succesfull"
                                     pygame_render_text(
-                                        self.screen, text, (400, 200), green, 30)
+                                        self.screen, text, (400, 220), green, 30)
                                     is_write_succesful = True
                                     run_thread = False
                                 elif 'FAILED' in log:
                                     text = "EEPROM write Failed"
                                     pygame_render_text(
-                                        self.screen, text, (400, 200), red, 30)
+                                        self.screen, text, (400, 220), red, 30)
                                     is_write_succesful = False
                                     run_thread = False
         self.is_service_active = False
