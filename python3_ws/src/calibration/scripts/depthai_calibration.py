@@ -108,7 +108,7 @@ class depthai_calibration_node:
                 },
         }
         # self.frame_count = 0
-
+        self.init_time = time.time()
         if arg['board']:
             board_path = Path(arg['board'])
             if not board_path.exists():
@@ -192,6 +192,11 @@ class depthai_calibration_node:
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
         self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
         self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
+
+        self.Backup_morning = True
+        self.Backup_afternoon = True
+        self.Backup_evening = True
+        self.Backup_night = True
 
     def capture_exit(self):
         is_clicked = False
@@ -347,6 +352,34 @@ class depthai_calibration_node:
                     "/dataset/{}/{}".format(stream_name, file_name), frame)
         print("py: Saved image as: " + str(file_name) +
               "in folder ->" + stream_name)
+
+        ## adding backup
+        now_tim = datetime.now()
+        if self.Backup_morning and now_tim.hour < 12:
+            self.backup_ds(stream_name, file_name, frame)    
+            self.Backup_morning = False
+        elif self.Backup_afternoon and now_tim.hour < 16:
+            self.backup_ds(stream_name, file_name, frame)    
+            self.Backup_afternoon = False
+        elif self.Backup_evening and now_tim.hour < 18:
+            self.backup_ds(stream_name, file_name, frame)    
+            self.Backup_evening = False
+        elif self.Backup_night and now_tim.hour < 20:
+            self.backup_ds(stream_name, file_name, frame)    
+            self.Backup_night = False
+
+
+    def backup_ds(self, stream_name, file_name, frame):
+        now_tim = datetime.now()
+        local_ds = self.args['ds_backup_path'] + '/' + now_tim.strftime("%m_%d_%Y_%H") + '/{}'.format(stream_name)
+        if not os.path.exists(local_ds):
+            os.makedirs(local_ds)
+        cv2.imwrite(local_ds + "/{}".format(file_name), frame)
+
+
+
+
+
         return True
 
     def is_markers_found(self, frame):
@@ -767,6 +800,7 @@ if __name__ == "__main__":
     # local path to store calib files with using mx device id.
     arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
     arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
+    arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
 
     # Adding service names to arg
     arg["capture_service_name"] = rospy.get_param(
