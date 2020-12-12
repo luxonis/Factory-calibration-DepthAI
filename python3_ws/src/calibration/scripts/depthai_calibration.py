@@ -193,11 +193,6 @@ class depthai_calibration_node:
         self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
         self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
 
-        self.Backup_morning = True
-        self.Backup_afternoon = True
-        self.Backup_evening = True
-        self.Backup_night = True
-
     def capture_exit(self):
         is_clicked = False
         for event in pygame.event.get():
@@ -355,19 +350,8 @@ class depthai_calibration_node:
 
         ## adding backup
         now_tim = datetime.now()
-        if self.Backup_morning and now_tim.hour < 12:
-            self.backup_ds(stream_name, file_name, frame)    
-            self.Backup_morning = False
-        elif self.Backup_afternoon and now_tim.hour < 16:
-            self.backup_ds(stream_name, file_name, frame)    
-            self.Backup_afternoon = False
-        elif self.Backup_evening and now_tim.hour < 18:
-            self.backup_ds(stream_name, file_name, frame)    
-            self.Backup_evening = False
-        elif self.Backup_night and now_tim.hour < 20:
-            self.backup_ds(stream_name, file_name, frame)    
-            self.Backup_night = False
-
+        self.backup_ds(stream_name, file_name, frame)    
+        return True
 
     def backup_ds(self, stream_name, file_name, frame):
         now_tim = datetime.now()
@@ -375,12 +359,6 @@ class depthai_calibration_node:
         if not os.path.exists(local_ds):
             os.makedirs(local_ds)
         cv2.imwrite(local_ds + "/{}".format(file_name), frame)
-
-
-
-
-
-        return True
 
     def is_markers_found(self, frame):
         # print(frame.shape)
@@ -502,7 +480,7 @@ class depthai_calibration_node:
         pygame_render_text(self.screen, text, (400, 80), black, 30)
         text = "device Mx_id : " + self.device.get_mx_id()
         pygame_render_text(self.screen, text, (400, 120), black, 30)
-        rospy.sleep(3)
+        rospy.sleep(1)
         fill_color_2 = pygame.Rect(50, 520, 400, 80)
         pygame.draw.rect(self.screen, white, fill_color_2)
 
@@ -647,7 +625,7 @@ class depthai_calibration_node:
                 )
 
         # self.set_focus()
-        rospy.sleep(2)
+        # rospy.sleep(2)
         self.is_service_active = False
         return (True, self.device.get_mx_id())
 
