@@ -220,9 +220,9 @@ class depthai_calibration_node:
     def parse_frame(self, frame, stream_name, file_name):
         file_name += '.png'
         # filename = image_filename(stream_name, self.current_polygon, self.images_captured)
-        print(self.package_path + "/dataset/{}/{}".format(stream_name, file_name))
+        # print(self.package_path + "/dataset/{}/{}".format(stream_name, file_name))
         ds_path = self.package_path + "/dataset/{}".format(stream_name)
-        print(ds_path)
+        # print(ds_path)
         if not os.path.exists(ds_path):
             os.makedirs(ds_path)
 
