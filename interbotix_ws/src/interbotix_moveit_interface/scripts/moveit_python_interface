@@ -748,7 +748,6 @@ def main():
       'sleep'       : sleep_pose
     }
 
-<<<<<<< HEAD
   # right
   # [-1.5692623853683472, 0.09817477315664291, -0.04448544234037399, -0.0015339808305725455, -0.023009711876511574, 0.012271846644580364]
   # left
@@ -771,13 +770,6 @@ def main():
 
   # joints_goal_dict = joints_goal_dict_15mm
   try:
-=======
-<<<<<<< HEAD
-
-=======
->>>>>>> 88fad1621f7aaa65a699681eefe8a25427aa11bc
-    joints_goal_dict = joints_goal_dict_15mm
->>>>>>> origin/master
 
     ## adding virtual base of the robot
     box_name = "base_box"
