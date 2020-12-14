@@ -37,4 +37,6 @@
     
   </node>
 
+  <!-- <node name="color_image_view" pkg="rqt_image_view" type="rqt_image_view" args="/color"/> -->
+
 </launch>
