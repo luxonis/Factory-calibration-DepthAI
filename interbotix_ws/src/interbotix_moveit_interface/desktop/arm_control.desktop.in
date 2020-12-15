@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=arm control${DESKTOP_APP_SUFFIX}
+Comment=ROS based interbotix vx300s arm control node 
+Exec=${CMAKE_CURRENT_BINARY_DIR}/scripts/arm_exec.bash
+Icon=${DESKTOP_ICON_DIR}/arm_control.png
+Type=Application
+Categories=ROS;
+StartupNotify=true

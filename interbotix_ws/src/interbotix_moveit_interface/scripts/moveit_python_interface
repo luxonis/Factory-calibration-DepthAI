@@ -1,17 +1,38 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import copy
+import pygame
+from pygame.locals import *
+from math import pi
+import time
+import warnings
+import signal
+
+import rosservice
 import rospy
 import moveit_commander
 import moveit_msgs.msg
 import geometry_msgs.msg
-from math import pi
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from calibration.srv import Capture
-## END_SUB_TUTORIAL
-import time
+
+os.environ['SDL_VIDEO_WINDOW_POS'] = '1000,50'
+
+white  = [255, 255, 255]
+orange = [143, 122, 4]
+red    = [230, 9, 9]
+green  = [4, 143, 7]
+black  = [0, 0, 0]
+pygame.init()
+
+def pygame_render_text(surface, text, pose, color=(0,0,0), font_size = 30 ):
+    font = pygame.font.Font(None, font_size)
+    font_surf = font.render(text, True, color)
+    surface.blit(font_surf, pose)
+
 
 def all_close(goal, actual, tolerance):
   """
@@ -47,6 +68,11 @@ class MoveGroupPythonIntefaceTutorial(object):
                     anonymous=True)
 
     print("waiting for service--------------------------------->")
+    relpace_rect =  pygame.Rect(0, 60, 800, 540)
+    pygame.draw.rect(screen, white, relpace_rect)
+    text = "Waiting for depthai calibration to start "
+    pygame_render_text(screen, text, (150,200), green, 30)
+    disp.update()
     rospy.wait_for_service('/capture_checkerboard')
 
     try:
@@ -146,7 +172,7 @@ class MoveGroupPythonIntefaceTutorial(object):
     group.go(joint_goal, wait=True)
 
     # Calling ``stop()`` ensures that there is no residual movement
-    # group.stop()
+    group.stop()
 
     ## END_SUB_TUTORIAL
 
@@ -154,10 +180,13 @@ class MoveGroupPythonIntefaceTutorial(object):
     # Note that since this section of code will not be included in the tutorials
     # we use the class variable rather than the copied state variable
     current_joints = self.group.get_current_joint_values()
-    # print(current_pose)
-
+    print("currrent Joints------------------ ->")
+    print(current_joints)
     return all_close(joint_goal, current_joints, 0.01)
 
+  def get_current_joint_values(self):
+    return self.group.get_current_joint_values()
+    
   def capture_srv_client_handler(self, file_id):
     try:
       response = self.capture_srv(file_id)
@@ -167,7 +196,7 @@ class MoveGroupPythonIntefaceTutorial(object):
 
   def calibrate_srv_client_handler(self):
     try:
-      response = self.calibrate_srv("start_calibration")
+      response = self.calibrate_srv("charuco")
       return response
     except rospy.ServiceException as e:
       print("Service call failed: %s"%e)
@@ -518,85 +547,458 @@ class MoveGroupPythonIntefaceTutorial(object):
     # We wait for the planning scene to update.
     return self.wait_for_state_update(box_is_attached=False, box_is_known=False, timeout=timeout)
 
+def shutdown_handler():
+  
+  print("~~~~~~~~~~~~~~~Finishing up~~~~~~~~~~~~~~~~")
+  if arm_control is not None:
+    print("Moving to sleep pose -->")
+    arm_control.go_to_next_joint_state(sleep_pose)
+    rospy.sleep(2)
+  # sys.exit(0)
+
+def change_device_render():
+  text = "Change the device or reconnect the device"
+  pygame_render_text(screen, text, (150,200), green, 30)
+  text = "and click on \"YES\" to calibrate"
+  pygame_render_text(screen, text, (150,235), green, 30)
+  # text = " click on \"Exit\" to finish calibration"
+  # pygame_render_text(screen, text, (150,270), green, 30)
+
+
+def capture_calibrate_continue():
+  pygame.draw.rect(screen, orange, yes_button)
+  pygame_render_text(screen, 'Yes', (415, 405))
+  is_clicked = False
+  yes_active = False
+  no_active = False
+  while not is_clicked:
+    disp.update()
+    for event in pygame.event.get():
+      if event.type == pygame.MOUSEMOTION:
+        x, y = event.pos
+        px, py, w, h = yes_button
+        if px < x < px + w and py < y < py + h:
+          yes_active = True
+          pygame.draw.rect(screen, green, yes_button)
+          pygame_render_text(screen, 'Yes', (415, 405))
+        else:
+          yes_active = False
+          pygame.draw.rect(screen, orange, yes_button)
+          pygame_render_text(screen, 'Yes', (415, 405))
+        px, py, w, h = no_button
+        if px < x < px + w and py < y < py + h:
+          no_active = True
+          pygame.draw.rect(screen, orange, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+        else:
+          no_active = False
+          pygame.draw.rect(screen, red, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+
+      if event.type == pygame.MOUSEBUTTONDOWN and (yes_active or no_active):
+        print("setting click")
+        click = True
+      if event.type == pygame.MOUSEBUTTONUP:
+        print("button up")
+        if yes_active and click:
+          print("yes clicked")
+          is_clicked = True
+          return True
+          break
+        if no_active and click:
+          print("No clicked")
+          is_clicked = True
+          is_device_ready = False
+          # arm_control.go_to_next_joint_state(sleep_pose)
+          return False
+          break
+
+  return True
+  # return is_device_ready
+
+
+def capture_exit():
+  is_clicked = False
+  no_active = False
+  for event in pygame.event.get():
+    if event.type == pygame.MOUSEMOTION:
+      x, y = event.pos
+      px, py, w, h = no_button
+      if px < x < px + w and py < y < py + h:
+          no_active = True
+          pygame.draw.rect(screen, orange, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+      else:
+          no_active = False
+          pygame.draw.rect(screen, red, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+  
+    if event.type == pygame.MOUSEBUTTONDOWN and no_active:
+        print("setting click")
+        click = True
+    if event.type == pygame.MOUSEBUTTONUP:
+        if no_active and click:
+          print("No clicked")
+          is_clicked = True
+          # is_device_ready = False
+          # if arm_control is not None:
+            # arm_control.go_to_next_joint_state(joints_goal_dict['sleep'])
+          break
+  # pygame.event.pump()
+  return is_clicked
+
+def check_service(service_name):
+  relpace_rect =  pygame.Rect(150, 115, 500, 35)
+  pygame.draw.rect(screen, white, relpace_rect)
+  is_clicked = False
+  no_active = False
+  while True:
+    for event in pygame.event.get():
+      if event.type == pygame.MOUSEMOTION:
+        x, y = event.pos
+        px, py, w, h = no_button
+        if px < x < px + w and py < y < py + h:
+            no_active = True
+            pygame.draw.rect(screen, orange, no_button)
+            pygame_render_text(screen, 'Exit', (500, 505))
+        else:
+            no_active = False
+            pygame.draw.rect(screen, red, no_button)
+            pygame_render_text(screen, 'Exit', (500, 505))
+    
+      if event.type == pygame.MOUSEBUTTONDOWN and no_active:
+          print("setting click")
+          click = True
+      if event.type == pygame.MOUSEBUTTONUP:
+          if no_active and click:
+            print("No clicked")
+            is_clicked = True
+            # is_device_ready = False
+            # if arm_control is not None:
+              # arm_control.go_to_next_joint_state(joints_goal_dict['sleep'])
+            break
+    if is_clicked:
+      break
+    service_list = rosservice.get_service_list()
+    # print(service_list)
+    if service_name in service_list:
+      print("Service found")
+      break
+    else :
+      dev = service_name + " service doesn't exist."
+      pygame_render_text(screen, dev, (200,115), red, 30)
+      dev = "check if calibration node is running!!"
+      pygame_render_text(screen, dev, (200,150), black, 30)
+    disp.update()
+  return is_clicked
+
 
 def main():
-  try:
-    print "============ Press `Enter` to begin the tutorial by setting up the moveit_commander (press ctrl-d to exit) ..."    
-    # raw_input()
+  global screen, disp, arm_control
+  rospy.on_shutdown(shutdown_handler)
+  # signal.signal(signal.SIGINT, shutdown_handler)
+  is_device_ready = True
+  delay = 1
 
-    tutorial = MoveGroupPythonIntefaceTutorial()
+  disp = pygame.display
+  screen = disp.set_mode((800, 600))
+  screen.fill(white)
+  disp.set_caption("Arm Control ")
 
-    joints_goal_dict_15mm = {
-      'start'    : [0,0,0,0,0,0],
-      'left_1'   : [0.7730087577658563, 0.3276961983717477, 0.401425728, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618],
-      'left_2'   : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
-      'left_3'   : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
-      'top_1'    : [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784],
-      'top_2'    : [0.0076699042692780495, 0.45405831933021545, 1.4649516344070435, 0.02454369328916073, -1.3192235231399536, 0.0015339808305725455],
-      'top_3'    : [0.05842017661375378, -0.01091474055365706, 0.508682744553706, -0.018383082431995736, -1.1322537449334422, 0.022251283194952686],
-      'bottom_1' : [0.13606868986112158, 0.5215120491717602, -0.6259154415618842, 0.13400943020992345, 1.8297667107528208, 0.02169278611695778],
-      'bottom_2' : [0.13788992401193792, 0.674550873909903, -0.551118472069638, 0.13742538797703818, 1.8170618246483157, 0.021266569887058374],
-      'bottom_3' : [0.14705021881303204, 0.8619704018470852, -0.41301399722681215, 0.1753433807927659, 1.830020125895237, 0.021073375261441003],
-      'right_1'  : [-0.725572943687439, 0.2914563715457916, 0.4080389142036438, -1.6275537014007568, 1.3299614191055298, 1.7824857234954834],
-      'right_2'  : [-0.725572943687439, 0.41264083981513977, 0.5936505794525146, -1.6275537014007568, 1.3284274339675903, 1.7824857234954834],
-      'right_3'  : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705]
+  ## rendering window title and exit button
+  title = "Arm Control"
+
+
+
+  arm_control = MoveGroupPythonIntefaceTutorial()
+  pygame_render_text(screen, title, (350,20), orange, 50)
+  pygame.draw.rect(screen, orange, no_button)
+  pygame_render_text(screen, 'Exit', (500, 505))
+
+
+  swap_pose = rospy.get_param("~swap_pose")
+  pref_swap_pose = ['right_start', 'left_start', 'right_swap', 'left_swap', 'center_swap']
+
+  if not swap_pose in pref_swap_pose:
+    text = "swap_pose paramerer passed is invalid."
+    pygame_render_text(screen, text, (150,240), green, 30)
+    is_device_ready = False
+
+  # creating a dict of all the joints pose of the arm. Some are redundant here    
+  joints_goal_dict = {
+      'start'       : [0,0,0,0,0,0],
+      'left_1'      : [0.7730087577658563, 0.3276961983717477, 0.401425728, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618],
+      'left_2'      : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
+      'left_3'      : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
+      'left_4'      : [0.7685244083404541, 0.3276961983717477, 0.401425728, -1.4051264524459839, -1.4388740062713623, 1.68],
+      'top_1'       : [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784],
+      'top_2'       : [0.0076699042692780495, 0.45405831933021545, 1.4649516344070435, 0.02454369328916073, -1.3192235231399536, 0.0015339808305725455],
+      'top_3'       : [0.05842017661375378, -0.01091474055365706, 0.508682744553706, -0.018383082431995736, -1.1322537449334422, 0.022251283194952686],
+      'bottom_1'    : [0.13606868986112158, 0.5215120491717602, -0.6259154415618842, 0.13400943020992345, 1.8297667107528208, 0.02169278611695778],
+      'bottom_2'    : [0.13788992401193792, 0.674550873909903, -0.551118472069638, 0.13742538797703818, 1.8170618246483157, 0.021266569887058374],
+      'bottom_3'    : [0.14705021881303204, 0.8619704018470852, -0.41301399722681215, 0.1753433807927659, 1.830020125895237, 0.021073375261441003],
+      'right_1'     : [-0.725572943687439, 0.2914563715457916, 0.4080389142036438, -1.6275537014007568, 1.3299614191055298, 1.7824857234954834],
+      'right_2'     : [-0.725572943687439, 0.41264083981513977, 0.5936505794525146, -1.6275537014007568, 1.3284274339675903, 1.7824857234954834],
+      'right_3'     : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705],
+      'right_start' : [-1.56, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'left_start'  : [1.56, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'right_swap'  : [-1.56, -0.78, -0.80, 0.0, 0.0, 0.0],
+      'left_swap'   : [1.56, -0.78, -0.80, -0.0, 0.0, 0.0],
+      'center_swap' : [0, -0.78, -0.80, 0.0, 0.0, 0.0],
+      'sleep'       : sleep_pose
     }
 
-<<<<<<< HEAD
+  # right
+  # [-1.5692623853683472, 0.09817477315664291, -0.04448544234037399, -0.0015339808305725455, -0.023009711876511574, 0.012271846644580364]
+  # left
+  # [1.5707963705062866, 0.12118448317050934, -0.05062136799097061, -0.003067961661145091, -0.02761165425181389, 0.012271846644580364]
+  # right bent
+  # [-1.6060779094696045, -0.777728259563446, -0.8068739175796509, -0.0015339808305725455, -0.012271846644580364, 0.00920388475060463]
+  # left bent
+  # [1.572330355644226, -0.7761942744255066, -0.8084079027175903, -0.003067961661145091, -0.015339808538556099, 0.010737866163253784]
 
-=======
->>>>>>> 88fad1621f7aaa65a699681eefe8a25427aa11bc
-    joints_goal_dict = joints_goal_dict_15mm
+  ## Sleep pose
+  pose_goal = geometry_msgs.msg.Pose()
+  pose_goal.position.x =  0.0811047406103
+  pose_goal.position.y =  -1.34901728646e-05
+  pose_goal.position.z =  0.128741153434
+  pose_goal.orientation.x = -1.40023979928e-05
+  pose_goal.orientation.y = 0.290732882379
+  pose_goal.orientation.z = -6.39239167946e-05
+  pose_goal.orientation.w = 0.956804257318
+      # arm_control.set_go_pose_goal(pose_goal)
 
-    # box_name = "back_box"
-    # res = tutorial.add_box(box_name, [-0.1, 0, 0.5], (0.1, 0.4, 0.6))
-    delay = 0.5
-    raw_input()
+  # joints_goal_dict = joints_goal_dict_15mm
+  try:
+
+    ## adding virtual base of the robot
     box_name = "base_box"
+    res = arm_control.add_box(box_name, [0, 0, -0.01],(0.6, 0.6, 0.02))
 
-    res = tutorial.add_box(box_name, [0, 0, -0.01],(0.6, 0.6, 0.02))
-
-    # while(True):
-    #   raw_input()
-    #   tutorial.get_curr_pose()
-
-    # TODO: add home position
-    pose_goal = geometry_msgs.msg.Pose()
     
-    actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
-
-    for act in actions:
-      tutorial.go_to_next_joint_state(joints_goal_dict[act])
-      time.sleep(delay)
-      tutorial.capture_srv_client_handler(act)
-      # time.sleep(delay)
-
-# sleep pose
-    print("sleep pose -->")
+    # actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
+    actions = ['start', 'left_4', 'left_3', 'center_swap', 'top_1', 'bottom_1',  'right_1']
     
-
-    pose_goal.position.x =  0.0811047406103
-    pose_goal.position.y =  -1.34901728646e-05
-    pose_goal.position.z =  0.128741153434
-    pose_goal.orientation.x = -1.40023979928e-05
-    pose_goal.orientation.y = 0.290732882379
-    pose_goal.orientation.z = -6.39239167946e-05
-    pose_goal.orientation.w = 0.956804257318
+    device_status_srv = rospy.ServiceProxy('/device_status', Capture) 
     
+    # print("============ Press `Enter` to begin calibration ============")    
+    
+    # temp = raw_input()   
+    relpace_rect =  pygame.Rect(0, 60, 800, 540)
+    pygame.draw.rect(screen, white, relpace_rect)
+    
+    text = "Click on \"yes\" below to start calibration procedure "
+    pygame_render_text(screen, text, (150,200), green, 30)
+    is_device_ready = capture_calibrate_continue()
 
-    tutorial.set_go_pose_goal(pose_goal)
+    while is_device_ready:
+      ## check if service is available
+      if check_service('/device_status'):
+        break
 
-    tutorial.calibrate_srv_client_handler()
+      relpace_rect =  pygame.Rect(0, 60, 800, 540)
+      pygame.draw.rect(screen, white, relpace_rect)
+      heading = "Waiting for device status..."
+      pygame_render_text(screen, heading, (220,70), black, 30)
+      pygame.draw.rect(screen, orange, no_button)
+      pygame_render_text(screen, 'Exit', (500, 505))
+      disp.update()
 
-    print "============ Python arm calibration complete!"
-  except rospy.ROSInterruptException:
-    print("EERRRRROOORRR_----------------------------------------------")
-    return
+      try:
+        resp = device_status_srv("checking_device_status")
+        if capture_exit():
+          is_device_ready = False
+          break
+
+        if resp is not None:
+          if resp.success:
+            relpace_rect =  pygame.Rect(100, 70, 650, 35)
+            pygame.draw.rect(screen, white, relpace_rect)
+            dev = "Device with Mx id: " +  resp.error + " Connected"
+            pygame_render_text(screen, dev, (200,70), black, 30)
+            disp.update()
+        else:
+          print("couldn't reach device status service")
+          relpace_rect =  pygame.Rect(100, 70, 650, 35)
+          pygame.draw.rect(screen, white, relpace_rect)
+          dev = "couldn't reach device status service"
+          pygame_render_text(screen, dev, (200,70), black, 30)
+          is_device_ready = capture_calibrate_continue()
+          continue
+      except Exception as e:
+          print("couldn't reach device status service")
+          relpace_rect =  pygame.Rect(100, 70, 650, 35)
+          pygame.draw.rect(screen, white, relpace_rect)
+          dev = "Depthai calibration is not running"
+          pygame_render_text(screen, dev, (150,170), red, 30)
+          
+          # relpace_rect =  pygame.Rect(100, 200, 650, 35)
+          # pygame.draw.rect(screen, white, relpace_rect)
+          text = "Fix depthai calibration node"
+          pygame_render_text(screen, text, (150,200), red, 30)
+          text = "and click on \"YES\" to calibrate"
+          pygame_render_text(screen, text, (150,235), red, 30)
+          is_device_ready = capture_calibrate_continue()
+          continue
+  
+      if capture_exit():
+        is_device_ready = False
+        break
+
+      if not is_device_ready:
+        break
+      
+      if check_service('/capture_checkerboard'):
+        break
+
+      capture_count = 0
+      while capture_count < len(actions):
+        act = actions[capture_count]        
+        print("moving to pose ----> " + act)
+        ## UI update
+        relpace_rect =  pygame.Rect(150, 115, 300, 35)
+        pygame.draw.rect(screen, white, relpace_rect)
+        dev = "capturing - " + str(capture_count)
+        pygame_render_text(screen, dev, (270,115), black, 30)
+        disp.update()
+        ## check if service is available
+        if capture_exit():
+          is_device_ready = False
+          break
+        
+        ## arm control
+        arm_control.go_to_next_joint_state(joints_goal_dict[act])
+        rospy.sleep(delay)
+        ## calling capture service
+        capture_resp = arm_control.capture_srv_client_handler(act)
+        ## Evaulating response after capture
+        if capture_resp is not None:
+          ## increasing capture count if capture is success
+          if capture_resp.success:
+            capture_count += 1
+          ## error on capture fail
+          else:
+            pygame.draw.rect(screen, white, relpace_rect)
+            dev = "calibration board is out of camera's viewscope." 
+            pygame_render_text(screen, dev, (270,115), red, 30)
+            dev = "Adjust the calibration board position and restart"
+            pygame_render_text(screen, dev, (270,145), red, 30)
+            disp.update()
+            break
+        # else:
+        #   print("capture response is not none------------>")
+        ## Service fails to send response when service 
+        ## node crashes or fails to gets stuck
+        else:
+          pygame.draw.rect(screen, white, relpace_rect)
+          dev = "calibration node failed!! device lost!." 
+          pygame_render_text(screen, dev, (270,115), red, 30)
+          dev = "Restart the calibration node"
+          pygame_render_text(screen, dev, (270,145), red, 30)
+          disp.update()
+          break
+      
+      if not is_device_ready:
+        break
+
+      ## reset position to start
+      print("swap pose -->")
+      arm_control.go_to_next_joint_state(joints_goal_dict[swap_pose])
+      print("Stand pose finished-->")
+
+      ## breaking incase exit was pressed during capturing service above
+      
+      
+      ## Sleep pose
+      # pose_goal.position.x =  0.0811047406103
+      # pose_goal.position.y =  -1.34901728646e-05
+      # pose_goal.position.z =  0.128741153434
+      # pose_goal.orientation.x = -1.40023979928e-05
+      # pose_goal.orientation.y = 0.290732882379
+      # pose_goal.orientation.z = -6.39239167946e-05
+      # pose_goal.orientation.w = 0.956804257318
+      # arm_control.set_go_pose_goal(pose_goal)
+
+      ## capture capture service was succesfull in capturing all services then start calibration service
+      if capture_count == len(actions): 
+        ## UI rendering
+        relpace_rect =  pygame.Rect(100, 115, 400, 35)
+        pygame.draw.rect(screen, white, relpace_rect)
+        dev = "Starting calibration service"
+        pygame_render_text(screen, dev, (200,115), black, 30)
+        disp.update()
+        # checking service available
+        if check_service('/calibrate_stereo'):
+          is_device_ready = False
+          break
+
+        response = arm_control.calibrate_srv_client_handler()
+        relpace_rect =  pygame.Rect(150, 115, 500, 35)
+        pygame.draw.rect(screen, white, relpace_rect)
+        if response is not None:
+          if not response.success:
+            print(response.error)
+            print("Repeat the calibrtion by adusting the device or move to next device by marking this device")
+            dev = "Calibration Failed!!  " + response.error
+            pygame_render_text(screen, dev, (200,115), red, 30)
+            
+          else:
+            dev = "Calibration data successfyully written to EEPROM!!"
+            pygame_render_text(screen, dev, (200,115), green, 30)
+        else:
+            dev = "Calibration service failed. check calibration node error."
+            pygame_render_text(screen, dev, (200,115), red, 30)
+      
+      change_device_render()
+      is_device_ready = capture_calibrate_continue()
+
+      # while True:
+      #   key = raw_input("Change the device and please press 'Y/y' and press N/n to finish \n")
+      
+      #   if key == 'y' or key == 'Y':
+      #     is_device_ready = True
+      #     break
+      #   elif key == 'n' or key == 'N':
+      #     is_device_ready = False
+      #     break
+      #   else:
+      #     print("Invalid key pressed!!")
+    
+    print "============ Python arm calibration complete! ============"
+  except Exception as e :
+    print("Warining ----------------------------------------------->")
+    print(e)
+    warnings.warn(str(e))
+    print("~~~~~~~~~~~~~~~~~~EXIT~~~~~~~~~~~~~~~")
+  except rospy.ROSInterruptException:  
+    print("ROSInterruptException EERRRRROOORRR_----------------------------------------------")
   except KeyboardInterrupt:
-    print("EERRRRROOORRR_----------------------------------------------")
-    return
+    print("KeyboardInterrupt EERRRRROOORRR_----------------------------------------------")
+    shutdown_handler()
+  #   return
+  print("Moving to stand pose before finishinh----->")
 
+  print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~0~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
+  arm_control.go_to_next_joint_state(joints_goal_dict['center_swap'])
+  rospy.sleep(2)
+
+  print("moving yo sleep poose 1")
+  arm_control.set_go_pose_goal(pose_goal)
+  
+  print("moving yo sleep poose 12")
+  arm_control.go_to_next_joint_state(sleep_pose)
+  rospy.sleep(2)
+  print("finished Moving to sleep pose before finishinh----->")
+  
+  # raw_input()   
+  rospy.signal_shutdown("Finished calibration")
+  # del arm_control
+  # sys.exit(0)
+
+yes_button =  pygame.Rect(390, 400, 80, 45)
+no_button =  pygame.Rect(490, 500, 80, 45)
+sleep_pose = [0.05, -1.76, -1.55, 0.05, -0.8, 0.05]
+arm_control = None
+arg = {}
 if __name__ == '__main__':
   main()
-
-

@@ -42,7 +42,7 @@ dataset
 # ROS folders
 */devel/
 */build/
-
+*/install/
 # IPYNB checkpoints
 *.ipynb_checkpoints
 

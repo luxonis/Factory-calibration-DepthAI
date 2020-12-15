@@ -31,7 +31,7 @@
     name="arm_node"
     pkg="interbotix_sdk"
     type="arm_node"
-    output="screen"
+    output="log"
     ns="$(arg robot_name)">
     <param name="robot_name"                    value="$(arg robot_name)"/>
     <param name="robot_model"                   value="$(arg robot_model)"/>
