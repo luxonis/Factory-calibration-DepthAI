@@ -55,10 +55,17 @@ git clone https://github.com/luxonis/Factory-calibration-DepthAI.git
 4. In #2 use the following command to launch the arm `roslaunch interbotix_moveit_interface moveit_interface.launch robot_name:=vx300s use_actual:=true  dof:=6`
 5. Alternative to step 4. An Applications icon called `arm node` has been created during build which can also be used to launch the arm.
 
-
-
 ## Example Calibration Result
 
 ![Successful Automated Calibration](https://user-images.githubusercontent.com/32992551/98423514-0ba68d80-204c-11eb-8562-119cefe3c158.jpg)
 ![Calibrated Object Localization](https://user-images.githubusercontent.com/32992551/98423642-87083f00-204c-11eb-8445-6da38587797c.jpg)
+
+## Hardware Components and Costs
+
+ - Interbotix ViperX 300 Robot Arm 6DOF ([KIT-VIPX300-6DOF](https://www.trossenrobotics.com/viperx-300-robot-arm-6dof.aspx)): $5,000
+ - Intel NUC 8 ([NUC8i5BEH](https://www.amazon.com/gp/product/B07GX59NY8/ref=ppx_yo_dt_b_asin_title_o00_s00?ie=UTF8&psc=1)): $300
+ - Corsair Memory Kit 16GB ([(2x8GB) DDR4 2400MHz SODIMM Memory](https://www.amazon.com/gp/product/B019MRBKYG/ref=ppx_yo_dt_b_asin_title_o00_s00?ie=UTF8&psc=1)): $75.00
+ - Samsung 970 EVO Plus SSD 500GB ([MZ-V7S500B/AM](https://www.amazon.com/gp/product/B07M7Q21N7/ref=ppx_yo_dt_b_asin_title_o00_s00?ie=UTF8&psc=1)): $90
+ 
+ **TOTAL**: $5,465 
 
