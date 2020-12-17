@@ -66,6 +66,8 @@ git clone https://github.com/luxonis/Factory-calibration-DepthAI.git
  - Intel NUC 8 ([NUC8i5BEH](https://www.amazon.com/gp/product/B07GX59NY8/ref=ppx_yo_dt_b_asin_title_o00_s00?ie=UTF8&psc=1)): $300
  - Corsair Memory Kit 16GB ([(2x8GB) DDR4 2400MHz SODIMM Memory](https://www.amazon.com/gp/product/B019MRBKYG/ref=ppx_yo_dt_b_asin_title_o00_s00?ie=UTF8&psc=1)): $75.00
  - Samsung 970 EVO Plus SSD 500GB ([MZ-V7S500B/AM](https://www.amazon.com/gp/product/B07M7Q21N7/ref=ppx_yo_dt_b_asin_title_o00_s00?ie=UTF8&psc=1)): $90
+ - 4-Port USB 3.0 Hub ([HB-UM43](https://www.amazon.com/dp/B00JX1ZS5O/ref=cm_sw_r_oth_api_glc_fabc_gi42FbR87JEAW?_encoding=UTF8&psc=1)): $11.
+  (The USB Hub allows shorter cable to be plugged in on-arm.)
  
- **TOTAL**: $5,465 
+ **TOTAL**: $5,476 
 
