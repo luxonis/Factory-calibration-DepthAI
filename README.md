@@ -5,13 +5,10 @@ This package contains two ROS workspace one is for depthai capture and calibrati
 
 The reason for two workspace is because we need python3 for depthai and python2 for interbotix moveit interface provided by interbotix [here](https://github.com/Interbotix/interbotix_ros_arms/tree/melodic). 
 
-![DepthAI Automated Calibration Example](https://user-images.githubusercontent.com/32992551/98047318-f251d700-1de8-11eb-8c56-ca31c038a1aa.jpg)
-![DepthAI Automated Calibration Example](https://user-images.githubusercontent.com/32992551/98047330-f4b43100-1de8-11eb-8315-3cad43df8966.jpg)
+![DepthAI Automated Calibration Example](https://user-images.githubusercontent.com/32992551/103242234-c0ee1700-4912-11eb-881e-93b6a6843afe.jpg)
 
-![IMG_20201214_172712](https://user-images.githubusercontent.com/32992551/103242234-c0ee1700-4912-11eb-881e-93b6a6843afe.jpg)
-
-![image (31)](https://user-images.githubusercontent.com/32992551/103242260-e0853f80-4912-11eb-96b6-887ef9f0f662.png)
-![IMG_20201201_193535](https://user-images.githubusercontent.com/32992551/103242359-27733500-4913-11eb-9f19-a818bc7fc5e6.jpg)
+![DepthAI Automated Calibration Example](https://user-images.githubusercontent.com/32992551/103242260-e0853f80-4912-11eb-96b6-887ef9f0f662.png)
+![DepthAI Automated Calibration Example](https://user-images.githubusercontent.com/32992551/103242359-27733500-4913-11eb-9f19-a818bc7fc5e6.jpg)
 
 
 ## Python3 on ROS Melodic
