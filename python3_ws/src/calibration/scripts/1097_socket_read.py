@@ -176,100 +176,6 @@ class socket_calibration_node:
         # pygame.event.pump()
         return is_clicked
 
-    # def start_device(self):
-    #     self.device = depthai.Device('', False)
-    #     # self.device = depthai.Device('/home/nuc/Desktop/depthai/.fw_cache/depthai-6fc8c54e33b8aa6d16bf70ac5193d10090dcd0d8.cmd', '')
-    #     self.pipeline = self.device.create_pipeline(self.config)
-    #     self.mx_id = self.device.get_mx_id()
-        
-    def set_focus(self):
-        if 1:
-            print("RGB set_focus() disabled. TODO")
-            return
-        cam_c = depthai.CameraControl.CamId.RGB
-        # Disabling AF mode
-        print('Disabling AF mode')
-        # self.device.send_camera_control(
-        #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
-        cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-        # Disabling AF mode
-        print('setting Focus')
-        print("Setting focus value to {}".format(self.focus_value))
-        self.device.send_camera_control(
-            cam_c, cmd_set_focus, str(self.focus_value))
-
-    def rgb_focus_handler(self, req):
-        is_num = req.name.isnumeric()
-        if is_num:
-            rgb_focus_val = int(req.name)
-            if rgb_focus_val >= 0 and rgb_focus_val <= 255:
-                # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
-                cam_c = depthai.CameraControl.CamId.RGB
-                # self.device.send_camera_control(
-                #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
-                cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-                self.device.send_camera_control(cam_c, cmd_set_focus, req.name)
-                return True, 'Focus changed to ' + req.name
-            # else :
-                # return False, 'Invalid focus input.!! Focus number should be between 0-255'
-        # else:
-        return False, 'Invalid focus input.!! Focus number should be between 0-255'
-
-    def publisher(self):
-        while not rospy.is_shutdown():
-            if self.capture_exit():
-                print("signaling...")
-                rospy.signal_shutdown("Finished calibration")
-            if self.start_disp:
-                self.disp.update()
-            # else:
-            #     pygameX.event.pump()
-            # print("updating dis-----")
-            if not self.is_service_active:
-                # pygame.draw.rect(self.screen, red, no_button)
-                # pygame_render_text(self.screen, 'Exit', (500, 505))
-                # print("SERVICE NOT ACTIVE")
-                # print("restarting device---->")
-                _, data_list = self.pipeline.get_available_nnet_and_data_packets(
-                    True)
-                for packet in data_list:
-                    # print("found packets:")
-                    # print(packet.stream_name)
-                    if packet.stream_name == "left":
-                        recent_left = packet.getData()
-                        # print(recent_left.shape)
-                        self.image_pub_left.publish(
-                            self.bridge.cv2_to_imgmsg(recent_left, "passthrough"))
-                    elif packet.stream_name == "right":
-                        recent_right = packet.getData()
-                        # print(recent_right.shape)
-                        self.image_pub_right.publish(
-                            self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
-                    elif packet.stream_name == "color":
-                        # since getting python3 working on ros melodic is an
-                        # hack cannot publish rgb. it will throw an error.
-                        # self.frame_count += 1
-                        recent_color = cv2.cvtColor(
-                            self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
-                        self.image_pub_color.publish(
-                            self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-                        # meta = packet.getMetadata()
-                        # print(
-                        #     ' Frame seq number <-< {} '.format(meta.getSequenceNum()))
-                        # print(' Frame TS number <-< {} '.format(meta.getTimestamp()))
-
-                        # print('Local frame rate: {}'.format(self.frame_count))
-                    elif packet.stream_name == "meta_d2h":
-                        str_ = packet.getDataAsStr()
-                        dict_ = json.loads(str_)
-                        # print('last frame tstamp: {:.6f}'.format(
-                        #     dict_['camera']['last_frame_timestamp']))
-                        if 0:
-                            print('meta_d2h frame focus ----------?: {}'.format(
-                                dict_['camera']['rgb']['focus_pos']))
-                        # print(
-                        #     'Metad2h frame cpunt <-< {}'.format(dict_['camera']['rgb']['frame_count']))
-
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
         w = meta.getFrameWidth()
@@ -294,7 +200,7 @@ class socket_calibration_node:
               "in folder ->" + stream_name)
 
         # adding backup
-        now_tim = datetime.now()
+        # now_tim = datetime.now()
         self.backup_ds(stream_name, file_name, frame)
         return True
 
@@ -493,7 +399,7 @@ class socket_calibration_node:
         # rospy.sleep(2)
         self.is_service_active = False
         self.final_check_list = check_list
-        return (True, self.device.get_mx_id())
+        return (True, self.final_check_list[0])
 
     def calibration_servive_handler(self, req):
         self.is_service_active = True
@@ -517,7 +423,7 @@ class socket_calibration_node:
         start_time = datetime.now()
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
-        mx_serial_id = self.device.get_mx_id()
+        # mx_serial_id = self.device.get_mx_id()
         log_list = [time_stmp, self.final_check_list[0]]
         log_list.append(self.final_check_list[1])
         log_list.append(self.final_check_list[2])
@@ -587,7 +493,7 @@ no_button = pygame.Rect(490, 500, 80, 45)
 
 if __name__ == "__main__":
 
-    rospy.init_node('depthai_calibration', anonymous=True)
+    rospy.init_node('1097_calibration', anonymous=True)
     arg = {}
     arg["swap_lr"] = rospy.get_param('~swap_lr')
     arg["field_of_view"] = rospy.get_param('~field_of_view')
@@ -633,6 +539,6 @@ if __name__ == "__main__":
     # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
     #     Please add the correct path using depthai_path:=[path] while executing launchfile")
 
-    depthai_dev = depthai_calibration_node(arg)
-    depthai_dev.publisher()
+    depthai_dev = socket_calibration_node(arg)
+    # depthai_dev.publisher()
     rospy.spin()
