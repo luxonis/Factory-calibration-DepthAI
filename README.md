@@ -3,6 +3,8 @@
 ## Overview
 This package contains two ROS workspace one is for depthai capture and calibration node and another is for Interbotix ViperX 300 Robot Arm 6DOF ([KIT-VIPX300-6DOF](https://www.trossenrobotics.com/viperx-300-robot-arm-6dof.aspx)) arm bot control using moveit.
 
+This repository contains the charuco board used in this calibration setup
+
 The reason for two workspace is because we need python3 for depthai and python2 for interbotix moveit interface provided by interbotix [here](https://github.com/Interbotix/interbotix_ros_arms/tree/melodic). 
 
 ![DepthAI Automated Calibration Example](https://user-images.githubusercontent.com/32992551/103242234-c0ee1700-4912-11eb-881e-93b6a6843afe.jpg)
