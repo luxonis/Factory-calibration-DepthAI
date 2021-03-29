@@ -62,9 +62,8 @@ class depthai_calibration_node:
         self.focus_value = 130
         self.config = {
             'streams':
-                ['left', 'right', 'meta_d2h', 'color'] if not on_embedded else
-                [{'name': 'left', "max_fps": 30.0}, {'name': 'right', "max_fps": 30.0}, {
-                    'name': 'meta_d2h', "max_fps": 30.0}, {'name': 'color', "max_fps": 30.0}],
+                ['left', 'meta_d2h', 'color'] if not on_embedded else
+                [{'name': 'left', "max_fps": 30.0}, {'name': 'meta_d2h', "max_fps": 30.0}, {'name': 'color', "max_fps": 30.0}],
             'depth':
                 {
                     'calibration_file': consts.resource_paths.calib_fpath,
@@ -147,7 +146,6 @@ class depthai_calibration_node:
             header.append('IMU')
 
         header.append('Epipolar error L-R')
-        header.append('Epipolar error RGB-R')
 
         log_file = self.args['log_path'] + "/calibration_logs.csv"
         if not os.path.exists(log_file):
@@ -190,7 +188,6 @@ class depthai_calibration_node:
             "set_rgb_focus", Capture, self.rgb_focus_handler)
 
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
-        self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
         self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
 
     def capture_exit(self):
@@ -295,11 +292,6 @@ class depthai_calibration_node:
                         # print(recent_left.shape)
                         self.image_pub_left.publish(
                             self.bridge.cv2_to_imgmsg(recent_left, "passthrough"))
-                    elif packet.stream_name == "right":
-                        recent_right = packet.getData()
-                        # print(recent_right.shape)
-                        self.image_pub_right.publish(
-                            self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
                     elif packet.stream_name == "color":
                         # since getting python3 working on ros melodic is an
                         # hack cannot publish rgb. it will throw an error.
@@ -370,7 +362,6 @@ class depthai_calibration_node:
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
         recent_left = None
-        recent_right = None
         recent_color = None
         finished = False
         self.is_service_active = True
@@ -398,8 +389,6 @@ class depthai_calibration_node:
                 # print(now.secs)
                 if packet.stream_name == "left":
                     recent_left = packet.getData()
-                elif packet.stream_name == "right":
-                    recent_right = packet.getData()
                 elif packet.stream_name == "color":
                     local_color_frame_count += 1
                     seq_no = packet.getMetadata().getSequenceNum()
@@ -433,22 +422,22 @@ class depthai_calibration_node:
                 if rgb_check_count < 5:
                     return False, 'RGB camera focus was set to {}'.format(curr_focus)
 
-            if recent_left is not None and recent_right is not None and recent_color is not None:
+            if recent_left is not None and recent_color is not None:
                 finished = True
 
         is_board_found_l = self.is_markers_found(recent_left)
-        is_board_found_r = self.is_markers_found(recent_right)
+        # is_board_found_r = self.is_markers_found(recent_right)
         is_board_found_rgb = self.is_markers_found(recent_color)
         if is_board_found_l and is_board_found_r and is_board_found_rgb:
             print("Found------------------------->")
             self.parse_frame(recent_left, "left", req.name)
-            self.parse_frame(recent_right, "right", req.name)
+            # self.parse_frame(recent_right, "right", req.name)
             self.parse_frame(recent_color, "rgb", req.name)
         else:
             print("Not found--------------------->")
             self.is_service_active = False
             self.parse_frame(recent_left, "left_not", req.name)
-            self.parse_frame(recent_right, "right_not", req.name)
+            # self.parse_frame(recent_right, "right_not", req.name)
             self.parse_frame(recent_color, "rgb_not", req.name)
             return (False, "Calibration board not found")
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
@@ -495,7 +484,7 @@ class depthai_calibration_node:
             #     rospy.signal_shutdown("Finished calibration")
             is_usb3 = False
             left_mipi = False
-            right_mipi = False
+            # right_mipi = False
             rgb_mipi = False
             if self.args['enable_IMU_test']:
                 is_IMU_connected = False
@@ -503,7 +492,7 @@ class depthai_calibration_node:
                 is_IMU_connected = True
             is_usb3 = self.device.is_usb3()
             left_status = self.device.is_left_connected()
-            right_status = self.device.is_right_connected()
+            # right_status = self.device.is_right_connected()
             rgb_status = self.device.is_rgb_connected()
             imu_times = 0
             if self.capture_exit():
@@ -525,11 +514,6 @@ class depthai_calibration_node:
                             left_mipi = True
                             self.image_pub_left.publish(
                                 self.bridge.cv2_to_imgmsg(recent_left, "passthrough"))
-                        elif packet.stream_name == "right":
-                            recent_right = packet.getData()
-                            right_mipi = True
-                            self.image_pub_right.publish(
-                                self.bridge.cv2_to_imgmsg(recent_right, "passthrough"))
                         elif packet.stream_name == "color":
                             rgb_mipi = True
                             recent_color = cv2.cvtColor(
@@ -566,7 +550,7 @@ class depthai_calibration_node:
                                 text = 'IMU status: ' + dict_['imu']['status']
                                 pygame_render_text(
                                     self.screen, text, (50, 500), font_size=30, color=selected_clr)
-                    if left_mipi and right_mipi and is_IMU_connected:
+                    if left_mipi and is_IMU_connected:
                         if is_usb3:
                             # # setting manual focus to rgb camera
                             # cam_c = depthai.CameraControl.CamId.RGB
@@ -604,15 +588,15 @@ class depthai_calibration_node:
             else:
                 self.auto_checkbox_dict["RGB Stream"].check()
 
-            if not right_status:
-                self.auto_checkbox_dict["Right camera connected"].uncheck()
-            else:
-                self.auto_checkbox_dict["Right camera connected"].check()
+            # if not right_status:
+            #     self.auto_checkbox_dict["Right camera connected"].uncheck()
+            # else:
+            #     self.auto_checkbox_dict["Right camera connected"].check()
 
-            if not right_mipi:
-                self.auto_checkbox_dict["Right Stream"].uncheck()
-            else:
-                self.auto_checkbox_dict["Right Stream"].check()
+            # if not right_mipi:
+            #     self.auto_checkbox_dict["Right Stream"].uncheck()
+            # else:
+            #     self.auto_checkbox_dict["Right Stream"].check()
 
             if self.args['enable_IMU_test']:
                 if is_IMU_connected:
@@ -640,7 +624,7 @@ class depthai_calibration_node:
 
         flags = [self.config['board_config']['stereo_center_crop']]
         stereo_calib = StereoCalibration()
-        avg_epipolar_error_l_r, avg_epipolar_error_rgb_r, calib_data = stereo_calib.calibrate(
+        avg_epipolar_error_l_r, avg_epipolar_error_l_rgb, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
             self.args['square_size_cm'],
             calib_dest_path,
@@ -655,14 +639,13 @@ class depthai_calibration_node:
         log_list = [time_stmp, mx_serial_id]
         log_list.append(self.device.is_usb3())
         log_list.append(self.device.is_left_connected())
-        log_list.append(self.device.is_right_connected())
         log_list.append(self.device.is_rgb_connected())
 
         if self.args['enable_IMU_test']:
             log_list.append(self.imu_version)
 
-        log_list.append(avg_epipolar_error_l_r)
-        log_list.append(avg_epipolar_error_rgb_r)
+        # log_list.append(avg_epipolar_error_l_r)
+        log_list.append(avg_epipolar_error_l_rgb)
 
         log_file = self.args['log_path'] + "/calibration_logs.csv"
         with open(log_file, mode='a') as log_fopen:
@@ -670,20 +653,11 @@ class depthai_calibration_node:
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
 
-        text = "Avg Epipolar error L-R: " + \
-            format(avg_epipolar_error_l_r, '.6f')
-        pygame_render_text(self.screen, text, (400, 160), green, 30)
         text = "Avg Epipolar error RGB-R: " + \
-            format(avg_epipolar_error_rgb_r, '.6f')
+            format(avg_epipolar_error_l_rgb, '.6f')
         pygame_render_text(self.screen, text, (400, 190), green, 30)
 
-        if avg_epipolar_error_l_r > 0.5:
-            text = "Failed due to high calibration error L-R"
-            pygame_render_text(self.screen, text, (400, 230), red, 30)
-            return (False, text)
-        # self.rundepthai()
-
-        if avg_epipolar_error_rgb_r > 0.7:
+        if avg_epipolar_error_l_rgb > 0.7:
             text = "Failed due to high calibration error RGB-R"
             pygame_render_text(self.screen, text, (400, 270), red, 30)
             return (False, text)
@@ -712,7 +686,6 @@ class depthai_calibration_node:
         # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         # shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
-
         print(avg_epipolar_error_l_r)
         print('Validating...')
         is_write_succesful = False

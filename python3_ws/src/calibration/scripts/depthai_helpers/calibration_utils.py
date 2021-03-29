@@ -120,7 +120,7 @@ class StereoCalibration(object):
             # run calibration procedure and construct Homography and mesh
             # self.stereo_calibrate_two_homography_calib()
         print('~~~~~ Starting Stereo Calibratin ~~~~~')
-        self.stereo_calib_two_homo()
+        # self.stereo_calib_two_homo()
 
         # rgb-right extrinsic calibration
         if self.calibrate_rgb:
@@ -134,18 +134,26 @@ class StereoCalibration(object):
             self.T_rgb = np.zeros(3, dtype=np.float32)
             self.d3 = np.zeros(14, dtype=np.float32)
 
-        R1_fp32 = self.R1.astype(np.float32)
-        R2_fp32 = self.R2.astype(np.float32)
+        self.M3_scaled_write = np.copy(self.M3_scaled)
+        self.M3_scaled_write[1, 2] += 40
+
+        self.M3_nan = np.zeros((3, 3), dtype=np.float32)
+        self.R_rgb_nan = np.zeros((3, 3), dtype=np.float32)
+        self.T_rgb_nan = np.zeros(3, dtype=np.float32)
+        self.d3_nan = np.zeros(14, dtype=np.float32)
+
+        R1_fp32 = self.R1_rgb.astype(np.float32)
+        R2_fp32 = self.R2_rgb.astype(np.float32)
         M1_fp32 = self.M1.astype(np.float32)
-        M2_fp32 = self.M2.astype(np.float32)
-        R_fp32 = self.R.astype(np.float32)
-        T_fp32 = self.T.astype(np.float32)
-        M3_fp32 = self.M3.astype(np.float32)
-        R_rgb_fp32 = self.R_rgb.astype(np.float32)
-        T_rgb_fp32 = self.T_rgb.astype(np.float32)
+        M2_fp32 = self.M3_scaled_write.astype(np.float32)
+        R_fp32  = self.R_rgb.astype(np.float32)
+        T_fp32  = self.T_rgb.astype(np.float32)
+        M3_fp32 = self.M3_nan.astype(np.float32)
+        R_rgb_fp32 = self.R_rgb_nan.astype(np.float32)
+        T_rgb_fp32 = self.T_rgb_nan.astype(np.float32)
         d1_coeff_fp32 = self.d1.astype(np.float32)
-        d2_coeff_fp32 = self.d2.astype(np.float32)
-        d3_coeff_fp32 = self.d3.astype(np.float32)
+        d2_coeff_fp32 = self.d3_scaled.astype(np.float32)
+        d3_coeff_fp32 = self.d3_nan.astype(np.float32)
 
         print(out_filepath)
         with open(out_filepath, "wb") as fp:
@@ -233,9 +241,8 @@ class StereoCalibration(object):
         if type == 'charuco':
             if self.calibrate_rgb:
                 avg_epipolar_rgb_r = self.test_epipolar_charuco_rgb(filepath)
-            return self.test_epipolar_charuco(filepath), avg_epipolar_rgb_r, self.calib_data
-        else:
-            return self.test_epipolar_checker(filepath), None, self.calib_data
+            return avg_epipolar_rgb_r, self.calib_data
+
 
     def parse_frame(self, frame, stream_name, file_name):
         file_name += '.png'
@@ -359,20 +366,18 @@ class StereoCalibration(object):
         # calids_r = []  # ids found in imag
 
         images_left = glob.glob(filepath + "/left/*")
-        images_right = glob.glob(filepath + "/right/*")
+        # images_right = glob.glob(filepath + "/right/*")
         images_rgb = glob.glob(filepath + "/rgb/*")
         # print("Images left path------------------->")
         # print(images_left)
         images_left.sort()
-        images_right.sort()
+        # images_right.sort()
         images_rgb.sort()
         print("\nAttempting to read images for left camera from dir: " +
               filepath + "/left/")
         # print(images_left)
         # print('~~~~~~~~~~~~~~~~~~~')
 
-        print("Attempting to read images for right camera from dir: " +
-              filepath + "/right/")
         # print(images_right)
         # print('~~~~~~~~~~~~~~~~~~~')
 
@@ -383,8 +388,8 @@ class StereoCalibration(object):
 
         assert len(
             images_left) != 0, "ERROR: Images not read correctly, check directory"
-        assert len(
-            images_right) != 0, "ERROR: Images not read correctly, check directory"
+        # assert len(
+        #     images_right) != 0, "ERROR: Images not read correctly, check directory"
         assert len(
             images_rgb) != 0, "ERROR: Images not read correctly, check directory"
 
@@ -392,9 +397,9 @@ class StereoCalibration(object):
         print("~~~~~~~~~~~ POSE ESTIMATION LEFT CAMERA ~~~~~~~~~~~~~")
         allCorners_l, allIds_l, _, _, imsize, _ = self.analyze_charuco(
             images_left)
-        print("~~~~~~~~~~~ POSE ESTIMATION RIGHT CAMERA ~~~~~~~~~~~~~")
-        allCorners_r, allIds_r, _, _, imsize, _ = self.analyze_charuco(
-            images_right)
+        # print("~~~~~~~~~~~ POSE ESTIMATION RIGHT CAMERA ~~~~~~~~~~~~~")
+        # allCorners_r, allIds_r, _, _, imsize, _ = self.analyze_charuco(
+        #     images_right)
         if self.calibrate_rgb:
             print("~~~~~~~~~~~ POSE ESTIMATION RGB CAMERA FULL RES~~~~~~~~~~~~~")
             allCorners_rgb, allIds_rgb, _, _, imsize_rgb, _ = self.analyze_charuco(
@@ -404,8 +409,8 @@ class StereoCalibration(object):
         self.img_shape_rgb = imsize_rgb[::-1]
         ret_l, self.M1, self.d1, rvecs, tvecs = self.calibrate_camera_charuco(
             allCorners_l, allIds_l, self.img_shape)
-        ret_r, self.M2, self.d2, rvecs, tvecs = self.calibrate_camera_charuco(
-            allCorners_r, allIds_r, self.img_shape)
+        # ret_r, self.M2, self.d2, rvecs, tvecs = self.calibrate_camera_charuco(
+        #     allCorners_r, allIds_r, self.img_shape)
         if self.calibrate_rgb:
             ret_rgb, self.M3, self.d3, rvecs, tvecs = self.calibrate_camera_charuco(
                 allCorners_rgb, allIds_rgb, imsize_rgb[::-1])
@@ -413,36 +418,36 @@ class StereoCalibration(object):
         print("~~~~~~~~~~~~~RMS error of RGB, right and left~~~~~~~~~~~~~~")
         if self.calibrate_rgb:
             print(ret_rgb)
-        print(ret_r)
+        # print(ret_r)
         print(ret_l)
 
-        left_corners_sampled = []
-        right_corners_sampled = []
-        obj_pts = []
-        one_pts = self.board.chessboardCorners
-        for i in range(len(allIds_l)):
-            left_sub_corners = []
-            right_sub_corners = []
-            obj_pts_sub = []
-        #     if len(allIds_l[i]) < 70 or len(allIds_r[i]) < 70:
-        #         continue
-            for j in range(len(allIds_l[i])):
-                idx = np.where(allIds_r[i] == allIds_l[i][j])
-                if idx[0].size == 0:
-                    continue
-                left_sub_corners.append(allCorners_l[i][j])
-                right_sub_corners.append(allCorners_r[i][idx])
-                obj_pts_sub.append(one_pts[allIds_l[i][j]])
+        # left_corners_sampled = []
+        # right_corners_sampled = []
+        # obj_pts = []
+        # one_pts = self.board.chessboardCorners
+        # for i in range(len(allIds_l)):
+        #     left_sub_corners = []
+        #     right_sub_corners = []
+        #     obj_pts_sub = []
+        # #     if len(allIds_l[i]) < 70 or len(allIds_r[i]) < 70:
+        # #         continue
+        #     for j in range(len(allIds_l[i])):
+        #         idx = np.where(allIds_r[i] == allIds_l[i][j])
+        #         if idx[0].size == 0:
+        #             continue
+        #         left_sub_corners.append(allCorners_l[i][j])
+        #         right_sub_corners.append(allCorners_r[i][idx])
+        #         obj_pts_sub.append(one_pts[allIds_l[i][j]])
 
-            obj_pts.append(np.array(obj_pts_sub, dtype=np.float32))
-            left_corners_sampled.append(
-                np.array(left_sub_corners, dtype=np.float32))
-            right_corners_sampled.append(
-                np.array(right_sub_corners, dtype=np.float32))
+        #     obj_pts.append(np.array(obj_pts_sub, dtype=np.float32))
+        #     left_corners_sampled.append(
+        #         np.array(left_sub_corners, dtype=np.float32))
+        #     right_corners_sampled.append(
+        #         np.array(right_sub_corners, dtype=np.float32))
 
-        self.objpoints = obj_pts
-        self.imgpoints_l = left_corners_sampled
-        self.imgpoints_r = right_corners_sampled
+        # self.objpoints = obj_pts
+        # self.imgpoints_l = left_corners_sampled
+        # self.imgpoints_r = right_corners_sampled
 
 
     def calibrate_camera_charuco(self, allCorners, allIds, imsize):
@@ -483,7 +488,7 @@ class StereoCalibration(object):
         return ret, camera_matrix, distortion_coefficients0, rotation_vectors, translation_vectors
 
     def rgb_calibrate(self, filepath):
-        images_right = glob.glob(filepath + "/right/*")
+        images_left = glob.glob(filepath + "/left/*")
         images_rgb = glob.glob(filepath + "/rgb/*")
 
         images_right.sort()
@@ -497,7 +502,7 @@ class StereoCalibration(object):
             allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
 
         allCorners_r_rgb, allIds_r_rgb, _, _, _, _ = self.analyze_charuco(
-            images_right, scale_req=True, req_resolution=(720, 1280))
+            images_left, scale_req=True, req_resolution=(720, 1280))
 
         print("RGB callleded RMS at 720")
         print(ret_rgb_scaled)
@@ -580,45 +585,48 @@ class StereoCalibration(object):
         # TODO(Sachin): change this hardcoded later
         # (800, 1280)
         # (3040, 4056)
-        print('full M3')
-        print(self.M3)
-        scale_width = 1280/1920
-        m_scale = [[scale_width,      0,   0],
-                    [0, scale_width,   0],
-                    [0,      0,    1]]
-        M_RGB = np.matmul(m_scale, self.M3)
-        height = round(1080 * scale_width)
-        print(height)
-        if height > 720:
-            print('Modifying height')
-            diff = (height - 720) / 2
-            M_RGB[1, 2] -= diff
+        # ----------------------------------------------------------------- #
+        # print('full M3')
+        # print(self.M3)
+        # scale_width = 1280/1920
+        # m_scale = [[scale_width,      0,   0],
+        #             [0, scale_width,   0],
+        #             [0,      0,    1]]
+        # M_RGB = np.matmul(m_scale, self.M3)
+        # height = round(1080 * scale_width)
+        # print(height)
+        # if height > 720:
+        #     print('Modifying height')
+        #     diff = (height - 720) / 2
+        #     M_RGB[1, 2] -= diff
 
-        print('Scaled intriniscs of rgb is -->')
-        print(M_RGB)
+        # print('Scaled intriniscs of rgb is -->')
+        # print(M_RGB)
         print('vs. intrinisics computed after scaling the image --->')
         print(self.M3_scaled)
 
-        self.M2_rgb = np.copy(self.M2)
+        self.M2_rgb = np.copy(self.M1)
         self.M2_rgb[1, 2] -= 40
-        self.d2_rgb = np.copy(self.d2)
+        self.d2_rgb = np.copy(self.d1_coeff_fp32)
         ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
-            self.objpoints_rgb_r, self.imgpoints_rgb, self.imgpoints_rgb_right,
-            self.M3_scaled, self.d3_scaled, self.M2_rgb, self.d2_rgb, self.img_shape_rgb_scaled,
+            self.objpoints_rgb_r, self.imgpoints_rgb_right, self.imgpoints_rgb,
+            self.M2_rgb, self.d2_rgb, self.M3_scaled, self.d3_scaled, self.img_shape_rgb_scaled,
             criteria=stereocalib_criteria, flags=flags)
-        print("~~~~~~Stereo calibration rgb-right RMS error~~~~~~~~")
+        print("~~~~~~ Stereo calibration rgb-right RMS error ~~~~~~~~")
         print(ret)
 
         # Rectification is only to test the epipolar
         self.R1_rgb, self.R2_rgb, self.P1_rgb, self.P2_rgb, self.Q_rgb, validPixROI1, validPixROI2 = cv2.stereoRectify(
             self.M2_rgb,
-            self.d3_scaled,
-            self.M2_rgb,
             self.d2_rgb,
+            self.M3_scaled,
+            self.d3_scaled,
             self.img_shape_rgb_scaled, self.R_rgb, self.T_rgb)
 
-
-
+        # self.H1_l_720 = np.matmul(np.matmul(self.M3_scaled, self.R1_rgb),
+        #                     np.linalg.inv(self.M2_rgb))
+        # self.H2_rgb_720 = np.matmul(np.matmul(self.M3_scaled, self.R2_rgb),
+        #                     np.linalg.inv(self.M3_scaled))
 
     def process_images(self, filepath):
         """Read images, detect corners, refine corners, and save data."""
@@ -974,7 +982,7 @@ class StereoCalibration(object):
 
     def test_epipolar_charuco_rgb(self, dataset_dir):
         images_rgb = glob.glob(dataset_dir + '/rgb/*.png')
-        images_right = glob.glob(dataset_dir + '/right/*.png')
+        images_right = glob.glob(dataset_dir + '/left/*.png')
         images_rgb.sort()
         images_right.sort()
         print("HU IHER")
@@ -988,9 +996,9 @@ class StereoCalibration(object):
 
         # if not use_homo:
         mapx_rgb, mapy_rgb = cv2.initUndistortRectifyMap(
-            self.M3_scaled, self.d3_scaled, self.R1_rgb, self.P1_rgb, self.img_shape_rgb_scaled, cv2.CV_32FC1)
+            self.M3_scaled, self.d3_scaled, self.R2_rgb, self.P1_rgb, self.img_shape_rgb_scaled, cv2.CV_32FC1)
         mapx_r, mapy_r = cv2.initUndistortRectifyMap(
-            self.M2_rgb, self.d2_rgb, self.R2_rgb, self.P2_rgb, self.img_shape_rgb_scaled, cv2.CV_32FC1)
+            self.M2_rgb, self.d2_rgb, self.R1_rgb, self.P2_rgb, self.img_shape_rgb_scaled, cv2.CV_32FC1)
 
         # self.H1_rgb = np.matmul(np.matmul(self.M2, self.R1_rgb),
         #                     np.linalg.inv(M_rgb))
