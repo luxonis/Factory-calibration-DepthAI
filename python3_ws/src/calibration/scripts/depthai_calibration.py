@@ -60,52 +60,8 @@ class depthai_calibration_node:
         self.bridge = CvBridge()
         self.is_service_active = False
         self.focus_value = 130
-        self.config = {
-            'streams':
-                ['left', 'meta_d2h', 'color'] if not on_embedded else
-                [{'name': 'left', "max_fps": 30.0}, {'name': 'meta_d2h', "max_fps": 30.0}, {'name': 'color', "max_fps": 30.0}],
-            'depth':
-                {
-                    'calibration_file': consts.resource_paths.calib_fpath,
-                    'padding_factor': 0.3
-                },
-            'ai':
-                {
-                    'blob_file': consts.resource_paths.blob_fpath,
-                    'blob_file_config': consts.resource_paths.blob_config_fpath,
-                    'shaves': 7,
-                    'cmx_slices': 7,
-                    'NN_engines': 1,
-                },
-            'board_config':
-                {
-                    'swap_left_and_right_cameras': self.args['swap_lr'],
-                    'left_fov_deg':  self.args['field_of_view'],
-                    'left_to_right_distance_cm': self.args['baseline'],
-                    'override_eeprom': False,
-                    'stereo_center_crop': True,
-                },
-            'camera':
-                {
-                    'rgb':
-                    {
-                        'resolution_h': 1080,
-                        'fps': 30.0,
-                        'initial_focus': self.focus_value,
-                        'enable_autofocus': False
-                    },
-                    'mono':
-                    {
-                        # 1280x720, 1280x800, 640x400 (binning enabled)
-                        'resolution_h': 800,
-                        'fps': 30.0,
-                    },
-                },
-            'app':
-                {
-                    'enable_imu': True
-                },
-        }
+
+
         # self.frame_count = 0
         self.init_time = time.time()
         if arg['board']:
@@ -189,6 +145,30 @@ class depthai_calibration_node:
 
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
         self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
+
+    def create_pipeline(self):
+        pipeline = dai.Pipeline()
+
+        rgb_cam  = pipeline.createColorCamera()
+        cam_left = pipeline.createMonoCamera()
+        xout_left     = pipeline.createXLinkOut()
+        xout_rgb_isp  = pipeline.createXLinkOut()
+
+        rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+        rgb_cam.setInterleaved(True)
+        rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
+        rgb_cam.initialControl.setManualFocus(130)
+
+        cam_left.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+        cam_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
+        xout_left.setStreamName("left")
+        cam_left.out.link(xout_left.input)
+
+        xout_rgb_isp.setStreamName("rgb")
+        rgb_cam.isp.link(xout_rgb_isp.input)
+        
+        return pipeline
+
 
     def capture_exit(self):
         is_clicked = False
