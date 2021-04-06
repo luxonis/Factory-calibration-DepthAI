@@ -22,7 +22,7 @@ from calibration.srv import Capture
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 
-import depthai
+import depthai as dai
 import consts.resource_paths
 from depthai_helpers.calibration_utils import *
 
@@ -60,7 +60,13 @@ class depthai_calibration_node:
         self.bridge = CvBridge()
         self.is_service_active = False
         self.focus_value = 130
+        
+        pipeline = self.create_pipeline()
+        self.device = dai.Device(pipeline)
+        self.device.startPipeline()
 
+        self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
+        self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
 
         # self.frame_count = 0
         self.init_time = time.time()
@@ -75,7 +81,6 @@ class depthai_calibration_node:
                         'Board config not found: {}'.format(board_path))
             with open(board_path) as fp:
                 self.board_config = json.load(fp)
-        utils.merge(self.board_config, self.config)
 
         self.aruco_dictionary = cv2.aruco.Dictionary_get(
             cv2.aruco.DICT_4X4_1000)
@@ -84,8 +89,9 @@ class depthai_calibration_node:
         #                                     self.args['square_size_cm'],
         #                                     self.args['marker_size_cm'],
         #                                     self.aruco_dictionary)
-        self.start_device()
 
+
+        # Connection checks ----------->
         self.disp = pygame.display
         self.screen = self.disp.set_mode((800, 600))
         self.screen.fill(white)
@@ -200,50 +206,38 @@ class depthai_calibration_node:
         # pygame.event.pump()
         return is_clicked
 
-    def start_device(self):
-        self.device = depthai.Device('', False)
-        # self.device = depthai.Device('/home/nuc/Desktop/depthai/.fw_cache/depthai-6fc8c54e33b8aa6d16bf70ac5193d10090dcd0d8.cmd', '')
-        self.pipeline = self.device.create_pipeline(self.config)
-        self.mx_id = self.device.get_mx_id()
-        # rospy.sleep(2)
-        # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_EDOF)
-        # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
-        # setting manual focus to rgb camera
-        # self.set_focus()
-        # self.set_focus()
+    # def set_focus(self):
+    #     if 1:
+    #         print("RGB set_focus() disabled. TODO")
+    #         return
+    #     cam_c = depthai.CameraControl.CamId.RGB
+    #     # Disabling AF mode
+    #     print('Disabling AF mode')
+    #     # self.device.send_camera_control(
+    #     #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
+    #     cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
+    #     # Disabling AF mode
+    #     print('setting Focus')
+    #     print("Setting focus value to {}".format(self.focus_value))
+    #     self.device.send_camera_control(
+    #         cam_c, cmd_set_focus, str(self.focus_value))
 
-    def set_focus(self):
-        if 1:
-            print("RGB set_focus() disabled. TODO")
-            return
-        cam_c = depthai.CameraControl.CamId.RGB
-        # Disabling AF mode
-        print('Disabling AF mode')
-        # self.device.send_camera_control(
-        #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
-        cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-        # Disabling AF mode
-        print('setting Focus')
-        print("Setting focus value to {}".format(self.focus_value))
-        self.device.send_camera_control(
-            cam_c, cmd_set_focus, str(self.focus_value))
-
-    def rgb_focus_handler(self, req):
-        is_num = req.name.isnumeric()
-        if is_num:
-            rgb_focus_val = int(req.name)
-            if rgb_focus_val >= 0 and rgb_focus_val <= 255:
-                # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
-                cam_c = depthai.CameraControl.CamId.RGB
-                # self.device.send_camera_control(
-                #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
-                cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-                self.device.send_camera_control(cam_c, cmd_set_focus, req.name)
-                return True, 'Focus changed to ' + req.name
-            # else :
-                # return False, 'Invalid focus input.!! Focus number should be between 0-255'
-        # else:
-        return False, 'Invalid focus input.!! Focus number should be between 0-255'
+    # def rgb_focus_handler(self, req):
+    #     is_num = req.name.isnumeric()
+    #     if is_num:
+    #         rgb_focus_val = int(req.name)
+    #         if rgb_focus_val >= 0 and rgb_focus_val <= 255:
+    #             # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
+    #             cam_c = depthai.CameraControl.CamId.RGB
+    #             # self.device.send_camera_control(
+    #             #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
+    #             cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
+    #             self.device.send_camera_control(cam_c, cmd_set_focus, req.name)
+    #             return True, 'Focus changed to ' + req.name
+    #         # else :
+    #             # return False, 'Invalid focus input.!! Focus number should be between 0-255'
+    #     # else:
+    #     return False, 'Invalid focus input.!! Focus number should be between 0-255'
 
     def publisher(self):
         while not rospy.is_shutdown():
@@ -255,47 +249,16 @@ class depthai_calibration_node:
             # else:
             #     pygameX.event.pump()
             # print("updating dis-----")
-            if not self.is_service_active:
-                # pygame.draw.rect(self.screen, red, no_button)
-                # pygame_render_text(self.screen, 'Exit', (500, 505))
-                # print("SERVICE NOT ACTIVE")
-                if not hasattr(self, "pipeline"):
-                    self.start_device()
-                    # print("restarting device---->")
-                _, data_list = self.pipeline.get_available_nnet_and_data_packets(
-                    True)
-                for packet in data_list:
-                    # print("found packets:")
-                    # print(packet.stream_name)
-                    if packet.stream_name == "left":
-                        recent_left = packet.getData()
-                        # print(recent_left.shape)
-                        self.image_pub_left.publish(
-                            self.bridge.cv2_to_imgmsg(recent_left, "passthrough"))
-                    elif packet.stream_name == "color":
-                        # since getting python3 working on ros melodic is an
-                        # hack cannot publish rgb. it will throw an error.
-                        # self.frame_count += 1
-                        recent_color = cv2.cvtColor(
-                            self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
-                        self.image_pub_color.publish(
-                            self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-                        # meta = packet.getMetadata()
-                        # print(
-                        #     ' Frame seq number <-< {} '.format(meta.getSequenceNum()))
-                        # print(' Frame TS number <-< {} '.format(meta.getTimestamp()))
-
-                        # print('Local frame rate: {}'.format(self.frame_count))
-                    elif packet.stream_name == "meta_d2h":
-                        str_ = packet.getDataAsStr()
-                        dict_ = json.loads(str_)
-                        # print('last frame tstamp: {:.6f}'.format(
-                        #     dict_['camera']['last_frame_timestamp']))
-                        if 0:
-                            print('meta_d2h frame focus ----------?: {}'.format(
-                                dict_['camera']['rgb']['focus_pos']))
-                        # print(
-                        #     'Metad2h frame cpunt <-< {}'.format(dict_['camera']['rgb']['frame_count']))
+            if not self.is_service_active:                
+                left_frame = self.left_camera_queue.tryget()
+                if left_frame is not None:
+                    self.image_pub_left.publish(
+                        self.bridge.cv2_to_imgmsg(left_frame.getFrame(), "passthrough"))
+                
+                rgb_frame = self.rgb_camera_queue.tryget()
+                if rgb_frame is not None:
+                    self.image_pub_color.publish(
+                        self.bridge.cv2_to_imgmsg(rgb_frame.getFrame(), "passthrough"))
 
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
@@ -357,50 +320,45 @@ class depthai_calibration_node:
         # color_pkt_queue = deque()
         local_color_frame_count = 0
         while not finished:
-            _, data_list = self.pipeline.get_available_nnet_and_data_packets(
-                True)
-            # print(len(data_list))
+            left_frame = self.left_camera_queue.get()
+            self.image_pub_left.publish(
+                        self.bridge.cv2_to_imgmsg(left_frame.getFrame(), "passthrough"))
+                
+            rgb_frame = self.rgb_camera_queue.get()
+            self.image_pub_color.publish(
+                    self.bridge.cv2_to_imgmsg(rgb_frame.getFrame(), "passthrough"))
 
-            for packet in data_list:
-                # print(packet.stream_name)
-                # print("packet time")
-                # print(packet.getMetadata().getTimestamp())
-                # print("ros time")
-                # print(now.secs)
-                if packet.stream_name == "left":
-                    recent_left = packet.getData()
-                elif packet.stream_name == "color":
-                    local_color_frame_count += 1
-                    seq_no = packet.getMetadata().getSequenceNum()
-                    if seq_no in m_d2h_seq_focus:
-                        curr_focus = m_d2h_seq_focus[seq_no]
-                        if 0:
-                            print('rgb_check_count -> {}'.format(rgb_check_count))
-                            print('seq_no -> {}'.format(seq_no))
-                            print('curr_focus -> {}'.format(curr_focus))
+            if packet.stream_name == "left":
+                recent_left = left_frame.getFrame()
+            elif packet.stream_name == "color":
+                local_color_frame_count += 1
+                recent_color = cv2.cvtColor(
+                        self.cvt_bgr(rgb_frame.getFrame()), cv2.COLOR_BGR2GRAY)
+                # if seq_no in m_d2h_seq_focus:
+                #     curr_focus = m_d2h_seq_focus[seq_no]
+                #     if 0:
+                #         print('rgb_check_count -> {}'.format(rgb_check_count))
+                #         print('seq_no -> {}'.format(seq_no))
+                #         print('curr_focus -> {}'.format(curr_focus))
 
-                        if curr_focus < self.focus_value + 1 and curr_focus > self.focus_value - 1:
-                            rgb_check_count += 1
-                        else:
-                            # return False, 'RGB focus was set to {}'.format(curr_focus)
-                            # self.set_focus()
-                            rgb_check_count = -2
-                            # rospy.sleep(1)
-                        # color_pkt_queue.append(packet)
-                    if rgb_check_count >= 5:
-                        recent_color = cv2.cvtColor(
-                            self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
-                    else:
-                        recent_color = None
-                elif packet.stream_name == "meta_d2h":
-                    str_ = packet.getDataAsStr()
-                    dict_ = json.loads(str_)
-                    m_d2h_seq_focus[dict_['camera']['rgb']['frame_count']] = dict_[
-                        'camera']['rgb']['focus_pos']
+                #     if curr_focus < self.focus_value + 1 and curr_focus > self.focus_value - 1:
+                #         rgb_check_count += 1
+                #     else:
+                #         # return False, 'RGB focus was set to {}'.format(curr_focus)
+                #         # self.set_focus()
+                #         rgb_check_count = -2
+                #         # rospy.sleep(1)
+                #     # color_pkt_queue.append(packet)
+                # if rgb_check_count >= 5:
+                #     recent_color = cv2.cvtColor(
+                #         self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
+                # else:
+                #     recent_color = None
+
                     
-            if local_color_frame_count > 100:
-                if rgb_check_count < 5:
-                    return False, 'RGB camera focus was set to {}'.format(curr_focus)
+            # if local_color_frame_count > 100:
+            #     if rgb_check_count < 5:
+            #         return False, 'RGB camera focus was set to {}'.format(curr_focus)
 
             if recent_left is not None and recent_color is not None:
                 finished = True
@@ -408,10 +366,9 @@ class depthai_calibration_node:
         is_board_found_l = self.is_markers_found(recent_left)
         # is_board_found_r = self.is_markers_found(recent_right)
         is_board_found_rgb = self.is_markers_found(recent_color)
-        if is_board_found_l and is_board_found_r and is_board_found_rgb:
+        if is_board_found_l and is_board_found_rgb:
             print("Found------------------------->")
             self.parse_frame(recent_left, "left", req.name)
-            # self.parse_frame(recent_right, "right", req.name)
             self.parse_frame(recent_color, "rgb", req.name)
         else:
             print("Not found--------------------->")
