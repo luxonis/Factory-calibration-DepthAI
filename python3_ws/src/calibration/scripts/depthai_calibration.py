@@ -98,16 +98,9 @@ class depthai_calibration_node:
         self.disp.set_caption("Calibration - Device check ")
         title = "Device Status"
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
-        self.auto_checkbox_names = ["USB3", "Left camera connected", "Right camera connected", "RGB camera connected",
-                                    "Left Stream", "Right Stream", "RGB Stream"]
-        header = ['time', 'Mx_serial_id', 'USB3',
-                  'left_camera', 'right_camera', 'rgb_camera']
-
-        if self.args['enable_IMU_test']:
-            self.auto_checkbox_names.append("IMU connected")
-            header.append('IMU')
-
-        header.append('Epipolar error L-R')
+        self.auto_checkbox_names = ["Left Stream", "RGB Stream"]
+        header = ['time', 'Mx_serial_id',
+                  'left_camera', 'rgb_camera', 'Epipolar error L-Rgb']
 
         log_file = self.args['log_path'] + "/calibration_logs.csv"
         if not os.path.exists(log_file):
@@ -146,8 +139,8 @@ class depthai_calibration_node:
             self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
         self.dev_status_srv = rospy.Service(
             "device_status", Capture, self.device_status_handler)
-        self.rgb_focus_srv = rospy.Service(
-            "set_rgb_focus", Capture, self.rgb_focus_handler)
+        # self.rgb_focus_srv = rospy.Service(
+        #     "set_rgb_focus", Capture, self.rgb_focus_handler)
 
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
         self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
@@ -387,12 +380,12 @@ class depthai_calibration_node:
         self.start_disp = True
         # pygame.draw.rect(self.screen, white, no_button)
 
-        if req.name == "recalibrate":
-            self.device.override_device_changed()
-
-        while not self.device.is_device_changed():
-            text = "Waiting for device change"
-            pygame_render_text(self.screen, text, (300, 400), orange, 40)
+        # if req.name == "recalibrate":
+        #     self.device.override_device_changed()
+        finished = False
+        # while not self.device.is_device_changed():
+        #     text = "Waiting for device change"
+        #     pygame_render_text(self.screen, text, (300, 400), orange, 40)
 
         # to remove waiting for device change
         fill_color = pygame.Rect(280, 400, 450, 55)
@@ -404,7 +397,8 @@ class depthai_calibration_node:
         now_time = datetime.now()
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
         pygame_render_text(self.screen, text, (400, 80), black, 30)
-        text = "device Mx_id : " + self.device.get_mx_id()
+        # TODO(sachin): Add MX id here
+        text = "device Mx_id : " + "Test MX id"
         pygame_render_text(self.screen, text, (400, 120), black, 30)
         rospy.sleep(1)
         fill_color_2 = pygame.Rect(50, 520, 400, 80)
@@ -414,24 +408,20 @@ class depthai_calibration_node:
         if dataset_path.exists():
             shutil.rmtree(str(dataset_path))
 
-        while self.device.is_device_changed():
+        while finished:
             # print(self.device.is_device_changed())
             # if self.capture_exit():
             #     print("signaling...")
             #     rospy.signal_shutdown("Finished calibration")
-            is_usb3 = False
+            # is_usb3 = False
             left_mipi = False
             # right_mipi = False
             rgb_mipi = False
-            if self.args['enable_IMU_test']:
-                is_IMU_connected = False
-            else:
-                is_IMU_connected = True
-            is_usb3 = self.device.is_usb3()
-            left_status = self.device.is_left_connected()
+
+            # is_usb3 = self.device.is_usb3()
+            left_status = True
             # right_status = self.device.is_right_connected()
-            rgb_status = self.device.is_rgb_connected()
-            imu_times = 0
+            rgb_status = True
             if self.capture_exit():
                 rospy.signal_shutdown("Finished calibration")
 
@@ -439,86 +429,54 @@ class depthai_calibration_node:
             if left_status and right_status:
                 # mipi check using 20 iterations
                 # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
-                for _ in range(120):
-                    _, data_list = self.pipeline.get_available_nnet_and_data_packets(
-                        True)
-                    # print(len(data_list))
-                    for packet in data_list:
-                        # print("found packets:")
-                        # print(packet.stream_name)
-                        if packet.stream_name == "left":
-                            recent_left = packet.getData()
-                            left_mipi = True
-                            self.image_pub_left.publish(
-                                self.bridge.cv2_to_imgmsg(recent_left, "passthrough"))
-                        elif packet.stream_name == "color":
-                            rgb_mipi = True
-                            recent_color = cv2.cvtColor(
-                                self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
-                            self.image_pub_color.publish(
-                                self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-                        elif packet.stream_name == "meta_d2h":
-                            str_ = packet.getDataAsStr()
-                            if not self.args['enable_IMU_test']:
-                                continue
-                            dict_ = json.loads(str_)
-                            if 'imu' in dict_:
-                                if imu_times >= 5:
-                                    is_IMU_connected = True
-                                fill_color = pygame.Rect(50, 500, 400, 100)
-                                pygame.draw.rect(
-                                    self.screen, white, fill_color)
-                                selected_clr = red
-
-                                if dict_['imu']['status'] == 'IMU init FAILED':
-                                    selected_clr = red
-                                else:
-                                    imu_times += 1
-                                    selected_clr = green
-                                    text = 'IMU acc x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(
-                                        dict_['imu']['accel']['x'], dict_['imu']['accel']['y'], dict_['imu']['accel']['z'])
-                                    pygame_render_text(
-                                        self.screen, text, (50, 545), font_size=25)
-                                    text = 'IMU acc-raw x: {:7.4f}  y:{:7.4f}  z:{:7.4f}'.format(
-                                        dict_['imu']['accelRaw']['x'], dict_['imu']['accelRaw']['y'], dict_['imu']['accelRaw']['z'])
-                                    pygame_render_text(
-                                        self.screen, text, (50, 570), font_size=25)
-                                self.imu_version = dict_['imu']['status']
-                                text = 'IMU status: ' + dict_['imu']['status']
-                                pygame_render_text(
-                                    self.screen, text, (50, 500), font_size=30, color=selected_clr)
-                    if left_mipi and is_IMU_connected:
-                        if is_usb3:
+                for _ in range(90):
+                    
+                    left_frame = self.left_camera_queue.get()
+                    if left_frame is not None:
+                        left_mipi = True
+                        self.image_pub_left.publish(
+                            self.bridge.cv2_to_imgmsg(left_frame.getFrame(), "passthrough"))
+                        
+                    rgb_frame = self.rgb_camera_queue.get()
+                    if rgb_frame is not None:
+                        rgb_mipi = True
+                        self.image_pub_color.publish(
+                            self.bridge.cv2_to_imgmsg(rgb_frame.getFrame(), "passthrough"))
+                        
+    
+                    if left_mipi and rgb_mipi:
+                        # if is_usb3:
                             # # setting manual focus to rgb camera
                             # cam_c = depthai.CameraControl.CamId.RGB
                             # cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
                             # self.device.send_camera_control(cam_c, cmd_set_focus, '111')
-                            self.device.reset_device_changed()
+                        # self.device.reset_device_changed()
+                        finished = True
                         break
 
-            is_usb3 = self.device.is_usb3()
-            left_status = self.device.is_left_connected()
-            right_status = self.device.is_right_connected()
+            # is_usb3 = self.device.is_usb3()
+            # left_status = self.device.is_left_connected()
+            # right_status = self.device.is_right_connected()
 
-            if not is_usb3:
-                self.auto_checkbox_dict["USB3"].uncheck()
-            else:
-                self.auto_checkbox_dict["USB3"].check()
+            # if not is_usb3:
+            #     self.auto_checkbox_dict["USB3"].uncheck()
+            # else:
+            #     self.auto_checkbox_dict["USB3"].check()
 
-            if not left_status:
-                self.auto_checkbox_dict["Left camera connected"].uncheck()
-            else:
-                self.auto_checkbox_dict["Left camera connected"].check()
+            # if not left_status:
+            #     self.auto_checkbox_dict["Left camera connected"].uncheck()
+            # else:
+            #     self.auto_checkbox_dict["Left camera connected"].check()
 
             if not left_mipi:
                 self.auto_checkbox_dict["Left Stream"].uncheck()
             else:
                 self.auto_checkbox_dict["Left Stream"].check()
 
-            if not rgb_status:
-                self.auto_checkbox_dict["RGB camera connected"].uncheck()
-            else:
-                self.auto_checkbox_dict["RGB camera connected"].check()
+            # if not rgb_status:
+            #     self.auto_checkbox_dict["RGB camera connected"].uncheck()
+            # else:
+            #     self.auto_checkbox_dict["RGB camera connected"].check()
 
             if not rgb_mipi:
                 self.auto_checkbox_dict["RGB Stream"].uncheck()
@@ -535,27 +493,28 @@ class depthai_calibration_node:
             # else:
             #     self.auto_checkbox_dict["Right Stream"].check()
 
-            if self.args['enable_IMU_test']:
-                if is_IMU_connected:
-                    self.auto_checkbox_dict["IMU connected"].check()
-                else:
-                    self.auto_checkbox_dict["IMU connected"].uncheck()
+            # if self.args['enable_IMU_test']:
+            #     if is_IMU_connected:
+            #         self.auto_checkbox_dict["IMU connected"].check()
+            #     else:
+            #         self.auto_checkbox_dict["IMU connected"].uncheck()
 
             for i in range(len(self.auto_checkbox_names)):
-                self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox(
-                )
+                self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
 
         # self.set_focus()
         # rospy.sleep(2)
         self.is_service_active = False
-        return (True, self.device.get_mx_id())
+        return (True, "Device ID")
 
     def calibration_servive_handler(self, req):
         self.is_service_active = True
         print("calibration Service Started")
         # pygame.draw.rect(self.screen, white, no_button)
 
-        mx_serial_id = self.device.get_mx_id()
+        # TODO(sachin): add MX id 
+        # mx_serial_id = self.device.get_mx_id()
+        mx_serial_id = "Test"
         calib_dest_path = os.path.join(
             arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.calib')
 
@@ -572,14 +531,16 @@ class depthai_calibration_node:
         start_time = datetime.now()
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
-        mx_serial_id = self.device.get_mx_id()
+        # mx_serial_id = self.device.get_mx_id()
         log_list = [time_stmp, mx_serial_id]
-        log_list.append(self.device.is_usb3())
-        log_list.append(self.device.is_left_connected())
-        log_list.append(self.device.is_rgb_connected())
+        # log_list.append(self.device.is_usb3())
+        # log_list.append(self.device.is_left_connected())
+        # log_list.append(self.device.is_rgb_connected())
 
-        if self.args['enable_IMU_test']:
-            log_list.append(self.imu_version)
+        log_list.append(True)
+        log_list.append(True)
+        # if self.args['enable_IMU_test']:
+        #     log_list.append(self.imu_version)
 
         # log_list.append(avg_epipolar_error_l_r)
         log_list.append(avg_epipolar_error_l_rgb)
@@ -590,7 +551,7 @@ class depthai_calibration_node:
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
 
-        text = "Avg Epipolar error RGB-R: " + \
+        text = "Avg Epipolar error L-RGB: " + \
             format(avg_epipolar_error_l_rgb, '.6f')
         pygame_render_text(self.screen, text, (400, 190), green, 30)
 
@@ -618,7 +579,7 @@ class depthai_calibration_node:
         dev_config["_board"]['mesh_right'] = [0.0]
         dev_config["_board"]['mesh_left'] = [0.0]
 
-        self.device.write_eeprom_data(dev_config)
+        # self.device.write_eeprom_data(dev_config)
 
         # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         # shutil.copy(calib_src_path, calib_dest_path)
@@ -626,30 +587,8 @@ class depthai_calibration_node:
         print(avg_epipolar_error_l_r)
         print('Validating...')
         is_write_succesful = False
-        run_thread = True
-        while run_thread:
-            _, data_packets = self.pipeline.get_available_nnet_and_data_packets(
-                blocking=True)
-            for packet in data_packets:
-                if packet.stream_name == 'meta_d2h':
-                    str_ = packet.getDataAsStr()
-                    dict_ = json.loads(str_)
-                    if 'logs' in dict_:
-                        for log in dict_['logs']:
-                            print(log)
-                            if 'EEPROM' in log:
-                                if 'write OK' in log:
-                                    text = "EEPROM Write succesfull"
-                                    pygame_render_text(
-                                        self.screen, text, (400, 220), green, 30)
-                                    is_write_succesful = True
-                                    run_thread = False
-                                elif 'FAILED' in log:
-                                    text = "EEPROM write Failed"
-                                    pygame_render_text(
-                                        self.screen, text, (400, 220), red, 30)
-                                    is_write_succesful = False
-                                    run_thread = False
+
+
         self.is_service_active = False
         if is_write_succesful:
             return (True, "EEPROM written succesfully")
