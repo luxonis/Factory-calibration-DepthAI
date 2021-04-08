@@ -145,59 +145,23 @@ class StereoCalibration(object):
         R1_fp32 = self.R1_rgb.astype(np.float32)
         R2_fp32 = self.R2_rgb.astype(np.float32)
         M1_fp32 = self.M1.astype(np.float32)
-        M2_fp32 = self.M3_scaled_write.astype(np.float32)
-        R_fp32  = self.R_rgb.astype(np.float32)
-        T_fp32  = self.T_rgb.astype(np.float32)
-        M3_fp32 = self.M3_nan.astype(np.float32)
-        R_rgb_fp32 = self.R_rgb_nan.astype(np.float32)
-        T_rgb_fp32 = self.T_rgb_nan.astype(np.float32)
+        M3_fp32 = self.M3.astype(np.float32)
+        R_rgb_fp32 = self.R_rgb.astype(np.float32) 
+        T_rgb_fp32 = self.T_rgb.astype(np.float32) 
         d1_coeff_fp32 = self.d1.astype(np.float32)
-        d2_coeff_fp32 = self.d3_scaled.astype(np.float32)
-        d3_coeff_fp32 = self.d3_nan.astype(np.float32)
+        d3_coeff_fp32 = self.d3.astype(np.float32)
 
-        print(out_filepath)
-        with open(out_filepath, "wb") as fp:
-            fp.write(R1_fp32.tobytes())  # goes to left camera
-            fp.write(R2_fp32.tobytes())  # goes to right camera
-            fp.write(M1_fp32.tobytes())  # left camera intrinsics
-            fp.write(M2_fp32.tobytes())  # right camera intrinsics
-            fp.write(R_fp32.tobytes())  # Rotation matrix left -> right
-            fp.write(T_fp32.tobytes())  # Translation vector left -> right
-            # rgb camera intrinsics ## Currently a zero matrix
-            fp.write(M3_fp32.tobytes())
-            # Rotation matrix left -> rgb ## Currently Identity matrix
-            fp.write(R_rgb_fp32.tobytes())
-            # Translation vector left -> rgb ## Currently vector of zeros
-            fp.write(T_rgb_fp32.tobytes())
-            # distortion coeff of left camera
-            fp.write(d1_coeff_fp32.tobytes())
-            # distortion coeff of right camera
-            fp.write(d2_coeff_fp32.tobytes())
-            # distortion coeff of rgb camera - currently zeros
-            fp.write(d3_coeff_fp32.tobytes())
-
-        data_list = [R1_fp32, R2_fp32, M1_fp32, M2_fp32, R_fp32, T_fp32, M3_fp32,
-                     R_rgb_fp32, T_rgb_fp32, d1_coeff_fp32, d2_coeff_fp32, d3_coeff_fp32]
-        self.calib_data = np.array([], dtype=np.float32)
-
-        for data in data_list:
-            self.calib_data = np.concatenate(
-                (self.calib_data, data.reshape(-1)))
-
+        self.calib_data = [R1_fp32, R2_fp32, M1_fp32, M3_fp32,
+                     R_rgb_fp32, T_rgb_fp32, d3_coeff_fp32]
+        
         if 1:  # Print matrices, to compare with device data
             np.set_printoptions(suppress=True, precision=6)
             print("\nR1 (left)")
             print(R1_fp32)
-            print("\nR2 (right)")
+            print("\nR2 (rgb)")
             print(R2_fp32)
             print("\nM1 (left)")
             print(M1_fp32)
-            print("\nM2 (right)")
-            print(M2_fp32)
-            print("\nR")
-            print(R_fp32)
-            print("\nT")
-            print(T_fp32)
             print("\nM3 (rgb)")
             print(M3_fp32)
             print("\R (rgb)")

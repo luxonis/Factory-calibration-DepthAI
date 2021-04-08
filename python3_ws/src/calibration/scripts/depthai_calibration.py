@@ -243,12 +243,12 @@ class depthai_calibration_node:
             #     pygameX.event.pump()
             # print("updating dis-----")
             if not self.is_service_active:                
-                left_frame = self.left_camera_queue.tryget()
+                left_frame = self.left_camera_queue.tryGet()
                 if left_frame is not None:
                     self.image_pub_left.publish(
                         self.bridge.cv2_to_imgmsg(left_frame.getFrame(), "passthrough"))
                 
-                rgb_frame = self.rgb_camera_queue.tryget()
+                rgb_frame = self.rgb_camera_queue.tryGet()
                 if rgb_frame is not None:
                     self.image_pub_color.publish(
                         self.bridge.cv2_to_imgmsg(rgb_frame.getFrame(), "passthrough"))
@@ -321,12 +321,9 @@ class depthai_calibration_node:
             self.image_pub_color.publish(
                     self.bridge.cv2_to_imgmsg(rgb_frame.getFrame(), "passthrough"))
 
-            if packet.stream_name == "left":
-                recent_left = left_frame.getFrame()
-            elif packet.stream_name == "color":
-                local_color_frame_count += 1
-                recent_color = cv2.cvtColor(
-                        self.cvt_bgr(rgb_frame.getFrame()), cv2.COLOR_BGR2GRAY)
+            recent_left = left_frame.getFrame()
+                # local_color_frame_count += 1
+            recent_color = cv2.cvtColor(rgb_frame.getFrame(), cv2.COLOR_BGR2GRAY)
                 # if seq_no in m_d2h_seq_focus:
                 #     curr_focus = m_d2h_seq_focus[seq_no]
                 #     if 0:
@@ -516,7 +513,7 @@ class depthai_calibration_node:
         # mx_serial_id = self.device.get_mx_id()
         mx_serial_id = "Test"
         calib_dest_path = os.path.join(
-            arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.calib')
+            arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.json')
 
         flags = [self.config['board_config']['stereo_center_crop']]
         stereo_calib = StereoCalibration()
@@ -531,11 +528,7 @@ class depthai_calibration_node:
         start_time = datetime.now()
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
-        # mx_serial_id = self.device.get_mx_id()
         log_list = [time_stmp, mx_serial_id]
-        # log_list.append(self.device.is_usb3())
-        # log_list.append(self.device.is_left_connected())
-        # log_list.append(self.device.is_rgb_connected())
 
         log_list.append(True)
         log_list.append(True)
@@ -560,33 +553,48 @@ class depthai_calibration_node:
             pygame_render_text(self.screen, text, (400, 270), red, 30)
             return (False, text)
 
-        dev_config = {
-            'board': {},
-            '_board': {}
-        }
-        dev_config["board"]["clear-eeprom"] = False
-        dev_config["board"]["store-to-eeprom"] = True
-        dev_config["board"]["override-eeprom"] = False
-        dev_config["board"]["swap-left-and-right-cameras"] = self.board_config['board_config']['swap_left_and_right_cameras']
-        dev_config["board"]["left_fov_deg"] = self.board_config['board_config']['left_fov_deg']
-        dev_config["board"]["rgb_fov_deg"] = self.board_config['board_config']['rgb_fov_deg']
-        dev_config["board"]["left_to_right_distance_m"] = self.board_config['board_config']['left_to_right_distance_cm'] / 100
-        dev_config["board"]["left_to_rgb_distance_m"] = self.board_config['board_config']['left_to_rgb_distance_cm'] / 100
-        dev_config["board"]["name"] = self.board_config['board_config']['name']
-        dev_config["board"]["stereo_center_crop"] = True
-        dev_config["board"]["revision"] = self.board_config['board_config']['revision']
-        dev_config["_board"]['calib_data'] = list(calib_data)
-        dev_config["_board"]['mesh_right'] = [0.0]
-        dev_config["_board"]['mesh_left'] = [0.0]
+        calibration_handler = dai.CalibrationHandler()
+        calibration_handler.setBoardInfo(6, self.board_config['board_config']['swap_left_and_right_cameras'], self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
+
+        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.LEFT, calib_data[2], 1280, 800)
+        calibration_handler.setdistortionCoefficients(dai.CameraBoardSocket.LEFT, calib_data[6])
+        calibration_handler.setFov(dai.CameraBoardSocket.LEFT, self.board_config['board_config']['left_fov_deg'])
+        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.LEFT, calib_data[4], calib_data[5])
+        # TODO(sachin) : Add measuredTranslation
+
+        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[3], 1920, 1080)
+        calibration_handler.setdistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[7])
+        calibration_handler.setFov(dai.CameraBoardSocket.RGB, self.board_config['board_config']['rgb_fov_deg'])
+        
+        calibration_handler.setStereoLeft(dai.CameraBoardSocket.LEFT, calib_data[0])
+        calibration_handler.setStereoRight(dai.CameraBoardSocket.RGB, calib_data[1])
+        
+        # dev_config["board"]["clear-eeprom"] = False
+        # dev_config["board"]["store-to-eeprom"] = True
+        # dev_config["board"]["override-eeprom"] = False
+        # dev_config["board"]["swap-left-and-right-cameras"] = self.board_config['board_config']['swap_left_and_right_cameras']
+        # dev_config["board"]["left_fov_deg"] = self.board_config['board_config']['left_fov_deg']
+        # dev_config["board"]["rgb_fov_deg"] = self.board_config['board_config']['rgb_fov_deg']
+        # dev_config["board"]["left_to_right_distance_m"] = self.board_config['board_config']['left_to_right_distance_cm'] / 100
+        # dev_config["board"]["left_to_rgb_distance_m"] = self.board_config['board_config']['left_to_rgb_distance_cm'] / 100
+        # dev_config["board"]["name"] = self.board_config['board_config']['name']
+        # dev_config["board"]["stereo_center_crop"] = True
+        # dev_config["board"]["revision"] = self.board_config['board_config']['revision']
+        # dev_config["_board"]['calib_data'] = list(calib_data)
+        # dev_config["_board"]['mesh_right'] = [0.0]
+        # dev_config["_board"]['mesh_left'] = [0.0]
 
         # self.device.write_eeprom_data(dev_config)
-
+        
+        is_write_succesful = self.device.storeCalibration(calibration_handler)
+        calibration_handler.eepromToJsonFile(calib_dest_path)
         # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         # shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
         print(avg_epipolar_error_l_r)
+        
         print('Validating...')
-        is_write_succesful = False
+        # is_write_succesful = False
 
 
         self.is_service_active = False
