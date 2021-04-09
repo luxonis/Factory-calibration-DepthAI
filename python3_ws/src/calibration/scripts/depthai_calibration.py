@@ -160,9 +160,12 @@ class depthai_calibration_node:
         rgb_cam.setInterleaved(False)
         rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
         rgb_cam.initialControl.setManualFocus(130)
+        rgb_cam.setImageOrientation(dai.CameraImageOrientation.VERTICAL_FLIP)
 
         cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
         cam_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
+        cam_left.setImageOrientation(dai.CameraImageOrientation.VERTICAL_FLIP)
+
         xout_left.setStreamName("left")
         cam_left.out.link(xout_left.input)
 
@@ -324,12 +327,13 @@ class depthai_calibration_node:
                         self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
                 
             rgb_frame = self.rgb_camera_queue.get()
+            recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
             self.image_pub_color.publish(
-                    self.bridge.cv2_to_imgmsg(rgb_frame.getCvFrame(), "passthrough"))
+                    self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
 
             recent_left = left_frame.getCvFrame()
                 # local_color_frame_count += 1
-            recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+            
                 # if seq_no in m_d2h_seq_focus:
                 #     curr_focus = m_d2h_seq_focus[seq_no]
                 #     if 0:
@@ -407,9 +411,9 @@ class depthai_calibration_node:
         fill_color_2 = pygame.Rect(50, 520, 400, 80)
         pygame.draw.rect(self.screen, white, fill_color_2)
 
-        dataset_path = Path(self.package_path + "/dataset")
-        if dataset_path.exists():
-            shutil.rmtree(str(dataset_path))
+        # dataset_path = Path(self.package_path + "/dataset")
+        # if dataset_path.exists():
+        #     shutil.rmtree(str(dataset_path))
 
         while finished:
             # print(self.device.is_device_changed())
@@ -442,8 +446,9 @@ class depthai_calibration_node:
                     rgb_frame = self.rgb_camera_queue.get()
                     if rgb_frame is not None:
                         rgb_mipi = True
+                        frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
                         self.image_pub_color.publish(
-                            self.bridge.cv2_to_imgmsg(rgb_frame.getCvFrame(), "passthrough"))
+                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
                     if left_mipi and rgb_mipi:
                         finished = True
                         break
@@ -512,14 +517,16 @@ class depthai_calibration_node:
         calib_dest_path = os.path.join(
             arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.json')
 
-        flags = [self.config['board_config']['stereo_center_crop']]
+        # flags = [self.config['board_config']['stereo_center_crop']]
+        
         stereo_calib = StereoCalibration()
         avg_epipolar_error_l_r, avg_epipolar_error_l_rgb, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
             self.args['square_size_cm'],
             calib_dest_path,
-            flags,
             req.name,
+            arg["squares_x"],
+            arg["squares_y"],
             self.args['marker_size_cm'])
 
         start_time = datetime.now()
@@ -622,8 +629,12 @@ if __name__ == "__main__":
     arg["field_of_view"] = rospy.get_param('~field_of_view')
     arg["baseline"] = rospy.get_param('~baseline')
     arg["package_path"] = rospy.get_param('~package_path')
+
     arg["square_size_cm"] = rospy.get_param('~square_size_cm')
     arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
+    arg["squares_x"] = rospy.get_param('~squares_x')
+    arg["squares_y"] = rospy.get_param('~squares_y')
+
     arg["board"] = rospy.get_param('~brd')
     arg["depthai_path"] = rospy.get_param(
         '~depthai_path')  # Path of depthai repo

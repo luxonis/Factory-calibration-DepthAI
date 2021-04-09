@@ -87,7 +87,7 @@ class StereoCalibration(object):
     def __init__(self):
         """Class to Calculate Calibration and Rectify a Stereo Camera."""
 
-    def calibrate(self, filepath, square_size, out_filepath, flags, type, mrk_size=None):
+    def calibrate(self, filepath, square_size, out_filepath, type, squaresX, squaresY, mrk_size=None):
         """Function to calculate calibration for stereo camera."""
         start_time = time.time()
         # init object data
@@ -97,7 +97,8 @@ class StereoCalibration(object):
             # parameters = aruco.DetectorParameters_create()
             assert mrk_size != None,  "ERROR: marker size not set"
             self.board = aruco.CharucoBoard_create(
-                22, 16,
+                # 22, 16,
+                squaresX, squaresY,
                 square_size,
                 mrk_size,
                 self.aruco_dictionary)
