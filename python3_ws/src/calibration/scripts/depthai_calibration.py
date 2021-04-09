@@ -60,13 +60,15 @@ class depthai_calibration_node:
         self.bridge = CvBridge()
         self.is_service_active = False
         self.focus_value = 130
-        
+        print("board_path")
+
         pipeline = self.create_pipeline()
         self.device = dai.Device(pipeline)
         self.device.startPipeline()
 
         self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
         self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
+        print("board_path")
 
         # self.frame_count = 0
         self.init_time = time.time()
@@ -90,6 +92,7 @@ class depthai_calibration_node:
         #                                     self.args['marker_size_cm'],
         #                                     self.aruco_dictionary)
 
+        print("board_path")
 
         # Connection checks ----------->
         self.disp = pygame.display
@@ -154,18 +157,18 @@ class depthai_calibration_node:
         xout_rgb_isp  = pipeline.createXLinkOut()
 
         rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
-        rgb_cam.setInterleaved(True)
+        rgb_cam.setInterleaved(False)
         rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
         rgb_cam.initialControl.setManualFocus(130)
 
-        cam_left.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+        cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
         cam_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
         xout_left.setStreamName("left")
         cam_left.out.link(xout_left.input)
 
         xout_rgb_isp.setStreamName("rgb")
-        rgb_cam.isp.link(xout_rgb_isp.input)
-        
+        rgb_cam.video.link(xout_rgb_isp.input)
+        # rgb_cam.isp.link(xout_rgb_isp.input)
         return pipeline
 
 
@@ -246,12 +249,15 @@ class depthai_calibration_node:
                 left_frame = self.left_camera_queue.tryGet()
                 if left_frame is not None:
                     self.image_pub_left.publish(
-                        self.bridge.cv2_to_imgmsg(left_frame.getFrame(), "passthrough"))
+                        self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
                 
                 rgb_frame = self.rgb_camera_queue.tryGet()
                 if rgb_frame is not None:
+                    frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
+                    # cv2.imwrite("/home/sachin/test.png", frame)
                     self.image_pub_color.publish(
-                        self.bridge.cv2_to_imgmsg(rgb_frame.getFrame(), "passthrough"))
+                        self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+                    # cv2.imshow("self.", rgb_frame.getCvFrame())
 
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
@@ -315,15 +321,15 @@ class depthai_calibration_node:
         while not finished:
             left_frame = self.left_camera_queue.get()
             self.image_pub_left.publish(
-                        self.bridge.cv2_to_imgmsg(left_frame.getFrame(), "passthrough"))
+                        self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
                 
             rgb_frame = self.rgb_camera_queue.get()
             self.image_pub_color.publish(
-                    self.bridge.cv2_to_imgmsg(rgb_frame.getFrame(), "passthrough"))
+                    self.bridge.cv2_to_imgmsg(rgb_frame.getCvFrame(), "passthrough"))
 
-            recent_left = left_frame.getFrame()
+            recent_left = left_frame.getCvFrame()
                 # local_color_frame_count += 1
-            recent_color = cv2.cvtColor(rgb_frame.getFrame(), cv2.COLOR_BGR2GRAY)
+            recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
                 # if seq_no in m_d2h_seq_focus:
                 #     curr_focus = m_d2h_seq_focus[seq_no]
                 #     if 0:
@@ -427,27 +433,18 @@ class depthai_calibration_node:
                 # mipi check using 20 iterations
                 # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
                 for _ in range(90):
-                    
                     left_frame = self.left_camera_queue.get()
                     if left_frame is not None:
                         left_mipi = True
                         self.image_pub_left.publish(
-                            self.bridge.cv2_to_imgmsg(left_frame.getFrame(), "passthrough"))
+                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
                         
                     rgb_frame = self.rgb_camera_queue.get()
                     if rgb_frame is not None:
                         rgb_mipi = True
                         self.image_pub_color.publish(
-                            self.bridge.cv2_to_imgmsg(rgb_frame.getFrame(), "passthrough"))
-                        
-    
+                            self.bridge.cv2_to_imgmsg(rgb_frame.getCvFrame(), "passthrough"))
                     if left_mipi and rgb_mipi:
-                        # if is_usb3:
-                            # # setting manual focus to rgb camera
-                            # cam_c = depthai.CameraControl.CamId.RGB
-                            # cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-                            # self.device.send_camera_control(cam_c, cmd_set_focus, '111')
-                        # self.device.reset_device_changed()
                         finished = True
                         break
 
@@ -559,7 +556,8 @@ class depthai_calibration_node:
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.LEFT, calib_data[2], 1280, 800)
         calibration_handler.setdistortionCoefficients(dai.CameraBoardSocket.LEFT, calib_data[6])
         calibration_handler.setFov(dai.CameraBoardSocket.LEFT, self.board_config['board_config']['left_fov_deg'])
-        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.LEFT, calib_data[4], calib_data[5])
+        measuredTranslation = [self.board_config['board_config']['left_to_rgb_distance_cm'], 0.0, 0.0]
+        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.LEFT, calib_data[4], calib_data[5], measuredTranslation)
         # TODO(sachin) : Add measuredTranslation
 
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[3], 1920, 1080)
@@ -594,8 +592,6 @@ class depthai_calibration_node:
         print(avg_epipolar_error_l_r)
         
         print('Validating...')
-        # is_write_succesful = False
-
 
         self.is_service_active = False
         if is_write_succesful:

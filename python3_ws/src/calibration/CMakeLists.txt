@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
 ################################################
 ## Declare ROS messages, services and actions ##
 ################################################
+catkin_python_setup()
 
 ## Generate services in the 'srv' folder
 add_service_files(
@@ -27,14 +28,11 @@ add_service_files(
   Capture.srv
 )
 
-
-
 ## Generate added messages and services with any dependencies listed here
 generate_messages(
   DEPENDENCIES
   std_msgs  # Or other packages containing msgs
 )
-
 
 
 ###################################
