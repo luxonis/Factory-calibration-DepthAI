@@ -242,6 +242,7 @@ class StereoCalibration(object):
             print("=> Processing image {0}".format(im))
             frame = cv2.imread(im)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            # gray = cv2.flip(gray, 0) # TODO(Sachin) : remove this later
             # width = scale[1]
             expected_height = gray.shape[0]*(req_resolution[1]/gray.shape[1])
             # print('expected height -------------------> ' + str(expected_height))
@@ -456,7 +457,7 @@ class StereoCalibration(object):
         images_left = glob.glob(filepath + "/left/*")
         images_rgb = glob.glob(filepath + "/rgb/*")
 
-        images_right.sort()
+        images_left.sort()
         images_rgb.sort()
 
         allCorners_rgb_scaled, allIds_rgb_scaled, _, _, imsize_rgb_scaled, _ = self.analyze_charuco(
@@ -473,7 +474,7 @@ class StereoCalibration(object):
         print(ret_rgb_scaled)
         print(imsize_rgb_scaled)
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        print(self.M3_scaled)
+        # print(self.M3_scaled)
 
         # rgb_right_stereo_calibration method 2 - Instead of resizing the image
         # and finding the corners again use the previously find corners in 4k res
@@ -572,7 +573,7 @@ class StereoCalibration(object):
 
         self.M2_rgb = np.copy(self.M1)
         self.M2_rgb[1, 2] -= 40
-        self.d2_rgb = np.copy(self.d1_coeff_fp32)
+        self.d2_rgb = np.copy(self.d1)
         ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
             self.objpoints_rgb_r, self.imgpoints_rgb_right, self.imgpoints_rgb,
             self.M2_rgb, self.d2_rgb, self.M3_scaled, self.d3_scaled, self.img_shape_rgb_scaled,

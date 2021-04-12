@@ -243,8 +243,8 @@ class depthai_calibration_node:
             if self.capture_exit():
                 print("signaling...")
                 rospy.signal_shutdown("Finished calibration")
-            if self.start_disp:
-                self.disp.update()
+            # if self.start_disp:
+            self.disp.update()
             # else:
             #     pygameX.event.pump()
             # print("updating dis-----")
@@ -302,7 +302,8 @@ class depthai_calibration_node:
         # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         marker_corners, _, _ = cv2.aruco.detectMarkers(
             frame, self.aruco_dictionary)
-        return not (len(marker_corners) == 0)
+        print("Markers count ... {}".format(len(marker_corners)))
+        return not (len(marker_corners) < 30)
 
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
@@ -451,7 +452,7 @@ class depthai_calibration_node:
                             self.bridge.cv2_to_imgmsg(frame, "passthrough"))
                     if left_mipi and rgb_mipi:
                         finished = True
-                        break
+                        # break
 
             # is_usb3 = self.device.is_usb3()
             # left_status = self.device.is_left_connected()
@@ -520,7 +521,7 @@ class depthai_calibration_node:
         # flags = [self.config['board_config']['stereo_center_crop']]
         
         stereo_calib = StereoCalibration()
-        avg_epipolar_error_l_r, avg_epipolar_error_l_rgb, calib_data = stereo_calib.calibrate(
+        avg_epipolar_error_l_rgb, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
             self.args['square_size_cm'],
             calib_dest_path,
