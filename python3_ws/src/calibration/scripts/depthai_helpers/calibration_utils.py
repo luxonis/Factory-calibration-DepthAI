@@ -153,7 +153,7 @@ class StereoCalibration(object):
         d3_coeff_fp32 = self.d3.astype(np.float32)
 
         self.calib_data = [R1_fp32, R2_fp32, M1_fp32, M3_fp32,
-                     R_rgb_fp32, T_rgb_fp32, d3_coeff_fp32]
+                     R_rgb_fp32, T_rgb_fp32, d1_coeff_fp32, d3_coeff_fp32]
         
         if 1:  # Print matrices, to compare with device data
             np.set_printoptions(suppress=True, precision=6)

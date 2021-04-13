@@ -159,12 +159,12 @@ class depthai_calibration_node:
         rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
         rgb_cam.setInterleaved(False)
         rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
-        rgb_cam.initialControl.setManualFocus(130)
-        rgb_cam.setImageOrientation(dai.CameraImageOrientation.VERTICAL_FLIP)
+        rgb_cam.initialControl.setManualFocus(135)
+        rgb_cam.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
 
         cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
         cam_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
-        cam_left.setImageOrientation(dai.CameraImageOrientation.VERTICAL_FLIP)
+        cam_left.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
 
         xout_left.setStreamName("left")
         cam_left.out.link(xout_left.input)
@@ -565,7 +565,7 @@ class depthai_calibration_node:
         calibration_handler.setdistortionCoefficients(dai.CameraBoardSocket.LEFT, calib_data[6])
         calibration_handler.setFov(dai.CameraBoardSocket.LEFT, self.board_config['board_config']['left_fov_deg'])
         measuredTranslation = [self.board_config['board_config']['left_to_rgb_distance_cm'], 0.0, 0.0]
-        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.LEFT, calib_data[4], calib_data[5], measuredTranslation)
+        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.RGB, calib_data[4], calib_data[5], measuredTranslation)
         # TODO(sachin) : Add measuredTranslation
 
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[3], 1920, 1080)
@@ -592,7 +592,7 @@ class depthai_calibration_node:
 
         # self.device.write_eeprom_data(dev_config)
         
-        is_write_succesful = self.device.storeCalibration(calibration_handler)
+        is_write_succesful = self.device.flashCalibration(calibration_handler)
         calibration_handler.eepromToJsonFile(calib_dest_path)
         # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         # shutil.copy(calib_src_path, calib_dest_path)
