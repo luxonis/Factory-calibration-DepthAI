@@ -198,9 +198,6 @@ class depthai_calibration_node:
                 if self.no_active and self.click:
                     print("No clicked")
                     is_clicked = True
-                    # is_device_ready = False
-                    # if arm_control is not None:
-                    # arm_control.go_to_next_joint_state(joints_goal_dict['sleep'])
                     break
         # pygame.event.pump()
         return is_clicked
@@ -391,10 +388,15 @@ class depthai_calibration_node:
         # if req.name == "recalibrate":
         #     self.device.override_device_changed()
         finished = False
-        while self.devive.isClosed():
+        while self.device.isClosed():
+            print("device_closed")
             pipeline = self.create_pipeline()
             self.device = dai.Device(pipeline) 
-    
+            self.device.startPipeline()
+            self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
+            self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
+            # rospy.sleep(4)
+
         # while not self.device.is_device_changed():
         #     text = "Waiting for device change"
         #     pygame_render_text(self.screen, text, (300, 400), orange, 40)
@@ -421,7 +423,7 @@ class depthai_calibration_node:
         # if dataset_path.exists():
         #     shutil.rmtree(str(dataset_path))
 
-        while finished:
+        while not finished:
             # print(self.device.is_device_changed())
             # if self.capture_exit():
             #     print("signaling...")
@@ -439,7 +441,7 @@ class depthai_calibration_node:
                 rospy.signal_shutdown("Finished calibration")
 
             # else
-            if left_status and right_status:
+            if left_status and rgb_status:
                 # mipi check using 20 iterations
                 # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
                 for _ in range(90):
@@ -476,6 +478,7 @@ class depthai_calibration_node:
             if not left_mipi:
                 self.auto_checkbox_dict["Left Stream"].uncheck()
             else:
+                print("Setting left_mipi to true")
                 self.auto_checkbox_dict["Left Stream"].check()
 
             # if not rgb_status:
@@ -486,6 +489,7 @@ class depthai_calibration_node:
             if not rgb_mipi:
                 self.auto_checkbox_dict["RGB Stream"].uncheck()
             else:
+                print("Setting left_mipi to true")
                 self.auto_checkbox_dict["RGB Stream"].check()
 
             # if not right_status:
@@ -508,7 +512,7 @@ class depthai_calibration_node:
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
 
         # self.set_focus()
-        # rospy.sleep(2)
+        rospy.sleep(2)
         self.is_service_active = False
         return (True, "Device ID")
 
@@ -517,7 +521,6 @@ class depthai_calibration_node:
         print("calibration Service Started")
         # pygame.draw.rect(self.screen, white, no_button)
 
-        # TODO(sachin): add MX id 
         # mx_serial_id = self.device.get_mx_id()
         dev_info = self.device.getCurrentDeviceInfo()
         mx_serial_id = dev_info.getMxId()
