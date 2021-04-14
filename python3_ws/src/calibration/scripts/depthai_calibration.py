@@ -86,13 +86,6 @@ class depthai_calibration_node:
 
         self.aruco_dictionary = cv2.aruco.Dictionary_get(
             cv2.aruco.DICT_4X4_1000)
-        # self.charuco_board = aruco.CharucoBoard_create(
-        #                                     22,16,
-        #                                     self.args['square_size_cm'],
-        #                                     self.args['marker_size_cm'],
-        #                                     self.aruco_dictionary)
-
-        print("board_path")
 
         # Connection checks ----------->
         self.disp = pygame.display
@@ -199,41 +192,7 @@ class depthai_calibration_node:
                     print("No clicked")
                     is_clicked = True
                     break
-        # pygame.event.pump()
         return is_clicked
-
-    # def set_focus(self):
-    #     if 1:
-    #         print("RGB set_focus() disabled. TODO")
-    #         return
-    #     cam_c = depthai.CameraControl.CamId.RGB
-    #     # Disabling AF mode
-    #     print('Disabling AF mode')
-    #     # self.device.send_camera_control(
-    #     #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
-    #     cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-    #     # Disabling AF mode
-    #     print('setting Focus')
-    #     print("Setting focus value to {}".format(self.focus_value))
-    #     self.device.send_camera_control(
-    #         cam_c, cmd_set_focus, str(self.focus_value))
-
-    # def rgb_focus_handler(self, req):
-    #     is_num = req.name.isnumeric()
-    #     if is_num:
-    #         rgb_focus_val = int(req.name)
-    #         if rgb_focus_val >= 0 and rgb_focus_val <= 255:
-    #             # self.device.request_af_mode(depthai.AutofocusMode.AF_MODE_AUTO)
-    #             cam_c = depthai.CameraControl.CamId.RGB
-    #             # self.device.send_camera_control(
-    #             #     cam_c, depthai.CameraControl.Command.AF_MODE, '0')
-    #             cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-    #             self.device.send_camera_control(cam_c, cmd_set_focus, req.name)
-    #             return True, 'Focus changed to ' + req.name
-    #         # else :
-    #             # return False, 'Invalid focus input.!! Focus number should be between 0-255'
-    #     # else:
-    #     return False, 'Invalid focus input.!! Focus number should be between 0-255'
 
     def publisher(self):
         while not rospy.is_shutdown():
@@ -242,9 +201,7 @@ class depthai_calibration_node:
                 rospy.signal_shutdown("Finished calibration")
             # if self.start_disp:
             self.disp.update()
-            # else:
-            #     pygameX.event.pump()
-            # print("updating dis-----")
+
             if not self.is_service_active and not self.device.isClosed():                
                 left_frame = self.left_camera_queue.tryGet()
                 if left_frame is not None:
@@ -295,8 +252,6 @@ class depthai_calibration_node:
         cv2.imwrite(local_ds + "/{}".format(file_name), frame)
 
     def is_markers_found(self, frame):
-        # print(frame.shape)
-        # gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
         marker_corners, _, _ = cv2.aruco.detectMarkers(
             frame, self.aruco_dictionary)
         print("Markers count ... {}".format(len(marker_corners)))
@@ -308,13 +263,8 @@ class depthai_calibration_node:
         recent_color = None
         finished = False
         self.is_service_active = True
-        # now = rospy.get_rostime()
-        # pygame.draw.rect(self.screen, white, no_button)
         rospy.sleep(1)
-        # ts_color = None
-        # ts_color_dev = None
-        # current_focus = None
-        # current_color_pkt = None
+
         rgb_check_count = 0
         m_d2h_seq_focus = dict()
         # color_pkt_queue = deque()
@@ -330,33 +280,6 @@ class depthai_calibration_node:
                     self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
 
             recent_left = left_frame.getCvFrame()
-                # local_color_frame_count += 1
-            
-                # if seq_no in m_d2h_seq_focus:
-                #     curr_focus = m_d2h_seq_focus[seq_no]
-                #     if 0:
-                #         print('rgb_check_count -> {}'.format(rgb_check_count))
-                #         print('seq_no -> {}'.format(seq_no))
-                #         print('curr_focus -> {}'.format(curr_focus))
-
-                #     if curr_focus < self.focus_value + 1 and curr_focus > self.focus_value - 1:
-                #         rgb_check_count += 1
-                #     else:
-                #         # return False, 'RGB focus was set to {}'.format(curr_focus)
-                #         # self.set_focus()
-                #         rgb_check_count = -2
-                #         # rospy.sleep(1)
-                #     # color_pkt_queue.append(packet)
-                # if rgb_check_count >= 5:
-                #     recent_color = cv2.cvtColor(
-                #         self.cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
-                # else:
-                #     recent_color = None
-
-                    
-            # if local_color_frame_count > 100:
-            #     if rgb_check_count < 5:
-            #         return False, 'RGB camera focus was set to {}'.format(curr_focus)
 
             if recent_left is not None and recent_color is not None:
                 finished = True
@@ -425,9 +348,9 @@ class depthai_calibration_node:
 
         while not finished:
             # print(self.device.is_device_changed())
-            # if self.capture_exit():
-            #     print("signaling...")
-            #     rospy.signal_shutdown("Finished calibration")
+            if self.capture_exit():
+                print("signaling...")
+                rospy.signal_shutdown("Finished calibration")
             # is_usb3 = False
             left_mipi = False
             # right_mipi = False
@@ -459,21 +382,6 @@ class depthai_calibration_node:
                             self.bridge.cv2_to_imgmsg(frame, "passthrough"))
                     if left_mipi and rgb_mipi:
                         finished = True
-                        # break
-
-            # is_usb3 = self.device.is_usb3()
-            # left_status = self.device.is_left_connected()
-            # right_status = self.device.is_right_connected()
-
-            # if not is_usb3:
-            #     self.auto_checkbox_dict["USB3"].uncheck()
-            # else:
-            #     self.auto_checkbox_dict["USB3"].check()
-
-            # if not left_status:
-            #     self.auto_checkbox_dict["Left camera connected"].uncheck()
-            # else:
-            #     self.auto_checkbox_dict["Left camera connected"].check()
 
             if not left_mipi:
                 self.auto_checkbox_dict["Left Stream"].uncheck()
@@ -481,40 +389,19 @@ class depthai_calibration_node:
                 print("Setting left_mipi to true")
                 self.auto_checkbox_dict["Left Stream"].check()
 
-            # if not rgb_status:
-            #     self.auto_checkbox_dict["RGB camera connected"].uncheck()
-            # else:
-            #     self.auto_checkbox_dict["RGB camera connected"].check()
-
             if not rgb_mipi:
                 self.auto_checkbox_dict["RGB Stream"].uncheck()
             else:
                 print("Setting left_mipi to true")
                 self.auto_checkbox_dict["RGB Stream"].check()
 
-            # if not right_status:
-            #     self.auto_checkbox_dict["Right camera connected"].uncheck()
-            # else:
-            #     self.auto_checkbox_dict["Right camera connected"].check()
-
-            # if not right_mipi:
-            #     self.auto_checkbox_dict["Right Stream"].uncheck()
-            # else:
-            #     self.auto_checkbox_dict["Right Stream"].check()
-
-            # if self.args['enable_IMU_test']:
-            #     if is_IMU_connected:
-            #         self.auto_checkbox_dict["IMU connected"].check()
-            #     else:
-            #         self.auto_checkbox_dict["IMU connected"].uncheck()
-
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
 
         # self.set_focus()
-        rospy.sleep(2)
+        # rospy.sleep(2)
         self.is_service_active = False
-        return (True, "Device ID")
+        return (True, dev_info.getMxId())
 
     def calibration_servive_handler(self, req):
         self.is_service_active = True
@@ -526,8 +413,6 @@ class depthai_calibration_node:
         mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
             arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.json')
-
-        # flags = [self.config['board_config']['stereo_center_crop']]
         
         stereo_calib = StereoCalibration()
         avg_epipolar_error_l_rgb, calib_data = stereo_calib.calibrate(
@@ -546,10 +431,7 @@ class depthai_calibration_node:
 
         log_list.append(True)
         log_list.append(True)
-        # if self.args['enable_IMU_test']:
-        #     log_list.append(self.imu_version)
 
-        # log_list.append(avg_epipolar_error_l_r)
         log_list.append(avg_epipolar_error_l_rgb)
 
         log_file = self.args['log_path'] + "/calibration_logs.csv"
@@ -568,7 +450,7 @@ class depthai_calibration_node:
             return (False, text)
 
         calibration_handler = dai.CalibrationHandler()
-        calibration_handler.setBoardInfo(6, self.board_config['board_config']['swap_left_and_right_cameras'], self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
+        calibration_handler.setBoardInfo(self.board_config['board_config']['swap_left_and_right_cameras'], self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
 
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.LEFT, calib_data[2], 1280, 800)
         calibration_handler.setdistortionCoefficients(dai.CameraBoardSocket.LEFT, calib_data[6])
@@ -583,24 +465,12 @@ class depthai_calibration_node:
         calibration_handler.setStereoLeft(dai.CameraBoardSocket.LEFT, calib_data[0])
         calibration_handler.setStereoRight(dai.CameraBoardSocket.RGB, calib_data[1])
         
-        # dev_config["board"]["clear-eeprom"] = False
-        # dev_config["board"]["store-to-eeprom"] = True
-        # dev_config["board"]["override-eeprom"] = False
-        # dev_config["board"]["swap-left-and-right-cameras"] = self.board_config['board_config']['swap_left_and_right_cameras']
-        # dev_config["board"]["left_fov_deg"] = self.board_config['board_config']['left_fov_deg']
-        # dev_config["board"]["rgb_fov_deg"] = self.board_config['board_config']['rgb_fov_deg']
-        # dev_config["board"]["left_to_right_distance_m"] = self.board_config['board_config']['left_to_right_distance_cm'] / 100
-        # dev_config["board"]["left_to_rgb_distance_m"] = self.board_config['board_config']['left_to_rgb_distance_cm'] / 100
-        # dev_config["board"]["name"] = self.board_config['board_config']['name']
-        # dev_config["board"]["stereo_center_crop"] = True
-        # dev_config["board"]["revision"] = self.board_config['board_config']['revision']
-        # dev_config["_board"]['calib_data'] = list(calib_data)
-        # dev_config["_board"]['mesh_right'] = [0.0]
-        # dev_config["_board"]['mesh_left'] = [0.0]
 
-        # self.device.write_eeprom_data(dev_config)
-        
-        is_write_succesful = self.device.flashCalibration(calibration_handler)
+        try:
+            is_write_succesful = self.device.flashCalibration(calibration_handler)
+        except:
+            print("Writing in except...")
+            is_write_succesful = self.device.flashCalibration(calibration_handler)
         calibration_handler.eepromToJsonFile(calib_dest_path)
         # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         # shutil.copy(calib_src_path, calib_dest_path)
@@ -648,8 +518,6 @@ if __name__ == "__main__":
     arg["calibration_service_name"] = rospy.get_param(
         '~calibration_service_name')  # Add  capture_checkerboard to launch file
 
-    # print("Hone------------------------>")
-    # print(type(arg["enable_IMU_test"]))
 
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])

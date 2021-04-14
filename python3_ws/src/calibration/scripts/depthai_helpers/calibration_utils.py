@@ -476,16 +476,6 @@ class StereoCalibration(object):
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         # print(self.M3_scaled)
 
-        # rgb_right_stereo_calibration method 2 - Instead of resizing the image
-        # and finding the corners again use the previously find corners in 4k res
-        # use scale parameter to find relative low res corner and use it to find
-        #  the common points for stereo calibration. (Keep in mind about the change in fov)
-
-        # rgb_right_stereo_calibration method 3 - follows the same as above
-        # but instead it would be calibrated w.r.t rectified right and
-        # another alterative would be to use an rectified rotation of
-        # rectified right while placing everything back to rgb.
-
         # sampling common detected corners
         rgb_scaled_rgb_corners_sampled = []
         rgb_scaled_right_corners_sampled = []
@@ -526,47 +516,14 @@ class StereoCalibration(object):
         self.imgpoints_rgb = rgb_scaled_rgb_corners_sampled
         self.imgpoints_rgb_right = rgb_scaled_right_corners_sampled
         
-        # H_right_rgb, _ = cv2.findHomography(right_pts, rgb_pts)
-        # print('Homogrephy RMS error~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        # print(H_right_rgb)
         flags = 0
-        #flags |= cv2.CALIB_FIX_ASPECT_RATIO
         flags |= cv2.CALIB_FIX_INTRINSIC
-        # flags |= cv2.CALIB_USE_INTRINSIC_GUESS
-        #flags |= cv2.CALIB_SAME_FOCAL_LENGTH
-        #flags |= cv2.CALIB_ZERO_TANGENT_DIST
         flags |= cv2.CALIB_RATIONAL_MODEL
-        #flags |= cv2.CALIB_FIX_K1
-        #flags |= cv2.CALIB_FIX_K2
-        #flags |= cv2.CALIB_FIX_K3
-        #flags |= cv2.CALIB_FIX_K4
-        #flags |= cv2.CALIB_FIX_K5
-        #flags |= cv2.CALIB_FIX_K6
-        # flags |= cv::CALIB_ZERO_TANGENT_DIST
+
 
         stereocalib_criteria = (cv2.TERM_CRITERIA_COUNT +
                                     cv2.TERM_CRITERIA_EPS, 100, 1e-5)
 
-        # stereo calibration procedure
-        # TODO(Sachin): change this hardcoded later
-        # (800, 1280)
-        # (3040, 4056)
-        # ----------------------------------------------------------------- #
-        # print('full M3')
-        # print(self.M3)
-        # scale_width = 1280/1920
-        # m_scale = [[scale_width,      0,   0],
-        #             [0, scale_width,   0],
-        #             [0,      0,    1]]
-        # M_RGB = np.matmul(m_scale, self.M3)
-        # height = round(1080 * scale_width)
-        # print(height)
-        # if height > 720:
-        #     print('Modifying height')
-        #     diff = (height - 720) / 2
-        #     M_RGB[1, 2] -= diff
-
-        # print('Scaled intriniscs of rgb is -->')
         # print(M_RGB)
         print('vs. intrinisics computed after scaling the image --->')
         print(self.M3_scaled)
@@ -588,11 +545,6 @@ class StereoCalibration(object):
             self.M3_scaled,
             self.d3_scaled,
             self.img_shape_rgb_scaled, self.R_rgb, self.T_rgb)
-
-        # self.H1_l_720 = np.matmul(np.matmul(self.M3_scaled, self.R1_rgb),
-        #                     np.linalg.inv(self.M2_rgb))
-        # self.H2_rgb_720 = np.matmul(np.matmul(self.M3_scaled, self.R2_rgb),
-        #                     np.linalg.inv(self.M3_scaled))
 
     def process_images(self, filepath):
         """Read images, detect corners, refine corners, and save data."""
