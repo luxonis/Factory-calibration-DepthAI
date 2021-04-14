@@ -248,7 +248,7 @@ class depthai_calibration_node:
             # else:
             #     pygameX.event.pump()
             # print("updating dis-----")
-            if not self.is_service_active:                
+            if not self.is_service_active and not self.device.isClosed():                
                 left_frame = self.left_camera_queue.tryGet()
                 if left_frame is not None:
                     self.image_pub_left.publish(
@@ -391,6 +391,10 @@ class depthai_calibration_node:
         # if req.name == "recalibrate":
         #     self.device.override_device_changed()
         finished = False
+        while self.devive.isClosed():
+            pipeline = self.create_pipeline()
+            self.device = dai.Device(pipeline) 
+    
         # while not self.device.is_device_changed():
         #     text = "Waiting for device change"
         #     pygame_render_text(self.screen, text, (300, 400), orange, 40)
@@ -406,7 +410,8 @@ class depthai_calibration_node:
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
         pygame_render_text(self.screen, text, (400, 80), black, 30)
         # TODO(sachin): Add MX id here
-        text = "device Mx_id : " + "Test MX id"
+        dev_info = self.device.getCurrentDeviceInfo()
+        text = "device Mx_id : " + dev_info.getMxId()
         pygame_render_text(self.screen, text, (400, 120), black, 30)
         rospy.sleep(1)
         fill_color_2 = pygame.Rect(50, 520, 400, 80)
@@ -514,7 +519,8 @@ class depthai_calibration_node:
 
         # TODO(sachin): add MX id 
         # mx_serial_id = self.device.get_mx_id()
-        mx_serial_id = "Test"
+        dev_info = self.device.getCurrentDeviceInfo()
+        mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
             arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.json')
 
@@ -566,7 +572,6 @@ class depthai_calibration_node:
         calibration_handler.setFov(dai.CameraBoardSocket.LEFT, self.board_config['board_config']['left_fov_deg'])
         measuredTranslation = [self.board_config['board_config']['left_to_rgb_distance_cm'], 0.0, 0.0]
         calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.RGB, calib_data[4], calib_data[5], measuredTranslation)
-        # TODO(sachin) : Add measuredTranslation
 
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[3], 1920, 1080)
         calibration_handler.setdistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[7])
@@ -597,27 +602,16 @@ class depthai_calibration_node:
         # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         # shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
-        print(avg_epipolar_error_l_r)
+        print(avg_epipolar_error_l_rgb)
         
         print('Validating...')
 
         self.is_service_active = False
+        self.device.close()
         if is_write_succesful:
             return (True, "EEPROM written succesfully")
         else:
             return (False, "EEPROM write Failed!!")
-
-    def rundepthai(self):
-        test_cmd = "python3 " + \
-            self.args['depthai_path'] + \
-            "/depthai_demo.py -e -brd " + self.args['brd']
-        print(test_cmd)
-        # test_cmd = """python3 depthai.py -brd bw1098obc -e""" ## TODO(sachin): Parameterize the board name
-        self.p = subprocess.Popen(test_cmd, shell=True, preexec_fn=os.setsid)
-        time.sleep(4)
-        os.killpg(os.getpgid(self.p.pid), signal.SIGKILL)
-
-        time.sleep(1)
 
 
 no_button = pygame.Rect(490, 500, 80, 45)
