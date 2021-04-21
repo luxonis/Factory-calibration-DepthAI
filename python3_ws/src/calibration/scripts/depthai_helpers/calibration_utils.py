@@ -152,6 +152,11 @@ class StereoCalibration(object):
         d1_coeff_fp32 = self.d1.astype(np.float32)
         d3_coeff_fp32 = self.d3.astype(np.float32)
 
+        R_rgb_fp32 = np.linalg.inv(R_rgb_fp32) 
+        T_rgb_fp32[0] = -T_rgb_fp32[0] 
+        T_rgb_fp32[1] = -T_rgb_fp32[1]
+        T_rgb_fp32[2] = -T_rgb_fp32[2]
+
         self.calib_data = [R1_fp32, R2_fp32, M1_fp32, M3_fp32,
                      R_rgb_fp32, T_rgb_fp32, d1_coeff_fp32, d3_coeff_fp32]
         

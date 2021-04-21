@@ -465,7 +465,6 @@ class depthai_calibration_node:
         calibration_handler.setStereoLeft(dai.CameraBoardSocket.LEFT, calib_data[0])
         calibration_handler.setStereoRight(dai.CameraBoardSocket.RGB, calib_data[1])
         
-
         try:
             is_write_succesful = self.device.flashCalibration(calibration_handler)
         except:
