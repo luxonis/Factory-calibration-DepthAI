@@ -149,10 +149,12 @@ class depthai_calibration_node:
         xout_left     = pipeline.createXLinkOut()
         xout_rgb_isp  = pipeline.createXLinkOut()
 
-        rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_1080_P)
+        rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
         rgb_cam.setInterleaved(False)
         rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
-        rgb_cam.initialControl.setManualFocus(135)
+        cam->setIspScale(1, 3);
+        cam->initialControl.setManualFocus(self.focus_value);
+        # rgb_cam.initialControl.setManualFocus(135)
         # rgb_cam.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
 
         cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
@@ -163,7 +165,7 @@ class depthai_calibration_node:
         cam_left.out.link(xout_left.input)
 
         xout_rgb_isp.setStreamName("rgb")
-        rgb_cam.video.link(xout_rgb_isp.input)
+        rgb_cam.isp.link(xout_rgb_isp.input)
         # rgb_cam.isp.link(xout_rgb_isp.input)
         return pipeline
 

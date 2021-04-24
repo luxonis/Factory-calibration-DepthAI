@@ -538,6 +538,7 @@ class StereoCalibration(object):
         self.M3 = np.matmul(scale_mat, self.M3_scaled)
         self.d3 = self.d3_scaled
         print(self.M3_scaled)
+        print(self.M3)
 
         self.M2_rgb = np.copy(self.M1)
         self.M2_rgb[1, 2] -= 40
