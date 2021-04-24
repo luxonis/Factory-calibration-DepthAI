@@ -135,8 +135,8 @@ class StereoCalibration(object):
             self.T_rgb = np.zeros(3, dtype=np.float32)
             self.d3 = np.zeros(14, dtype=np.float32)
 
-        self.M3_scaled_write = np.copy(self.M3_scaled)
-        self.M3_scaled_write[1, 2] += 40
+        # self.M3_scaled_write = np.copy(self.M3_scaled)
+        # self.M3_scaled_write[1, 2] += 40
 
         self.M3_nan = np.zeros((3, 3), dtype=np.float32)
         self.R_rgb_nan = np.zeros((3, 3), dtype=np.float32)
@@ -469,8 +469,8 @@ class StereoCalibration(object):
             images_rgb, scale_req=True, req_resolution=(720, 1280))
         self.img_shape_rgb_scaled = imsize_rgb_scaled[::-1]
 
-        ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
-            allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
+        # ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
+        #     allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
 
         allCorners_r_rgb, allIds_r_rgb, _, _, _, _ = self.analyze_charuco(
             images_left, scale_req=True, req_resolution=(720, 1280))
@@ -531,6 +531,12 @@ class StereoCalibration(object):
 
         # print(M_RGB)
         print('vs. intrinisics computed after scaling the image --->')
+        # self.M3, self.d3
+        scale = 1280/1920
+        print(scale)
+        scale_mat = np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]])
+        self.M3_scaled = np.matmul(scale, self.M3)
+        self.d3_scaled = self.d3
         print(self.M3_scaled)
 
         self.M2_rgb = np.copy(self.M1)
@@ -540,7 +546,7 @@ class StereoCalibration(object):
             self.objpoints_rgb_r, self.imgpoints_rgb_right, self.imgpoints_rgb,
             self.M2_rgb, self.d2_rgb, self.M3_scaled, self.d3_scaled, self.img_shape_rgb_scaled,
             criteria=stereocalib_criteria, flags=flags)
-        print("~~~~~~ Stereo calibration rgb-right RMS error ~~~~~~~~")
+        print("~~~~~~ Stereo calibration rgb-left RMS error ~~~~~~~~")
         print(ret)
 
         # Rectification is only to test the epipolar
