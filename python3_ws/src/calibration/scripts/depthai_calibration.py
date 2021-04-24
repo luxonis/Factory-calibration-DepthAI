@@ -153,11 +153,11 @@ class depthai_calibration_node:
         rgb_cam.setInterleaved(False)
         rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
         rgb_cam.initialControl.setManualFocus(135)
-        rgb_cam.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
+        # rgb_cam.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
 
         cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
         cam_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
-        cam_left.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
+        # cam_left.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
 
         xout_left.setStreamName("left")
         cam_left.out.link(xout_left.input)
@@ -453,15 +453,15 @@ class depthai_calibration_node:
         calibration_handler.setBoardInfo(self.board_config['board_config']['swap_left_and_right_cameras'], self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
 
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.LEFT, calib_data[2], 1280, 800)
-        calibration_handler.setdistortionCoefficients(dai.CameraBoardSocket.LEFT, calib_data[6])
+        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.LEFT, calib_data[6])
         calibration_handler.setFov(dai.CameraBoardSocket.LEFT, self.board_config['board_config']['left_fov_deg'])
         measuredTranslation = [self.board_config['board_config']['left_to_rgb_distance_cm'], 0.0, 0.0]
         calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.RGB, calib_data[4], calib_data[5], measuredTranslation)
 
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[3], 1920, 1080)
-        calibration_handler.setdistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[7])
+        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[7])
         calibration_handler.setFov(dai.CameraBoardSocket.RGB, self.board_config['board_config']['rgb_fov_deg'])
-        calibration_handler.setlensPosition(dai.CameraBoardSocket.RGB, self.focus_value)
+        calibration_handler.setLensPosition(dai.CameraBoardSocket.RGB, self.focus_value)
         calibration_handler.setStereoLeft(dai.CameraBoardSocket.LEFT, calib_data[0])
         calibration_handler.setStereoRight(dai.CameraBoardSocket.RGB, calib_data[1])
         

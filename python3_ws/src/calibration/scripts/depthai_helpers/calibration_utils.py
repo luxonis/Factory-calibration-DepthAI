@@ -469,14 +469,14 @@ class StereoCalibration(object):
             images_rgb, scale_req=True, req_resolution=(720, 1280))
         self.img_shape_rgb_scaled = imsize_rgb_scaled[::-1]
 
-        # ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
-        #     allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
+        ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
+            allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
 
         allCorners_r_rgb, allIds_r_rgb, _, _, _, _ = self.analyze_charuco(
             images_left, scale_req=True, req_resolution=(720, 1280))
 
         print("RGB callleded RMS at 720")
-        print(ret_rgb_scaled)
+        # print(ret_rgb_scaled)
         print(imsize_rgb_scaled)
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         # print(self.M3_scaled)
@@ -532,11 +532,11 @@ class StereoCalibration(object):
         # print(M_RGB)
         print('vs. intrinisics computed after scaling the image --->')
         # self.M3, self.d3
-        scale = 1280/1920
+        scale = 1920/1280
         print(scale)
         scale_mat = np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]])
-        self.M3_scaled = np.matmul(scale, self.M3)
-        self.d3_scaled = self.d3
+        self.M3 = np.matmul(scale_mat, self.M3_scaled)
+        self.d3 = self.d3_scaled
         print(self.M3_scaled)
 
         self.M2_rgb = np.copy(self.M1)
