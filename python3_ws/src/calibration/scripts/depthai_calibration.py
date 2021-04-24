@@ -461,7 +461,7 @@ class depthai_calibration_node:
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[3], 1920, 1080)
         calibration_handler.setdistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[7])
         calibration_handler.setFov(dai.CameraBoardSocket.RGB, self.board_config['board_config']['rgb_fov_deg'])
-        
+        calibration_handler.setlensPosition(dai.CameraBoardSocket.RGB, self.focus_value)
         calibration_handler.setStereoLeft(dai.CameraBoardSocket.LEFT, calib_data[0])
         calibration_handler.setStereoRight(dai.CameraBoardSocket.RGB, calib_data[1])
         
