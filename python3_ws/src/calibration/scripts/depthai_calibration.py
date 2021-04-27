@@ -152,14 +152,14 @@ class depthai_calibration_node:
         rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
         rgb_cam.setInterleaved(False)
         rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
-        cam->setIspScale(1, 3);
-        cam->initialControl.setManualFocus(self.focus_value);
+        rgb_cam.setIspScale(1, 3)
+        rgb_cam.initialControl.setManualFocus(self.focus_value)
         # rgb_cam.initialControl.setManualFocus(135)
-        # rgb_cam.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
+        rgb_cam.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
 
         cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
         cam_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
-        # cam_left.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
+        cam_left.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
 
         xout_left.setStreamName("left")
         cam_left.out.link(xout_left.input)
