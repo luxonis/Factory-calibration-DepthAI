@@ -37,14 +37,6 @@ on_embedded = platform.machine().startswith(
     'arm') or platform.machine().startswith('aarch64')
 
 
-def find_chessboard(frame):
-    chessboard_flags = cv2.CALIB_CB_ADAPTIVE_THRESH + \
-        cv2.CALIB_CB_FAST_CHECK + cv2.CALIB_CB_NORMALIZE_IMAGE
-    small_frame = cv2.resize(frame, (0, 0), fx=0.3, fy=0.3)
-    return cv2.findChessboardCorners(small_frame, (9, 6), chessboard_flags)[0] and \
-        cv2.findChessboardCorners(frame, (9, 6), chessboard_flags)[0]
-
-
 white = [255, 255, 255]
 orange = [143, 122, 4]
 red = [230, 9, 9]
@@ -60,14 +52,14 @@ class depthai_calibration_node:
         self.bridge = CvBridge()
         self.is_service_active = False
         self.focus_value = 130
-        print("board_path")
 
         pipeline = self.create_pipeline()
         self.device = dai.Device(pipeline)
-        self.device.startPipeline()
+        # self.device.startPipeline()
 
-        self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
-        self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
+        self.left_camera_queue  = self.device.getOutputQueue("left", 5, False)
+        self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
+        self.rgb_camera_queue   = self.device.getOutputQueue("rgb", 5, False)
         print("board_path")
 
         # self.frame_count = 0
@@ -139,6 +131,7 @@ class depthai_calibration_node:
         #     "set_rgb_focus", Capture, self.rgb_focus_handler)
 
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
+        self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
         self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
 
     def create_pipeline(self):
@@ -146,7 +139,10 @@ class depthai_calibration_node:
 
         rgb_cam  = pipeline.createColorCamera()
         cam_left = pipeline.createMonoCamera()
+        cam_right = pipeline.createMonoCamera()
+
         xout_left     = pipeline.createXLinkOut()
+        xout_right    = pipeline.createXLinkOut()
         xout_rgb_isp  = pipeline.createXLinkOut()
 
         rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
@@ -155,14 +151,20 @@ class depthai_calibration_node:
         rgb_cam.setIspScale(1, 3)
         rgb_cam.initialControl.setManualFocus(self.focus_value)
         # rgb_cam.initialControl.setManualFocus(135)
-        rgb_cam.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
+        # rgb_cam.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
 
         cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
         cam_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
-        cam_left.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
+
+        cam_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+        cam_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
+        # cam_left.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
 
         xout_left.setStreamName("left")
         cam_left.out.link(xout_left.input)
+
+        xout_right.setStreamName("right")
+        cam_right.out.link(xout_right.input)
 
         xout_rgb_isp.setStreamName("rgb")
         rgb_cam.isp.link(xout_rgb_isp.input)
@@ -209,6 +211,11 @@ class depthai_calibration_node:
                 if left_frame is not None:
                     self.image_pub_left.publish(
                         self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
+                
+                right_frame = self.right_camera_queue.tryGet()
+                if right_frame is not None:
+                    self.image_pub_left.publish(
+                        self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
                 
                 rgb_frame = self.rgb_camera_queue.tryGet()
                 if rgb_frame is not None:
@@ -262,6 +269,7 @@ class depthai_calibration_node:
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
         recent_left = None
+        recent_right = None
         recent_color = None
         finished = False
         self.is_service_active = True
@@ -271,33 +279,44 @@ class depthai_calibration_node:
         m_d2h_seq_focus = dict()
         # color_pkt_queue = deque()
         local_color_frame_count = 0
+        # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
         while not finished:
-            left_frame = self.left_camera_queue.get()
+            # left_frame = self.left_camera_queue.get()
+            left_frame = self.left_camera_queue.getAll()[-1]
             self.image_pub_left.publish(
                         self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
+
+            # right_frame = self.right_camera_queue.get()
+            right_frame = self.right_camera_queue.getAll()[-1]
+            self.image_pub_right.publish(
+                        self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
                 
-            rgb_frame = self.rgb_camera_queue.get()
+            # rgb_frame = self.rgb_camera_queue.get()
+            rgb_frame = self.rgb_camera_queue.getAll()[-1]
             recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
             self.image_pub_color.publish(
                     self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
 
             recent_left = left_frame.getCvFrame()
+            recent_right = right_frame.getCvFrame()
 
-            if recent_left is not None and recent_color is not None:
+            if recent_left is not None and recent_right is not None and recent_color is not None:
                 finished = True
 
         is_board_found_l = self.is_markers_found(recent_left)
-        # is_board_found_r = self.is_markers_found(recent_right)
+        is_board_found_r = self.is_markers_found(recent_right)
         is_board_found_rgb = self.is_markers_found(recent_color)
-        if is_board_found_l and is_board_found_rgb:
+
+        if is_board_found_l and is_board_found_r and is_board_found_rgb:
             print("Found------------------------->")
             self.parse_frame(recent_left, "left", req.name)
+            self.parse_frame(recent_right, "right", req.name)
             self.parse_frame(recent_color, "rgb", req.name)
         else:
             print("Not found--------------------->")
             self.is_service_active = False
             self.parse_frame(recent_left, "left_not", req.name)
-            # self.parse_frame(recent_right, "right_not", req.name)
+            self.parse_frame(recent_right, "right_not", req.name)
             self.parse_frame(recent_color, "rgb_not", req.name)
             return (False, "Calibration board not found")
         # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
@@ -315,10 +334,12 @@ class depthai_calibration_node:
         finished = False
         while self.device.isClosed():
             print("device_closed")
+            # TODO(Sachin): add a check for available devices..
             pipeline = self.create_pipeline()
             self.device = dai.Device(pipeline) 
             self.device.startPipeline()
             self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
+            self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
             self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
             # rospy.sleep(4)
 
@@ -336,7 +357,7 @@ class depthai_calibration_node:
         now_time = datetime.now()
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
         pygame_render_text(self.screen, text, (400, 80), black, 30)
-        # TODO(sachin): Add MX id here
+
         dev_info = self.device.getCurrentDeviceInfo()
         text = "device Mx_id : " + dev_info.getMxId()
         pygame_render_text(self.screen, text, (400, 120), black, 30)
@@ -344,9 +365,10 @@ class depthai_calibration_node:
         fill_color_2 = pygame.Rect(50, 520, 400, 80)
         pygame.draw.rect(self.screen, white, fill_color_2)
 
-        # dataset_path = Path(self.package_path + "/dataset")
-        # if dataset_path.exists():
-        #     shutil.rmtree(str(dataset_path))
+
+        dataset_path = Path(self.package_path + "/dataset")
+        if 0 and dataset_path.exists():
+            shutil.rmtree(str(dataset_path))
 
         while not finished:
             # print(self.device.is_device_changed())
@@ -355,7 +377,7 @@ class depthai_calibration_node:
                 rospy.signal_shutdown("Finished calibration")
             # is_usb3 = False
             left_mipi = False
-            # right_mipi = False
+            right_mipi = False
             rgb_mipi = False
 
             # is_usb3 = self.device.is_usb3()
@@ -419,12 +441,13 @@ class depthai_calibration_node:
         stereo_calib = StereoCalibration()
         avg_epipolar_error_l_rgb, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
-            self.args['square_size_cm'],
-            calib_dest_path,
-            req.name,
-            arg["squares_x"],
-            arg["squares_y"],
-            self.args['marker_size_cm'])
+            self.args.square_size_cm,
+            self.args.marker_size_cm,
+            self.args.squares_x,
+            self.args.squares_y,
+            self.args.cameraModel,
+            True, # turn on rgb calibration
+            False) # Turn off enable disp rectifu
 
         start_time = datetime.now()
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
