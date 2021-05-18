@@ -80,7 +80,7 @@ class StereoCalibration(object):
         # init object data
         self.calibrate_rgb = calibrate_rgb
         self.enable_rectification_disp = enable_disp_rectify
-        self.camera_model = camera_model
+        self.cameraModel  = camera_model
         self.data_path = filepath
         self.aruco_dictionary = aruco.Dictionary_get(aruco.DICT_4X4_1000)
         self.board = aruco.CharucoBoard_create(
@@ -180,8 +180,8 @@ class StereoCalibration(object):
 
 
         if self.calibrate_rgb:
-            avg_epipolar_rgb_r = self.test_epipolar_charuco_rgb(filepath)
-            return self.test_epipolar_charuco(filepath), avg_epipolar_rgb_r, self.calib_data
+            avg_epipolar_rgb_r = self.test_epipolar_charuco_rgbr(filepath)
+            return self.test_epipolar_charuco_lr(filepath), avg_epipolar_rgb_r, self.calib_data
         else:
             return self.test_epipolar_checker(filepath), None, self.calib_data
 
@@ -732,9 +732,9 @@ class StereoCalibration(object):
 
         # if not use_homo:
         mapx_rgb, mapy_rgb = cv2.initUndistortRectifyMap(
-            self.M3_scaled, self.d3_scaled, self.R2_rgb, self.M3_scaled, self.img_shape_rgb_scaled, cv2.CV_32FC1)
+            self.M3_scaled, self.d3_scaled, self.R1_rgb, self.M3_scaled, self.img_shape_rgb_scaled, cv2.CV_32FC1)
         mapx_r, mapy_r = cv2.initUndistortRectifyMap(
-            self.M2_rgb, self.d2_rgb, self.R1_rgb, self.M3_scaled, self.img_shape_rgb_scaled, cv2.CV_32FC1)
+            self.M2_rgb, self.d2_rgb, self.R2_rgb, self.M3_scaled, self.img_shape_rgb_scaled, cv2.CV_32FC1)
 
         # self.H1_rgb = np.matmul(np.matmul(self.M2, self.R1_rgb),
         #                     np.linalg.inv(M_rgb))
@@ -743,7 +743,7 @@ class StereoCalibration(object):
 
         image_data_pairs = []
         count = 0
-        for image_rgb, image_right in zip(images_rgb, images_left):
+        for image_rgb, image_right in zip(images_rgb, images_right):
             # read images
             img_rgb = cv2.imread(image_rgb, 0)
             img_r = cv2.imread(image_right, 0)
@@ -780,7 +780,7 @@ class StereoCalibration(object):
             #                             cv2.WARP_INVERSE_MAP)
 
             img_rgb = cv2.remap(img_rgb, mapx_rgb, mapy_rgb, cv2.INTER_LINEAR)
-            img_l = cv2.remap(img_r, mapx_r, mapy_r, cv2.INTER_LINEAR)
+            img_r = cv2.remap(img_r, mapx_r, mapy_r, cv2.INTER_LINEAR)
             # self.parse_frame(img_rgb, "rectified_rgb", "rectified_"+str(count))
             image_data_pairs.append((img_rgb, img_r))
             count += 1

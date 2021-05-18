@@ -51,7 +51,7 @@ class depthai_calibration_node:
         self.args = depthai_args
         self.bridge = CvBridge()
         self.is_service_active = False
-        self.focus_value = 135
+        self.focus_value = 82
 
         pipeline = self.create_pipeline()
         self.device = dai.Device(pipeline)
@@ -130,6 +130,7 @@ class depthai_calibration_node:
         # self.rgb_focus_srv = rospy.Service(
         #     "set_rgb_focus", Capture, self.rgb_focus_handler)
 
+        self.args['cameraModel'] = 'perspective'
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
         self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
         self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
@@ -300,7 +301,7 @@ class depthai_calibration_node:
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
         pygame_render_text(self.screen, text, (400, 80), black, 30)
 
-        dev_info = self.device.getCurrentDeviceInfo()
+        dev_info = self.device.getDeviceInfo()
         text = "device Mx_id : " + dev_info.getMxId()
         pygame_render_text(self.screen, text, (400, 120), black, 30)
         rospy.sleep(1)
@@ -442,11 +443,11 @@ class depthai_calibration_node:
         stereo_calib = StereoCalibration()
         avg_epipolar_error_lr, avg_epipolar_error_r_rgb, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
-            self.args.square_size_cm,
-            self.args.marker_size_cm,
-            self.args.squares_x,
-            self.args.squares_y,
-            self.args.cameraModel,
+            self.args['square_size_cm'],
+            self.args['marker_size_cm'],
+            self.args['squares_x'],
+            self.args['squares_y'],
+            self.args['cameraModel'],
             True, # turn on rgb calibration
             False) # Turn off enable disp rectify
  
@@ -514,13 +515,13 @@ class depthai_calibration_node:
 
         calibration_handler.setLensPosition(dai.CameraBoardSocket.RGB, self.focus_value)
 
-        
+        calibration_handler.eepromToJsonFile(calib_dest_path)
         try:
             is_write_succesful = self.device.flashCalibration(calibration_handler)
         except:
             print("Writing in except...")
             is_write_succesful = self.device.flashCalibration(calibration_handler)
-        calibration_handler.eepromToJsonFile(calib_dest_path)
+        
         # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         # shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
