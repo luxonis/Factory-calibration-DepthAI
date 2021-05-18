@@ -51,7 +51,7 @@ class depthai_calibration_node:
         self.args = depthai_args
         self.bridge = CvBridge()
         self.is_service_active = False
-        self.focus_value = 130
+        self.focus_value = 135
 
         pipeline = self.create_pipeline()
         self.device = dai.Device(pipeline)
@@ -266,64 +266,6 @@ class depthai_calibration_node:
         print("Markers count ... {}".format(len(marker_corners)))
         return not (len(marker_corners) < 30)
 
-    def capture_servive_handler(self, req):
-        print("Capture image Service Started")
-        recent_left = None
-        recent_right = None
-        recent_color = None
-        finished = False
-        self.is_service_active = True
-        rospy.sleep(1)
-
-        rgb_check_count = 0
-        m_d2h_seq_focus = dict()
-        # color_pkt_queue = deque()
-        local_color_frame_count = 0
-        # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
-        while not finished:
-            # left_frame = self.left_camera_queue.get()
-            left_frame = self.left_camera_queue.getAll()[-1]
-            self.image_pub_left.publish(
-                        self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
-
-            # right_frame = self.right_camera_queue.get()
-            right_frame = self.right_camera_queue.getAll()[-1]
-            self.image_pub_right.publish(
-                        self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
-                
-            # rgb_frame = self.rgb_camera_queue.get()
-            rgb_frame = self.rgb_camera_queue.getAll()[-1]
-            recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-            self.image_pub_color.publish(
-                    self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-
-            recent_left = left_frame.getCvFrame()
-            recent_right = right_frame.getCvFrame()
-
-            if recent_left is not None and recent_right is not None and recent_color is not None:
-                finished = True
-
-        is_board_found_l = self.is_markers_found(recent_left)
-        is_board_found_r = self.is_markers_found(recent_right)
-        is_board_found_rgb = self.is_markers_found(recent_color)
-
-        if is_board_found_l and is_board_found_r and is_board_found_rgb:
-            print("Found------------------------->")
-            self.parse_frame(recent_left, "left", req.name)
-            self.parse_frame(recent_right, "right", req.name)
-            self.parse_frame(recent_color, "rgb", req.name)
-        else:
-            print("Not found--------------------->")
-            self.is_service_active = False
-            self.parse_frame(recent_left, "left_not", req.name)
-            self.parse_frame(recent_right, "right_not", req.name)
-            self.parse_frame(recent_color, "rgb_not", req.name)
-            return (False, "Calibration board not found")
-        # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
-        print("Service ending")
-        self.is_service_active = False
-        return (True, "No Error")
-
     def device_status_handler(self, req):
         self.is_service_active = True
         self.start_disp = True
@@ -427,19 +369,78 @@ class depthai_calibration_node:
         self.is_service_active = False
         return (True, dev_info.getMxId())
 
+
+    def capture_servive_handler(self, req):
+        print("Capture image Service Started")
+        recent_left = None
+        recent_right = None
+        recent_color = None
+        finished = False
+        self.is_service_active = True
+        rospy.sleep(1)
+
+        rgb_check_count = 0
+        m_d2h_seq_focus = dict()
+        # color_pkt_queue = deque()
+        local_color_frame_count = 0
+        # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
+        while not finished:
+            # left_frame = self.left_camera_queue.get()
+            left_frame = self.left_camera_queue.getAll()[-1]
+            self.image_pub_left.publish(
+                        self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
+
+            # right_frame = self.right_camera_queue.get()
+            right_frame = self.right_camera_queue.getAll()[-1]
+            self.image_pub_right.publish(
+                        self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
+                
+            # rgb_frame = self.rgb_camera_queue.get()
+            rgb_frame = self.rgb_camera_queue.getAll()[-1]
+            recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+            self.image_pub_color.publish(
+                    self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
+
+            recent_left = left_frame.getCvFrame()
+            recent_right = right_frame.getCvFrame()
+
+            if recent_left is not None and recent_right is not None and recent_color is not None:
+                finished = True
+
+        is_board_found_l = self.is_markers_found(recent_left)
+        is_board_found_r = self.is_markers_found(recent_right)
+        is_board_found_rgb = self.is_markers_found(recent_color)
+
+        if is_board_found_l and is_board_found_r and is_board_found_rgb:
+            print("Found------------------------->")
+            self.parse_frame(recent_left, "left", req.name)
+            self.parse_frame(recent_right, "right", req.name)
+            self.parse_frame(recent_color, "rgb", req.name)
+        else:
+            print("Not found--------------------->")
+            self.is_service_active = False
+            self.parse_frame(recent_left, "left_not", req.name)
+            self.parse_frame(recent_right, "right_not", req.name)
+            self.parse_frame(recent_color, "rgb_not", req.name)
+            return (False, "Calibration board not found")
+        # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
+        print("Service ending")
+        self.is_service_active = False
+        return (True, "No Error")
+
     def calibration_servive_handler(self, req):
         self.is_service_active = True
         print("calibration Service Started")
         # pygame.draw.rect(self.screen, white, no_button)
 
         # mx_serial_id = self.device.get_mx_id()
-        dev_info = self.device.getCurrentDeviceInfo()
+        dev_info = self.device.getDeviceInfo()
         mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
             arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.json')
         
         stereo_calib = StereoCalibration()
-        avg_epipolar_error_l_rgb, calib_data = stereo_calib.calibrate(
+        avg_epipolar_error_lr, avg_epipolar_error_r_rgb, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
             self.args.square_size_cm,
             self.args.marker_size_cm,
@@ -447,8 +448,8 @@ class depthai_calibration_node:
             self.args.squares_y,
             self.args.cameraModel,
             True, # turn on rgb calibration
-            False) # Turn off enable disp rectifu
-
+            False) # Turn off enable disp rectify
+ 
         start_time = datetime.now()
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
@@ -457,7 +458,8 @@ class depthai_calibration_node:
         log_list.append(True)
         log_list.append(True)
 
-        log_list.append(avg_epipolar_error_l_rgb)
+        log_list.append(avg_epipolar_error_lr)
+        log_list.append(avg_epipolar_error_r_rgb)
 
         log_file = self.args['log_path'] + "/calibration_logs.csv"
         with open(log_file, mode='a') as log_fopen:
@@ -465,30 +467,53 @@ class depthai_calibration_node:
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
 
-        text = "Avg Epipolar error L-RGB: " + \
-            format(avg_epipolar_error_l_rgb, '.6f')
-        pygame_render_text(self.screen, text, (400, 190), green, 30)
+        def print_epipolar_error(color):
+            text = "Avg Epipolar error L-R: " + \
+                format(avg_epipolar_error_lr, '.6f')
+            pygame_render_text(self.screen, text, (400, 160), color, 30)
+            text = "Avg Epipolar error RGB-R: " + \
+                format(avg_epipolar_error_r_rgb, '.6f')
+            pygame_render_text(self.screen, text, (400, 190), color, 30)
 
-        if avg_epipolar_error_l_rgb > 0.7:
+        if avg_epipolar_error_lr > 0.5:
+            text = "Failed due to high calibration error L-R"
+            pygame_render_text(self.screen, text, (400, 230), red, 30)
+            print_epipolar_error(red)
+            return (False, text)
+
+        if avg_epipolar_error_r_rgb > 0.7:
             text = "Failed due to high calibration error RGB-R"
             pygame_render_text(self.screen, text, (400, 270), red, 30)
+            print_epipolar_error(red)
             return (False, text)
 
         calibration_handler = dai.CalibrationHandler()
         calibration_handler.setBoardInfo(self.board_config['board_config']['swap_left_and_right_cameras'], self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
-
-        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.LEFT, calib_data[2], 1280, 800)
-        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.LEFT, calib_data[6])
-        calibration_handler.setFov(dai.CameraBoardSocket.LEFT, self.board_config['board_config']['left_fov_deg'])
-        measuredTranslation = [self.board_config['board_config']['left_to_rgb_distance_cm'], 0.0, 0.0]
-        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.RGB, calib_data[4], calib_data[5], measuredTranslation)
-
-        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[3], 1920, 1080)
-        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[7])
-        calibration_handler.setFov(dai.CameraBoardSocket.RGB, self.board_config['board_config']['rgb_fov_deg'])
-        calibration_handler.setLensPosition(dai.CameraBoardSocket.RGB, self.focus_value)
+        
         calibration_handler.setStereoLeft(dai.CameraBoardSocket.LEFT, calib_data[0])
         calibration_handler.setStereoRight(dai.CameraBoardSocket.RGB, calib_data[1])
+        
+        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.LEFT, calib_data[2], 1280, 800)
+        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RIGHT, calib_data[3], 1280, 800)
+        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[4], 1920, 1080)
+
+        measuredTranslation = [self.board_config['board_config']['left_to_right_distance_cm'], 0.0, 0.0]
+        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.RIGHT, calib_data[5], calib_data[6], measuredTranslation)
+
+        measuredTranslation = [self.board_config['board_config']['left_to_rgb_distance_cm'], 0.0, 0.0]
+        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.RIGHT, dai.CameraBoardSocket.RGB, calib_data[7], calib_data[8], measuredTranslation)
+
+
+        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.LEFT, calib_data[9])
+        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.RIGHT, calib_data[10])
+        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[11])
+
+        calibration_handler.setFov(dai.CameraBoardSocket.LEFT, self.board_config['board_config']['left_fov_deg'])
+        calibration_handler.setFov(dai.CameraBoardSocket.RIGHT, self.board_config['board_config']['left_fov_deg'])
+        calibration_handler.setFov(dai.CameraBoardSocket.RGB, self.board_config['board_config']['rgb_fov_deg'])
+
+        calibration_handler.setLensPosition(dai.CameraBoardSocket.RGB, self.focus_value)
+
         
         try:
             is_write_succesful = self.device.flashCalibration(calibration_handler)
@@ -499,15 +524,20 @@ class depthai_calibration_node:
         # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         # shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
-        print(avg_epipolar_error_l_rgb)
+        print(avg_epipolar_error_lr)
+        print(avg_epipolar_error_r_rgb)
         
-        print('Validating...')
-
         self.is_service_active = False
         self.device.close()
         if is_write_succesful:
+            print_epipolar_error(green)
+            text = "EEPROM written succesfully"
+            pygame_render_text(self.screen, text, (400, 270), green, 30)
             return (True, "EEPROM written succesfully")
         else:
+            print_epipolar_error(red)
+            text = "EEPROM write Failed!!"
+            pygame_render_text(self.screen, text, (400, 270), red, 30)
             return (False, "EEPROM write Failed!!")
 
 

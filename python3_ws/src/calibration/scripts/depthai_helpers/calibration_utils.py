@@ -80,7 +80,9 @@ class StereoCalibration(object):
         # init object data
         self.calibrate_rgb = calibrate_rgb
         self.enable_rectification_disp = enable_disp_rectify
+        self.camera_model = camera_model
         self.data_path = filepath
+        self.aruco_dictionary = aruco.Dictionary_get(aruco.DICT_4X4_1000)
         self.board = aruco.CharucoBoard_create(
                 # 22, 16,
                 squaresX, squaresY,
@@ -88,7 +90,7 @@ class StereoCalibration(object):
                 mrk_size,
                 self.aruco_dictionary)
 
-        self.aruco_dictionary = aruco.Dictionary_get(aruco.DICT_4X4_1000)
+        
             # parameters = aruco.DetectorParameters_create()
         assert mrk_size != None,  "ERROR: marker size not set"
         self.calibrate_charuco3D(filepath)
@@ -176,10 +178,14 @@ class StereoCalibration(object):
         print("\tTook %i seconds to run image processing." %
               (round(time.time() - start_time, 2)))
 
-        if type == 'charuco':
-            if self.calibrate_rgb:
-                avg_epipolar_rgb_r = self.test_epipolar_charuco_rgb(filepath)
-            return avg_epipolar_rgb_r, self.calib_data
+
+        if self.calibrate_rgb:
+            avg_epipolar_rgb_r = self.test_epipolar_charuco_rgb(filepath)
+            return self.test_epipolar_charuco(filepath), avg_epipolar_rgb_r, self.calib_data
+        else:
+            return self.test_epipolar_checker(filepath), None, self.calib_data
+
+        return avg_epipolar_rgb_r, self.calib_data
 
 
     def parse_frame(self, frame, stream_name, file_name):
@@ -280,8 +286,8 @@ class StereoCalibration(object):
                                      winSize=(5, 5),
                                      zeroZone=(-1, -1),
                                      criteria=criteria)
-                    allCorners.append(res2[1])
-                    allIds.append(res2[2])
+                    allCorners.append(res2[1]) # Charco chess corners
+                    allIds.append(res2[2]) # charuco chess corner id's
                     all_marker_corners.append(marker_corners)
                     all_marker_ids.append(ids)
                     all_recovered.append(recoverd)
@@ -328,14 +334,25 @@ class StereoCalibration(object):
         self.img_shape = imsize[::-1]
 
         # self.img_shape_rgb = imsize_rgb[::-1]
-        ret_l, self.M1, self.d1, rvecs, tvecs = self.calibrate_camera_charuco(
-            allCorners_l, allIds_l, self.img_shape)
-        ret_r, self.M2, self.d2, rvecs, tvecs = self.calibrate_camera_charuco(
-            allCorners_r, allIds_r, self.img_shape)
+        if self.cameraModel == 'perspective':
+            ret_l, self.M1, self.d1, rvecs, tvecs = self.calibrate_camera_charuco(
+                allCorners_l, allIds_l, self.img_shape)
+            ret_r, self.M2, self.d2, rvecs, tvecs = self.calibrate_camera_charuco(
+                allCorners_r, allIds_r, self.img_shape)
+        else:
+            ret_l, self.M1, self.d1, rvecs, tvecs = self.calibrate_fisheye(allCorners_l, allIds_l, self.img_shape)
+            ret_r, self.M2, self.d2, rvecs, tvecs = self.calibrate_fisheye(allCorners_r, allIds_r, self.img_shape)
+
         print("~~~~~~~~~~~~~RMS error of left~~~~~~~~~~~~~~")
         print(ret_l)
         print(ret_r)
 
+        if self.cameraModel == 'perspective':
+            ret, self.M1, self.d1, self.M2, self.d2, self.R, self.T, E, F = self.calibrate_stereo(allCorners_l, allIds_l, allCorners_r, allIds_r, self.img_shape, self.M1, self.d1, self.M2, self.d2)
+        else:
+            ret, self.M1, self.d1, self.M2, self.d2, self.R, self.T = self.calibrate_stereo(allCorners_l, allIds_l, allCorners_r, allIds_r, self.img_shape, self.M1, self.d1, self.M2, self.d2)
+        
+        """         
         left_corners_sampled = []
         right_corners_sampled = []
         obj_pts = []
@@ -376,7 +393,7 @@ class StereoCalibration(object):
             self.M1, self.d1, self.M2, self.d2, self.img_shape,
             criteria=stereocalib_criteria, flags=flags)
         print("<~~ ~~~~~~~~~~~ RMS of stereo ~~~~~~~~~~~ ~~>")
-        print('RMS error of stereo calibration of left-right is {0}'.format(ret))
+        print('RMS error of stereo calibration of left-right is {0}'.format(ret)) """
 
         self.R1, self.R2, self.P1, self.P2, self.Q, validPixROI1, validPixROI2 = cv2.stereoRectify(
             self.M1,
@@ -414,7 +431,7 @@ class StereoCalibration(object):
         flags = (cv2.CALIB_USE_INTRINSIC_GUESS +
                  cv2.CALIB_RATIONAL_MODEL + cv2.CALIB_FIX_ASPECT_RATIO)
     #     flags = (cv2.CALIB_RATIONAL_MODEL)
-        (ret, camera_matrix, distortion_coefficients0,
+        (ret, camera_matrix, distortion_coefficients,
          rotation_vectors, translation_vectors,
          stdDeviationsIntrinsics, stdDeviationsExtrinsics,
          perViewErrors) = cv2.aruco.calibrateCameraCharucoExtended(
@@ -427,7 +444,68 @@ class StereoCalibration(object):
             flags=flags,
             criteria=(cv2.TERM_CRITERIA_EPS & cv2.TERM_CRITERIA_COUNT, 10000, 1e-9))
 
-        return ret, camera_matrix, distortion_coefficients0, rotation_vectors, translation_vectors
+        return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors
+
+    def calibrate_fisheye(self, allCorners, allIds, imsize):
+        one_pts = board.chessboardCorners
+        obj_points = []
+        for i in range(len(allIds)):
+            obj_pts_sub = []
+            for j in range(len(allIds[i])):
+                obj_pts_sub.append(one_pts[allIds[i][j]])
+            obj_points.append(np.array(obj_pts_sub, dtype=np.float32))\
+
+        term_criteria = (cv2.TERM_CRITERIA_COUNT +
+                                    cv2.TERM_CRITERIA_EPS, 100, 1e-5)
+        
+        return cv2.fisheye.calibrate(obj_points, allCorners, imsize, criteria = term_criteria)
+    
+    def calibrate_stereo(self, allCorners_l, allIds_l, allCorners_r, allIds_r, imsize, cameraMatrix_l, distCoeff_l, cameraMatrix_r, distCoeff_r):
+        left_corners_sampled = []
+        right_corners_sampled = []
+        obj_pts = []
+        one_pts = self.board.chessboardCorners
+        for i in range(len(allIds_l)):
+            left_sub_corners = []
+            right_sub_corners = []
+            obj_pts_sub = []
+        #     if len(allIds_l[i]) < 70 or len(allIds_r[i]) < 70:
+        #         continue
+            for j in range(len(allIds_l[i])):
+                idx = np.where(allIds_r[i] == allIds_l[i][j])
+                if idx[0].size == 0:
+                    continue
+                left_sub_corners.append(allCorners_l[i][j])
+                right_sub_corners.append(allCorners_r[i][idx])
+                obj_pts_sub.append(one_pts[allIds_l[i][j]])
+
+            obj_pts.append(np.array(obj_pts_sub, dtype=np.float32))
+            left_corners_sampled.append(
+                np.array(left_sub_corners, dtype=np.float32))
+            right_corners_sampled.append(
+                np.array(right_sub_corners, dtype=np.float32))
+
+        
+        stereocalib_criteria = (cv2.TERM_CRITERIA_COUNT +
+                                cv2.TERM_CRITERIA_EPS, 100, 1e-5)
+
+        if self.cameraModel == 'perspective':
+            flags = 0
+            flags |= cv2.CALIB_USE_INTRINSIC_GUESS # TODO(sACHIN): Try without intrinsic guess
+            flags |= cv2.CALIB_RATIONAL_MODEL
+
+            return cv2.stereoCalibrate(
+                obj_pts, left_corners_sampled, right_corners_sampled,
+                cameraMatrix_l, distCoeff_l, cameraMatrix_r, distCoeff_r, imsize,
+                criteria=stereocalib_criteria, flags=flags)
+        elif self.fisheye.cameraModel == 'fisheye':
+            flags = 0
+            flags |= cv2.CALIB_USE_INTRINSIC_GUESS # TODO(sACHIN): Try without intrinsic guess
+            return cv2.stereoCalibrate(
+                obj_pts, left_corners_sampled, right_corners_sampled,
+                cameraMatrix_l, distCoeff_l, cameraMatrix_r, distCoeff_r, imsize,
+                criteria=stereocalib_criteria, flags=flags)
+        
 
     def rgb_calibrate(self, filepath):
         images_right = glob.glob(filepath + "/right/*")
@@ -796,7 +874,7 @@ class StereoCalibration(object):
         cv2.destroyWindow('Stereo Pair')
 
 
- def create_save_mesh(self): #, output_path):
+    def create_save_mesh(self): #, output_path):
 
         map_x_l, map_y_l = cv2.initUndistortRectifyMap(self.M1, self.d1, self.R1, self.M2, self.img_shape, cv2.CV_32FC1)
         map_x_r, map_y_r = cv2.initUndistortRectifyMap(self.M2, self.d2, self.R2, self.M2, self.img_shape, cv2.CV_32FC1)
@@ -871,5 +949,5 @@ class StereoCalibration(object):
         
         mesh_left = np.array(mesh_left)
         mesh_right = np.array(mesh_right)
-        # mesh_left.tofile(consts.resource_paths.left_mesh_fpath)
-        # mesh_right.tofile(consts.resource_paths.right_mesh_fpath)
+        mesh_left.tofile(consts.resource_paths.left_mesh_fpath)
+        mesh_right.tofile(consts.resource_paths.right_mesh_fpath)
