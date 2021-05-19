@@ -492,7 +492,7 @@ class depthai_calibration_node:
         calibration_handler.setBoardInfo(self.board_config['board_config']['swap_left_and_right_cameras'], self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
         
         calibration_handler.setStereoLeft(dai.CameraBoardSocket.LEFT, calib_data[0])
-        calibration_handler.setStereoRight(dai.CameraBoardSocket.RGB, calib_data[1])
+        calibration_handler.setStereoRight(dai.CameraBoardSocket.RIGHT, calib_data[1])
         
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.LEFT, calib_data[2], 1280, 800)
         calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RIGHT, calib_data[3], 1280, 800)
