@@ -51,7 +51,7 @@ class depthai_calibration_node:
         self.args = depthai_args
         self.bridge = CvBridge()
         self.is_service_active = False
-        self.focus_value = 82
+        self.focus_value = 135
 
         pipeline = self.create_pipeline()
         self.device = dai.Device(pipeline)
