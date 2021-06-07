@@ -58,8 +58,8 @@ class depthai_calibration_node:
         self.disp.set_caption("Calibration - Device check ")
 
         self.ccm_selector()
-        self.focus_value = 82
-        
+        self.focus_value = 135
+
         # self.frame_count = 0
         self.init_time = time.time()
         if arg['board']:
