@@ -7,15 +7,13 @@ import platform
 import signal
 import subprocess
 import json
-import datetime
 import csv
 import time
 import numpy as np
 import os
 from pathlib import Path
 import shutil
-from datetime import datetime
-
+from datetime import datetime, timedelta
 import rospy
 from std_msgs.msg import String
 from calibration.srv import Capture
@@ -49,19 +47,19 @@ class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
+        self.args['swapLR'] = False
+        self.args['disableRgb'] = False
         self.bridge = CvBridge()
         self.is_service_active = False
+
+        self.disp = pygame.display
+        self.screen = self.disp.set_mode((800, 600))
+        self.screen.fill(white)
+        self.disp.set_caption("Calibration - Device check ")
+
+        self.ccm_selector()
         self.focus_value = 82
-
-        pipeline = self.create_pipeline()
-        self.device = dai.Device(pipeline)
-        # self.device.startPipeline()
-
-        self.left_camera_queue  = self.device.getOutputQueue("left", 5, False)
-        self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
-        self.rgb_camera_queue   = self.device.getOutputQueue("rgb", 5, False)
-        print("board_path")
-
+        
         # self.frame_count = 0
         self.init_time = time.time()
         if arg['board']:
@@ -80,15 +78,12 @@ class depthai_calibration_node:
             cv2.aruco.DICT_4X4_1000)
 
         # Connection checks ----------->
-        self.disp = pygame.display
-        self.screen = self.disp.set_mode((800, 600))
-        self.screen.fill(white)
-        self.disp.set_caption("Calibration - Device check ")
+
         title = "Device Status"
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
-        self.auto_checkbox_names = ["Left Stream", "RGB Stream"]
+        self.auto_checkbox_names = ["USB3", "Left Camera Conencted", "Right Camera Conencted", "Rgb Camera Conencted", "Left Stream", "Right Stream", "RGB Stream"]
         header = ['time', 'Mx_serial_id',
-                  'left_camera', 'rgb_camera', 'Epipolar error L-Rgb']
+                  'left_camera', 'rgb_camera', 'Epipolar error L-R', 'Epipolar error R-Rgb']
 
         log_file = self.args['log_path'] + "/calibration_logs.csv"
         if not os.path.exists(log_file):
@@ -134,32 +129,128 @@ class depthai_calibration_node:
         self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
         self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
         self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
+        self.device = None
+
+    def ccm_selector(self):
+        title = "Select the mono Camera and RGB camera vendor"
+        pygame_render_text(self.screen, title, (70, 20), black, 40)
+        title = "MONO Camera Vendor                  RGB Camera Vendor"
+        pygame_render_text(self.screen, title, (200, 100), green, 25)
+        ccm_names = ['Sunny', 'KingTop', 'ArduCam']
+        ccm_names_dict = dict()
+        y = 200
+        x = 110
+        font = pygame.font.Font(None, 30)
+        for i in range(len(ccm_names)):
+            w, h = font.size(ccm_names[i])
+            x_axis = x - w
+            y_axis = y + (60*i)
+            font_surf = font.render(ccm_names[i], True, black)
+            self.screen.blit(font_surf, (x_axis, y_axis))
+            ccm_names_dict[ccm_names[i]] = []
+            ccm_names_dict[ccm_names[i]].append(Checkbox(self.screen, x + 150, y_axis-5, outline_color=green,
+                                                                            check_color=green, check=False, disable_pass = True))
+            ccm_names_dict[ccm_names[i]].append(Checkbox(self.screen, x + 420, y_axis-5, outline_color=green, 
+                                                                            check_color=green, check=False, disable_pass = True))
+            ccm_names_dict[ccm_names[i]][0].render_checkbox()
+            ccm_names_dict[ccm_names[i]][1].render_checkbox()
+
+        next_button =  pygame.Rect(600, 430, 60, 35)
+        pygame.draw.rect(self.screen, orange, next_button)
+        pygame_render_text(self.screen, 'Next', (605, 440))
+
+        is_saved = False
+        is_mono_selected = False
+        is_rgb_selected = False
+        self.monoCcm = None
+        self.rgbCcm = None
+
+        while not is_saved:
+            self.disp.update()
+            for event in pygame.event.get():
+                # catching NEXT button and checkboxes clicks
+                if event.type == pygame.MOUSEMOTION:
+                    x, y = event.pos
+                    px, py, w, h = next_button
+                    if px < x < px + w and py < y < py + h:
+                        active = True
+                    else:
+                        active = False
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    click = True
+                if event.type == pygame.MOUSEBUTTONUP:
+                    if active and not is_saved and click:
+                        click = False
+                        if is_rgb_selected and is_mono_selected:
+                            is_saved = True                
+                            pygame.draw.rect(self.screen, green, next_button)
+                            pygame_render_text(self.screen, 'Next', (605, 440))
+                        else:
+                            pygame_render_text(self.screen, "Select the type of module before clicking next ", (150, 480), red)
+                    if active and is_saved and click:
+                        click = False
+                        pygame_render_text(self.screen, "Saving Selection", (605, 480), green)
+
+                ccm1 = ccm_names_dict[ccm_names[0]]
+                ccm2 = ccm_names_dict[ccm_names[1]]
+                ccm3 = ccm_names_dict[ccm_names[2]]
+
+                ccm1[0].update_checkbox_rel(event, ccm2[0], ccm3[0])
+                ccm2[0].update_checkbox_rel(event, ccm1[0], ccm3[0])
+                ccm3[0].update_checkbox_rel(event, ccm1[0], ccm2[0]) 
+                ccm1[0].render_checkbox()
+                ccm2[0].render_checkbox()
+                ccm3[0].render_checkbox()
+
+                ccm1[1].update_checkbox_rel(event, ccm2[1], ccm3[1])
+                ccm2[1].update_checkbox_rel(event, ccm1[1], ccm3[1])
+                ccm3[1].update_checkbox_rel(event, ccm1[1], ccm2[1]) 
+                ccm1[1].render_checkbox()
+                ccm2[1].render_checkbox()
+                ccm3[1].render_checkbox()
+                
+                if not is_mono_selected:
+                    if ccm1[0].is_checked() or ccm2[0].is_checked() or ccm3[0].is_checked():
+                        is_mono_selected = True
+
+                if not is_rgb_selected:
+                    if ccm1[1].is_checked() or ccm2[1].is_checked() or ccm3[1].is_checked():
+                        is_rgb_selected = True
+
+        for i in range(len(ccm_names)):
+            if ccm_names_dict[ccm_names[i]][0].is_checked():
+                self.monoCcm = ccm_names[i]
+            if ccm_names_dict[ccm_names[i]][1].is_checked():
+                self.rgbCcm = ccm_names[i]
+        
+        self.screen.fill(white)
+        self.disp.update()
+        print("selected CCMS:")
+        print(self.monoCcm)
+        print(self.rgbCcm)
 
     def create_pipeline(self):
         pipeline = dai.Pipeline()
 
-        rgb_cam  = pipeline.createColorCamera()
         cam_left = pipeline.createMonoCamera()
         cam_right = pipeline.createMonoCamera()
 
-        xout_left     = pipeline.createXLinkOut()
-        xout_right    = pipeline.createXLinkOut()
-        xout_rgb_isp  = pipeline.createXLinkOut()
+        xout_left = pipeline.createXLinkOut()
+        xout_right = pipeline.createXLinkOut()
 
-        rgb_cam.setResolution(dai.ColorCameraProperties.SensorResolution.THE_4_K)
-        rgb_cam.setInterleaved(False)
-        rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
-        rgb_cam.setIspScale(1, 3)
-        rgb_cam.initialControl.setManualFocus(self.focus_value)
-        # rgb_cam.initialControl.setManualFocus(135)
-        # rgb_cam.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
+        if self.args['swapLR'] :
+            cam_left.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+            cam_right.setBoardSocket(dai.CameraBoardSocket.LEFT)
+        else:
+            cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
+            cam_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+                
+        cam_left.setResolution(
+            dai.MonoCameraProperties.SensorResolution.THE_800_P)
 
-        cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
-        cam_left.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
-
-        cam_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-        cam_right.setResolution(dai.MonoCameraProperties.SensorResolution.THE_800_P)
-        # cam_left.setImageOrientation(dai.CameraImageOrientation.ROTATE_180_DEG)
+        cam_right.setResolution(
+            dai.MonoCameraProperties.SensorResolution.THE_800_P)
 
         xout_left.setStreamName("left")
         cam_left.out.link(xout_left.input)
@@ -167,11 +258,20 @@ class depthai_calibration_node:
         xout_right.setStreamName("right")
         cam_right.out.link(xout_right.input)
 
-        xout_rgb_isp.setStreamName("rgb")
-        rgb_cam.isp.link(xout_rgb_isp.input)
-        # rgb_cam.isp.link(xout_rgb_isp.input)
-        return pipeline
+        if not self.args['disableRgb']:
+            rgb_cam = pipeline.createColorCamera()
+            rgb_cam.setResolution(
+                dai.ColorCameraProperties.SensorResolution.THE_4_K)
+            rgb_cam.setInterleaved(False)
+            rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
+            rgb_cam.setIspScale(1, 3)
+            rgb_cam.initialControl.setManualFocus(self.focus_value)
 
+            xout_rgb_isp = pipeline.createXLinkOut()
+            xout_rgb_isp.setStreamName("rgb")
+            rgb_cam.isp.link(xout_rgb_isp.input)        
+
+        return pipeline
 
     def capture_exit(self):
         is_clicked = False
@@ -207,7 +307,7 @@ class depthai_calibration_node:
             # if self.start_disp:
             self.disp.update()
 
-            if not self.is_service_active and not self.device.isClosed():                
+            if not self.is_service_active and self.device is not None and not self.device.isClosed(): 
                 left_frame = self.left_camera_queue.tryGet()
                 if left_frame is not None:
                     self.image_pub_left.publish(
@@ -215,16 +315,14 @@ class depthai_calibration_node:
                 
                 right_frame = self.right_camera_queue.tryGet()
                 if right_frame is not None:
-                    self.image_pub_left.publish(
+                    self.image_pub_right.publish(
                         self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
                 
                 rgb_frame = self.rgb_camera_queue.tryGet()
                 if rgb_frame is not None:
                     frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
-                    # cv2.imwrite("/home/sachin/test.png", frame)
                     self.image_pub_color.publish(
                         self.bridge.cv2_to_imgmsg(frame, "passthrough"))
-                    # cv2.imshow("self.", rgb_frame.getCvFrame())
 
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
@@ -267,20 +365,172 @@ class depthai_calibration_node:
         print("Markers count ... {}".format(len(marker_corners)))
         return not (len(marker_corners) < 30)
 
+
     def device_status_handler(self, req):
         self.is_service_active = True
-        self.start_disp = True
-        # pygame.draw.rect(self.screen, white, no_button)
+        self.start_disp = True # TODO(sachin): Change code to Use this for display 
 
-        # if req.name == "recalibrate":
-        #     self.device.override_device_changed()
+        fill_color = pygame.Rect(280, 400, 450, 55)
+        pygame.draw.rect(self.screen, white, fill_color)
+
+        # to remove previous date and stuff
+        fill_color = pygame.Rect(400, 70, 500, 300)
+        pygame.draw.rect(self.screen, white, fill_color)
+        now_time = datetime.now()
+        text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
+        pygame_render_text(self.screen, text, (400, 80), black, 30)
+        """ 
+        dev_info = self.device.getDeviceInfo()
+        text = "device Mx_id : " + dev_info.getMxId()
+        pygame_render_text(self.screen, text, (400, 120), black, 30)
+        rospy.sleep(1)
+        """
+        fill_color_2 = pygame.Rect(50, 520, 400, 80)
+        pygame.draw.rect(self.screen, white, fill_color_2)
+
+        finished = False
+        while not finished:
+            if self.capture_exit():
+                rospy.signal_shutdown("Stopping calibration")
+            while self.device is None or self.device.isClosed():
+                if self.capture_exit():
+                    rospy.signal_shutdown("Stopping calibration")
+                # TODO(Sachin): add a check for available devices..
+                searchTime = timedelta(seconds=80)
+                isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
+                if isFound:
+                    self.device = dai.Device() 
+                    cameraList = self.device.getConnectedCameras()
+                    lost_camera = False
+                    if dai.CameraBoardSocket.LEFT not in cameraList:
+                        self.auto_checkbox_dict["Left Camera Conencted"].uncheck()
+                        lost_camera = True
+                    else:
+                        self.auto_checkbox_dict["Left Camera Conencted"].check()
+                    self.auto_checkbox_dict["Left Camera Conencted"].render_checkbox()
+                    
+                    if dai.CameraBoardSocket.RIGHT not in cameraList:
+                        self.auto_checkbox_dict["Right Camera Conencted"].uncheck()
+                        lost_camera = True
+                    else:
+                        self.auto_checkbox_dict["Right Camera Conencted"].check()
+                    self.auto_checkbox_dict["Right Camera Conencted"].render_checkbox()
+
+                    if dai.CameraBoardSocket.RGB not in cameraList:
+                        self.auto_checkbox_dict["Rgb Camera Conencted"].uncheck()
+                        lost_camera = True
+                    else:
+                        self.auto_checkbox_dict["Rgb Camera Conencted"].check()
+                    self.auto_checkbox_dict["Rgb Camera Conencted"].render_checkbox()
+                    # print(self.device.getUsbSpeed())
+
+                    if self.device.getUsbSpeed() != dai.UsbSpeed.SUPER:
+                        self.auto_checkbox_dict["USB3"].check()
+                    else:
+                        lost_camera = True
+                        self.auto_checkbox_dict["USB3"].uncheck()
+                    self.auto_checkbox_dict["USB3"].render_checkbox()
+
+                    if not lost_camera:    
+                        pipeline = self.create_pipeline()
+                        self.device.startPipeline(pipeline)
+
+                        self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
+                        self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
+                        self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
+                    else:
+                        print("Closing Device...")
+                        self.device.close()
+
+            left_mipi = False
+            right_mipi = False
+            rgb_mipi = False
+
+            dev_info = self.device.getDeviceInfo()
+            text = "device Mx_id : " + dev_info.getMxId()
+            pygame_render_text(self.screen, text, (400, 120), black, 30)
+
+            for _ in range(120):
+                left_frame = self.left_camera_queue.tryGet()
+                if left_frame is not None:
+                    left_mipi = True                
+                    self.image_pub_left.publish(
+                        self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
+
+                right_frame = self.right_camera_queue.tryGet()
+                if right_frame is not None:
+                    right_mipi = True
+                    self.image_pub_right.publish(
+                        self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
+
+                rgb_frame = self.rgb_camera_queue.tryGet()
+                if rgb_frame is not None:
+                    rgb_mipi = True
+                    frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
+                    self.image_pub_color.publish(
+                        self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+
+                if left_mipi and right_mipi and rgb_mipi:
+                    break
+                rospy.sleep(1)
+
+            if not left_mipi:
+                self.auto_checkbox_dict["Left Stream"].uncheck()
+            else:
+                self.auto_checkbox_dict["Left Stream"].check()
+
+            if not right_mipi:
+                self.auto_checkbox_dict["Right Stream"].uncheck()
+            else:
+                self.auto_checkbox_dict["Right Stream"].check()
+
+            if not rgb_mipi:
+                self.auto_checkbox_dict["RGB Stream"].uncheck()
+            else:
+                self.auto_checkbox_dict["RGB Stream"].check()
+
+            for i in range(len(self.auto_checkbox_names)):
+                self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
+            isAllPassed = True
+            for key in self.auto_checkbox_dict.keys():
+                isAllPassed = isAllPassed and self.auto_checkbox_dict[key].is_checked
+
+            if isAllPassed:
+                finished = True
+            else:
+                self.device.close()
+        dataset_path = Path(self.package_path + "/dataset")
+        if 0 and dataset_path.exists():
+            shutil.rmtree(str(dataset_path))
+        dev_info = self.device.getDeviceInfo()
+        self.is_service_active = False
+        return (finished, dev_info.getMxId())
+
+    """ 
+    def device_status_handler_backup(self, req):
+        self.is_service_active = True
+        self.start_disp = True # TODO(sachin): Change code to Use this for display 
+
         finished = False
         while self.device.isClosed():
             print("device_closed")
             # TODO(Sachin): add a check for available devices..
             pipeline = self.create_pipeline()
-            self.device = dai.Device(pipeline) 
-            self.device.startPipeline()
+            self.device = dai.Device() 
+            cameraList = self.device.getConnectedCameras()
+            for cam in cameraList:
+                if cam == dai.CameraBoardSocket.RIGHT:
+                    print("Getting RIght Cam")
+                    right_status = True
+                if cam == dai.CameraBoardSocket.LEFT:
+                    print("Getting Left Cam")
+                    left_status = True
+                if cam == dai.CameraBoardSocket.RGB:
+                    print("Getting RGB Cam")
+                    rgb_status = True
+
+            self.device.startPipeline(pipeline)
+
             self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
             self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
             self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
@@ -291,42 +541,40 @@ class depthai_calibration_node:
         #     pygame_render_text(self.screen, text, (300, 400), orange, 40)
 
         # to remove waiting for device change
-        fill_color = pygame.Rect(280, 400, 450, 55)
-        pygame.draw.rect(self.screen, white, fill_color)
-
-        # to remove previous date and stuff
-        fill_color = pygame.Rect(400, 70, 500, 300)
-        pygame.draw.rect(self.screen, white, fill_color)
-        now_time = datetime.now()
-        text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
-        pygame_render_text(self.screen, text, (400, 80), black, 30)
-
-        dev_info = self.device.getDeviceInfo()
-        text = "device Mx_id : " + dev_info.getMxId()
-        pygame_render_text(self.screen, text, (400, 120), black, 30)
-        rospy.sleep(1)
-        fill_color_2 = pygame.Rect(50, 520, 400, 80)
-        pygame.draw.rect(self.screen, white, fill_color_2)
-
 
         dataset_path = Path(self.package_path + "/dataset")
         if 0 and dataset_path.exists():
             shutil.rmtree(str(dataset_path))
+
+
+        left_status  = False
+        right_status = False
+        rgb_status   = False
+
+        cameraList = self.device.getConnectedCameras()
+        for cam in cameraList:
+            if cam is dai.CameraBoardSocket.RIGHT:
+                print("Getting RIght Cam")
+                right_status = True
+            if cam is dai.CameraBoardSocket.LEFT:
+                print("Getting Left Cam")
+                left_status = True
+            if cam is dai.CameraBoardSocket.RGB:
+                print("Getting RGB Cam")
+                rgb_status = True
+
 
         while not finished:
             # print(self.device.is_device_changed())
             if self.capture_exit():
                 print("signaling...")
                 rospy.signal_shutdown("Finished calibration")
-            # is_usb3 = False
+            is_usb3 = True if self.device.getUsbSpeed() is dai.UsbSpeed.SUPER or self.device.getUsbSpeed() is dai.UsbSpeed.SUPER_PLUS else False
             left_mipi = False
             right_mipi = False
             rgb_mipi = False
 
-            # is_usb3 = self.device.is_usb3()
-            left_status = True
-            # right_status = self.device.is_right_connected()
-            rgb_status = True
+
             if self.capture_exit():
                 rospy.signal_shutdown("Finished calibration")
 
@@ -347,8 +595,6 @@ class depthai_calibration_node:
                         frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
                         self.image_pub_color.publish(
                             self.bridge.cv2_to_imgmsg(frame, "passthrough"))
-                    if left_mipi and rgb_mipi:
-                        finished = True
 
             if not left_mipi:
                 self.auto_checkbox_dict["Left Stream"].uncheck()
@@ -363,13 +609,14 @@ class depthai_calibration_node:
                 self.auto_checkbox_dict["RGB Stream"].check()
 
             for i in range(len(self.auto_checkbox_names)):
+                print(self.auto_checkbox_names[i])
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
 
         # self.set_focus()
         # rospy.sleep(2)
         self.is_service_active = False
         return (True, dev_info.getMxId())
-
+    """
 
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
