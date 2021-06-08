@@ -348,9 +348,57 @@ class depthai_calibration_node:
               "in folder ->" + stream_name)
 
         ## adding backup
-        now_tim = datetime.now()
         self.backup_ds(stream_name, file_name, frame)    
         return True
+
+    def retest(self):
+        retest_button =  pygame.Rect(400, 430, 100, 35)
+        pygame.draw.rect(self.screen, orange, retest_button)
+        pygame_render_text(self.screen, 'RETEST', (410, 440))
+
+        is_reset = False
+        is_exit = False
+        while True:
+            for event in pygame.event.get():
+                # self.disp.update()
+                if event.type == pygame.MOUSEMOTION:
+                    x, y = event.pos
+                    px, py, w, h = no_button
+                    rx, ry, rw, rh = retest_button
+
+                    if px < x < px + w and py < y < py + h:
+                        self.no_active = True
+                        pygame.draw.rect(self.screen, orange, no_button)
+                        pygame_render_text(self.screen, 'Exit', (500, 505))
+                    else:
+                        self.no_active = False
+                        pygame.draw.rect(self.screen, red, no_button)
+                        pygame_render_text(self.screen, 'Exit', (500, 505))
+
+                    if rx < x < rx + rw and ry < y < ry + rh:
+                        self.reset_active = True
+                        pygame.draw.rect(self.screen, green, retest_button)
+                        pygame_render_text(self.screen, 'RETEST', (410, 440))
+                    else:
+                        self.reset_active = False
+                        pygame.draw.rect(self.screen, orange, retest_button)
+                        pygame_render_text(self.screen, 'RETEST', (410, 440))
+
+                if event.type == pygame.MOUSEBUTTONDOWN and self.no_active:
+                    print("setting click")
+                    self.click = True
+                if event.type == pygame.MOUSEBUTTONDOWN and self.reset_active:
+                    print("setting click")
+                    self.click = True
+
+                if event.type == pygame.MOUSEBUTTONUP:
+                    if self.no_active and self.click:
+                        print("No clicked")
+                        rospy.signal_shutdown("Shutting down calibration")
+                    if self.reset_active and self.click:
+                        print("Reset clicked")
+                        return
+
 
     def backup_ds(self, stream_name, file_name, frame):
         now_tim = datetime.now()
@@ -364,7 +412,6 @@ class depthai_calibration_node:
             frame, self.aruco_dictionary)
         print("Markers count ... {}".format(len(marker_corners)))
         return not (len(marker_corners) < 30)
-
 
     def device_status_handler(self, req):
         self.is_service_active = True
@@ -401,6 +448,15 @@ class depthai_calibration_node:
                 if isFound:
                     self.device = dai.Device() 
                     cameraList = self.device.getConnectedCameras()
+                    fill_color_2 = pygame.Rect(390, 120, 500, 100)
+                    pygame.draw.rect(self.screen, white, fill_color_2)
+
+                    dev_info = self.device.getDeviceInfo()
+                    text = "device Mx_id : " + dev_info.getMxId()
+                    pygame_render_text(self.screen, text, (400, 120), black, 30)
+                    text = "Device Connected!!!"
+                    pygame_render_text(self.screen, text, (400, 150), green, 30)
+
                     lost_camera = False
                     if dai.CameraBoardSocket.LEFT not in cameraList:
                         self.auto_checkbox_dict["Left Camera Conencted"].uncheck()
@@ -424,7 +480,7 @@ class depthai_calibration_node:
                     self.auto_checkbox_dict["Rgb Camera Conencted"].render_checkbox()
                     # print(self.device.getUsbSpeed())
 
-                    if self.device.getUsbSpeed() != dai.UsbSpeed.SUPER:
+                    if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
                         self.auto_checkbox_dict["USB3"].check()
                     else:
                         lost_camera = True
@@ -440,15 +496,23 @@ class depthai_calibration_node:
                         self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
                     else:
                         print("Closing Device...")
-                        self.device.close()
 
+                        fill_color_2 = pygame.Rect(390, 150, 220, 35)
+                        pygame.draw.rect(self.screen, white, fill_color_2)
+                        text = "Device Disconnected!!!"
+                        pygame_render_text(self.screen, text, (400, 150), red, 30)
+                        text = "Click RETEST when device is ready!!!"
+                        pygame_render_text(self.screen, text, (400, 180), red, 30)
+
+                        self.device.close()
+                        self.retest()
+                        print("Restarting Device...")
+
+                        fill_color_2 = pygame.Rect(390, 430, 120, 35)
+                        pygame.draw.rect(self.screen, white, fill_color_2)
             left_mipi = False
             right_mipi = False
             rgb_mipi = False
-
-            dev_info = self.device.getDeviceInfo()
-            text = "device Mx_id : " + dev_info.getMxId()
-            pygame_render_text(self.screen, text, (400, 120), black, 30)
 
             for _ in range(120):
                 left_frame = self.left_camera_queue.tryGet()
@@ -499,6 +563,7 @@ class depthai_calibration_node:
                 finished = True
             else:
                 self.device.close()
+                self.retest()
         dataset_path = Path(self.package_path + "/dataset")
         if 0 and dataset_path.exists():
             shutil.rmtree(str(dataset_path))
