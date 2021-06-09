@@ -49,6 +49,7 @@ class depthai_calibration_node:
         self.args = depthai_args
         self.args['swapLR'] = False
         self.args['disableRgb'] = False
+        self.args['disableLR'] = False
         self.bridge = CvBridge()
         self.is_service_active = False
 
@@ -83,9 +84,18 @@ class depthai_calibration_node:
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
         self.auto_checkbox_names = ["USB3", "Left Camera Conencted", "Right Camera Conencted", "Rgb Camera Conencted", "Left Stream", "Right Stream", "RGB Stream"]
         header = ['time', 'Mx_serial_id',
-                  'left_camera', 'rgb_camera', 'Epipolar error L-R', 'Epipolar error R-Rgb']
+                  'left_camera', 'right_camera', 'rgb_camera', 'Epipolar error L-R', 'Epipolar error R-Rgb']
 
-        log_file = self.args['log_path'] + "/calibration_logs.csv"
+        if not self.args['disableLR']:
+            self.auto_checkbox_names.append("Left Camera Conencted")
+            self.auto_checkbox_names.append("Right Camera Conencted")
+            self.auto_checkbox_names.append("Left Stream")
+            self.auto_checkbox_names.append("Right Stream")
+        if not self.args['disableRgb']:
+            self.auto_checkbox_names.append("Rgb Camera Conencted")
+            self.auto_checkbox_names.append("Rgb Stream")
+        
+        log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv" #TODO(sachin): Add device type here 
         if not os.path.exists(log_file):
             with open(log_file, mode='w') as log_fopen:
                 log_csv_writer = csv.writer(log_fopen, delimiter=',')
@@ -126,9 +136,11 @@ class depthai_calibration_node:
         #     "set_rgb_focus", Capture, self.rgb_focus_handler)
 
         self.args['cameraModel'] = 'perspective'
-        self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
-        self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
-        self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
+        if not self.args['disableLR']:
+            self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
+            self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
+        if not self.args['disableRgb']:
+            self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
         self.device = None
 
     def ccm_selector(self):
@@ -233,30 +245,31 @@ class depthai_calibration_node:
     def create_pipeline(self):
         pipeline = dai.Pipeline()
 
-        cam_left = pipeline.createMonoCamera()
-        cam_right = pipeline.createMonoCamera()
+        if not self.args['disableLR']:
+            cam_left = pipeline.createMonoCamera()
+            cam_right = pipeline.createMonoCamera()
 
-        xout_left = pipeline.createXLinkOut()
-        xout_right = pipeline.createXLinkOut()
+            xout_left = pipeline.createXLinkOut()
+            xout_right = pipeline.createXLinkOut()
 
-        if self.args['swapLR'] :
-            cam_left.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-            cam_right.setBoardSocket(dai.CameraBoardSocket.LEFT)
-        else:
-            cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
-            cam_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-                
-        cam_left.setResolution(
-            dai.MonoCameraProperties.SensorResolution.THE_800_P)
+            if self.args['swapLR'] :
+                cam_left.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+                cam_right.setBoardSocket(dai.CameraBoardSocket.LEFT)
+            else:
+                cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
+                cam_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
+                    
+            cam_left.setResolution(
+                dai.MonoCameraProperties.SensorResolution.THE_800_P)
 
-        cam_right.setResolution(
-            dai.MonoCameraProperties.SensorResolution.THE_800_P)
+            cam_right.setResolution(
+                dai.MonoCameraProperties.SensorResolution.THE_800_P)
 
-        xout_left.setStreamName("left")
-        cam_left.out.link(xout_left.input)
+            xout_left.setStreamName("left")
+            cam_left.out.link(xout_left.input)
 
-        xout_right.setStreamName("right")
-        cam_right.out.link(xout_right.input)
+            xout_right.setStreamName("right")
+            cam_right.out.link(xout_right.input)
 
         if not self.args['disableRgb']:
             rgb_cam = pipeline.createColorCamera()
@@ -308,21 +321,23 @@ class depthai_calibration_node:
             self.disp.update()
 
             if not self.is_service_active and self.device is not None and not self.device.isClosed(): 
-                left_frame = self.left_camera_queue.tryGet()
-                if left_frame is not None:
-                    self.image_pub_left.publish(
-                        self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
+                if not self.args['disableLR']:
+                    left_frame = self.left_camera_queue.tryGet()
+                    if left_frame is not None:
+                        self.image_pub_left.publish(
+                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
+                    
+                    right_frame = self.right_camera_queue.tryGet()
+                    if right_frame is not None:
+                        self.image_pub_right.publish(
+                            self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
                 
-                right_frame = self.right_camera_queue.tryGet()
-                if right_frame is not None:
-                    self.image_pub_right.publish(
-                        self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
-                
-                rgb_frame = self.rgb_camera_queue.tryGet()
-                if rgb_frame is not None:
-                    frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
-                    self.image_pub_color.publish(
-                        self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+                if not self.args['disableRgb']:
+                    rgb_frame = self.rgb_camera_queue.tryGet()
+                    if rgb_frame is not None:
+                        frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
+                        self.image_pub_color.publish(
+                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
 
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
@@ -334,6 +349,10 @@ class depthai_calibration_node:
         return cv2.cvtColor(yuv420p, cv2.COLOR_YUV2BGR_IYUV)
 
     def parse_frame(self, frame, stream_name, file_name):
+        if frame is None:
+            print("Frame with stream name -> {} was None".format(stream_name))
+            return True
+
         file_name += '.png'
         # filename = image_filename(stream_name, self.current_polygon, self.images_captured)
         print(self.package_path + "/dataset/{}/{}".format(stream_name, file_name))
@@ -399,7 +418,6 @@ class depthai_calibration_node:
                         print("Reset clicked")
                         return
 
-
     def backup_ds(self, stream_name, file_name, frame):
         now_tim = datetime.now()
         local_ds = self.args['ds_backup_path'] + '/' + now_tim.strftime("%m_%d_%Y_%H") + '/{}'.format(stream_name)
@@ -458,27 +476,29 @@ class depthai_calibration_node:
                     pygame_render_text(self.screen, text, (400, 150), green, 30)
 
                     lost_camera = False
-                    if dai.CameraBoardSocket.LEFT not in cameraList:
-                        self.auto_checkbox_dict["Left Camera Conencted"].uncheck()
-                        lost_camera = True
-                    else:
-                        self.auto_checkbox_dict["Left Camera Conencted"].check()
-                    self.auto_checkbox_dict["Left Camera Conencted"].render_checkbox()
-                    
-                    if dai.CameraBoardSocket.RIGHT not in cameraList:
-                        self.auto_checkbox_dict["Right Camera Conencted"].uncheck()
-                        lost_camera = True
-                    else:
-                        self.auto_checkbox_dict["Right Camera Conencted"].check()
-                    self.auto_checkbox_dict["Right Camera Conencted"].render_checkbox()
+                    if not self.args['disableLR']:
+                        if dai.CameraBoardSocket.LEFT not in cameraList:
+                            self.auto_checkbox_dict["Left Camera Conencted"].uncheck()
+                            lost_camera = True
+                        else:
+                            self.auto_checkbox_dict["Left Camera Conencted"].check()
+                        self.auto_checkbox_dict["Left Camera Conencted"].render_checkbox()
+                        
+                        if dai.CameraBoardSocket.RIGHT not in cameraList:
+                            self.auto_checkbox_dict["Right Camera Conencted"].uncheck()
+                            lost_camera = True
+                        else:
+                            self.auto_checkbox_dict["Right Camera Conencted"].check()
+                        self.auto_checkbox_dict["Right Camera Conencted"].render_checkbox()
 
-                    if dai.CameraBoardSocket.RGB not in cameraList:
-                        self.auto_checkbox_dict["Rgb Camera Conencted"].uncheck()
-                        lost_camera = True
-                    else:
-                        self.auto_checkbox_dict["Rgb Camera Conencted"].check()
-                    self.auto_checkbox_dict["Rgb Camera Conencted"].render_checkbox()
-                    # print(self.device.getUsbSpeed())
+                    if not self.args['disableLR']:
+                        if dai.CameraBoardSocket.RGB not in cameraList:
+                            self.auto_checkbox_dict["Rgb Camera Conencted"].uncheck()
+                            lost_camera = True
+                        else:
+                            self.auto_checkbox_dict["Rgb Camera Conencted"].check()
+                        self.auto_checkbox_dict["Rgb Camera Conencted"].render_checkbox()
+                        # print(self.device.getUsbSpeed())
 
                     if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
                         self.auto_checkbox_dict["USB3"].check()
@@ -515,46 +535,56 @@ class depthai_calibration_node:
             rgb_mipi = False
 
             for _ in range(120):
-                left_frame = self.left_camera_queue.tryGet()
-                if left_frame is not None:
-                    left_mipi = True                
-                    self.image_pub_left.publish(
-                        self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
+                if not self.args['disableLR']:
+                    left_frame = self.left_camera_queue.tryGet()
+                    if left_frame is not None:
+                        left_mipi = True                
+                        self.image_pub_left.publish(
+                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
 
-                right_frame = self.right_camera_queue.tryGet()
-                if right_frame is not None:
+                    right_frame = self.right_camera_queue.tryGet()
+                    if right_frame is not None:
+                        right_mipi = True
+                        self.image_pub_right.publish(
+                            self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
+                else:
+                    left_mipi = True
                     right_mipi = True
-                    self.image_pub_right.publish(
-                        self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
 
-                rgb_frame = self.rgb_camera_queue.tryGet()
-                if rgb_frame is not None:
+                if not self.args['disableRgb']:
+                    rgb_frame = self.rgb_camera_queue.tryGet()
+                    if rgb_frame is not None:
+                        rgb_mipi = True
+                        frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
+                        self.image_pub_color.publish(
+                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+                else:
                     rgb_mipi = True
-                    frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
-                    self.image_pub_color.publish(
-                        self.bridge.cv2_to_imgmsg(frame, "passthrough"))
 
                 if left_mipi and right_mipi and rgb_mipi:
                     break
                 rospy.sleep(1)
 
-            if not left_mipi:
-                self.auto_checkbox_dict["Left Stream"].uncheck()
-            else:
-                self.auto_checkbox_dict["Left Stream"].check()
+            if not self.args['disableLR']:
+                if not left_mipi:
+                    self.auto_checkbox_dict["Left Stream"].uncheck()
+                else:
+                    self.auto_checkbox_dict["Left Stream"].check()
 
-            if not right_mipi:
-                self.auto_checkbox_dict["Right Stream"].uncheck()
-            else:
-                self.auto_checkbox_dict["Right Stream"].check()
+                if not right_mipi:
+                    self.auto_checkbox_dict["Right Stream"].uncheck()
+                else:
+                    self.auto_checkbox_dict["Right Stream"].check()
 
-            if not rgb_mipi:
-                self.auto_checkbox_dict["RGB Stream"].uncheck()
-            else:
-                self.auto_checkbox_dict["RGB Stream"].check()
+            if not self.args['disableRgb']:
+                if not rgb_mipi:
+                    self.auto_checkbox_dict["RGB Stream"].uncheck()
+                else:
+                    self.auto_checkbox_dict["RGB Stream"].check()
 
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
+
             isAllPassed = True
             for key in self.auto_checkbox_dict.keys():
                 isAllPassed = isAllPassed and self.auto_checkbox_dict[key].is_checked
@@ -564,14 +594,15 @@ class depthai_calibration_node:
             else:
                 self.device.close()
                 self.retest()
+
         dataset_path = Path(self.package_path + "/dataset")
-        if 0 and dataset_path.exists():
+        if 1 and dataset_path.exists():
             shutil.rmtree(str(dataset_path))
         dev_info = self.device.getDeviceInfo()
         self.is_service_active = False
         return (finished, dev_info.getMxId())
 
-    """ 
+    """
     def device_status_handler_backup(self, req):
         self.is_service_active = True
         self.start_disp = True # TODO(sachin): Change code to Use this for display 
@@ -699,30 +730,46 @@ class depthai_calibration_node:
         # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
         while not finished:
             # left_frame = self.left_camera_queue.get()
-            left_frame = self.left_camera_queue.getAll()[-1]
-            self.image_pub_left.publish(
-                        self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
+            if not self.args['disableLR']:
+                left_frame = self.left_camera_queue.getAll()[-1]
+                self.image_pub_left.publish(
+                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
 
-            # right_frame = self.right_camera_queue.get()
-            right_frame = self.right_camera_queue.getAll()[-1]
-            self.image_pub_right.publish(
-                        self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
-                
+                # right_frame = self.right_camera_queue.get()
+                right_frame = self.right_camera_queue.getAll()[-1]
+                self.image_pub_right.publish(
+                            self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
+  
+                recent_left = left_frame.getCvFrame()
+                recent_right = right_frame.getCvFrame()
+
             # rgb_frame = self.rgb_camera_queue.get()
-            rgb_frame = self.rgb_camera_queue.getAll()[-1]
-            recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-            self.image_pub_color.publish(
-                    self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
+            if not self.args['disableRgb']:
+                rgb_frame = self.rgb_camera_queue.getAll()[-1]
+                recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                self.image_pub_color.publish(
+                        self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
 
-            recent_left = left_frame.getCvFrame()
-            recent_right = right_frame.getCvFrame()
 
-            if recent_left is not None and recent_right is not None and recent_color is not None:
+            if (not self.args['disableLR']) and (not self.args['disableRgb']):
+                if recent_left is not None and recent_right is not None and recent_color is not None:
+                    finished = True
+            elif self.args['disableLR'] and (not self.args['disableRgb']) and recent_color is not None:
+                finished = True
+            elif self.args['disableRgb'] and (not self.args['disableLR']) and recent_left is not None and recent_right is not None:
                 finished = True
 
-        is_board_found_l = self.is_markers_found(recent_left)
-        is_board_found_r = self.is_markers_found(recent_right)
-        is_board_found_rgb = self.is_markers_found(recent_color)
+        if not self.args['disableLR']:
+            is_board_found_l = self.is_markers_found(recent_left)
+            is_board_found_r = self.is_markers_found(recent_right)
+        else:
+            is_board_found_l = True
+            is_board_found_r = True
+
+        if not self.args['disableRgb']:
+            is_board_found_rgb = self.is_markers_found(recent_color)
+        else:
+            is_board_found_rgb = True
 
         if is_board_found_l and is_board_found_r and is_board_found_rgb:
             print("Found------------------------->")
@@ -736,7 +783,7 @@ class depthai_calibration_node:
             self.parse_frame(recent_right, "right_not", req.name)
             self.parse_frame(recent_color, "rgb_not", req.name)
             return (False, "Calibration board not found")
-        # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
+
         print("Service ending")
         self.is_service_active = False
         return (True, "No Error")
@@ -760,7 +807,8 @@ class depthai_calibration_node:
             self.args['squares_x'],
             self.args['squares_y'],
             self.args['cameraModel'],
-            True, # turn on rgb calibration
+            not self.args['disableLR'], # turn on L-R calibration
+            not self.args['disableLR'] # turn on rgb calibration
             False) # Turn off enable disp rectify
  
         start_time = datetime.now()
@@ -774,7 +822,7 @@ class depthai_calibration_node:
         log_list.append(avg_epipolar_error_lr)
         log_list.append(avg_epipolar_error_r_rgb)
 
-        log_file = self.args['log_path'] + "/calibration_logs.csv"
+        log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv"
         with open(log_file, mode='a') as log_fopen:
             # header =
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
