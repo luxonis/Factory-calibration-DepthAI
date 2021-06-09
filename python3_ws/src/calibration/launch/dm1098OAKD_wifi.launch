@@ -1,6 +1,8 @@
 <launch>
 
   <arg name="swap_lr"                   default="false"/>
+  <arg name="disableRgb"                default="false"/>
+  <arg name="disableLR"                 default="false"/>
   <arg name="field_of_view"             default="71.86"/>
   <arg name="baseline"                  default="7.5"/>
   <arg name="square_size_cm"            default="2"/>
@@ -23,6 +25,8 @@
     
     <param name="package_path"             value="$(find calibration)"/>
     <param name="swap_lr"                  value="$(arg swap_lr)"/>
+    <param name="disableRgb"               value="$(arg disableRgb)"/>
+    <param name="disableLR"                value="$(arg disableLR)"/>
     <param name="field_of_view"            value="$(arg field_of_view)"/>
     <param name="baseline"                 value="$(arg baseline)"/>
     <param name="square_size_cm"           value="$(arg square_size_cm)"/>

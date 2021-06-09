@@ -47,9 +47,9 @@ class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
-        self.args['swapLR'] = False
-        self.args['disableRgb'] = False
-        self.args['disableLR'] = False
+        # self.args['swapLR'] = False
+        # self.args['disableRgb'] = False
+        # self.args['disableLR'] = False
         self.bridge = CvBridge()
         self.is_service_active = False
 
@@ -252,7 +252,7 @@ class depthai_calibration_node:
             xout_left = pipeline.createXLinkOut()
             xout_right = pipeline.createXLinkOut()
 
-            if self.args['swapLR'] :
+            if self.args['swapLR']:
                 cam_left.setBoardSocket(dai.CameraBoardSocket.RIGHT)
                 cam_right.setBoardSocket(dai.CameraBoardSocket.LEFT)
             else:
@@ -800,7 +800,7 @@ class depthai_calibration_node:
             arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.json')
         
         stereo_calib = StereoCalibration()
-        avg_epipolar_error_lr, avg_epipolar_error_r_rgb, calib_data = stereo_calib.calibrate(
+        rgb_reproject_error, avg_epipolar_error_lr, avg_epipolar_error_r_rgb, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
             self.args['square_size_cm'],
             self.args['marker_size_cm'],
@@ -808,7 +808,7 @@ class depthai_calibration_node:
             self.args['squares_y'],
             self.args['cameraModel'],
             not self.args['disableLR'], # turn on L-R calibration
-            not self.args['disableLR'] # turn on rgb calibration
+            not self.args['disableRgb'] # turn on rgb calibration
             False) # Turn off enable disp rectify
  
         start_time = datetime.now()
@@ -829,51 +829,72 @@ class depthai_calibration_node:
             log_csv_writer.writerow(log_list)
 
         def print_epipolar_error(color):
-            text = "Avg Epipolar error L-R: " + \
-                format(avg_epipolar_error_lr, '.6f')
-            pygame_render_text(self.screen, text, (400, 160), color, 30)
-            text = "Avg Epipolar error RGB-R: " + \
-                format(avg_epipolar_error_r_rgb, '.6f')
-            pygame_render_text(self.screen, text, (400, 190), color, 30)
+            if avg_epipolar_error_lr is not None:
+                text = "Avg Epipolar error L-R: " + \
+                    format(avg_epipolar_error_lr, '.6f')
+                pygame_render_text(self.screen, text, (400, 180), color, 30)
 
-        if avg_epipolar_error_lr > 0.5:
+            if avg_epipolar_error_r_rgb is not None:
+                text = "Avg Epipolar error RGB-R: " + \
+                    format(avg_epipolar_error_r_rgb, '.6f')
+                pygame_render_text(self.screen, text, (400, 210), color, 30)
+
+            if rgb_reproject_error is not None:
+                text = "RGB Reprojection Error: " + \
+                    format(avg_epipolar_error_r_rgb, '.6f')
+                pygame_render_text(self.screen, text, (400, 240), color, 30)
+
+
+        if avg_epipolar_error_lr is not None and avg_epipolar_error_lr > 0.5:
             text = "Failed due to high calibration error L-R"
-            pygame_render_text(self.screen, text, (400, 230), red, 30)
-            print_epipolar_error(red)
-            return (False, text)
-
-        if avg_epipolar_error_r_rgb > 0.7:
-            text = "Failed due to high calibration error RGB-R"
             pygame_render_text(self.screen, text, (400, 270), red, 30)
             print_epipolar_error(red)
             return (False, text)
 
+        if avg_epipolar_error_r_rgb is not None and avg_epipolar_error_r_rgb > 0.7:
+            text = "Failed due to high calibration error RGB-R"
+            pygame_render_text(self.screen, text, (400, 300), red, 30)
+            print_epipolar_error(red)
+            return (False, text)
+
+        if rgb_reproject_error is not None and rgb_reproject_error > 0.5:
+            text = "Failed due to high Reprojection Error"
+            pygame_render_text(self.screen, text, (400, 330), red, 30)
+            print_epipolar_error(red)
+            return (False, text)
+
         calibration_handler = dai.CalibrationHandler()
-        calibration_handler.setBoardInfo(self.board_config['board_config']['swap_left_and_right_cameras'], self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
-        
-        calibration_handler.setStereoLeft(dai.CameraBoardSocket.LEFT, calib_data[0])
-        calibration_handler.setStereoRight(dai.CameraBoardSocket.RIGHT, calib_data[1])
-        
-        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.LEFT, calib_data[2], 1280, 800)
-        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RIGHT, calib_data[3], 1280, 800)
-        calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[4], 1920, 1080)
+        calibration_handler.setBoardInfo(self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
 
-        measuredTranslation = [self.board_config['board_config']['left_to_right_distance_cm'], 0.0, 0.0]
-        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.LEFT, dai.CameraBoardSocket.RIGHT, calib_data[5], calib_data[6], measuredTranslation)
+        left  = dai.CameraBoardSocket.LEFT
+        right = dai.CameraBoardSocket.RIGHT
+        if self.args['swapLR']:
+            left  = dai.CameraBoardSocket.RIGHT
+            right = dai.CameraBoardSocket.LEFT
 
-        measuredTranslation = [self.board_config['board_config']['left_to_rgb_distance_cm'], 0.0, 0.0]
-        calibration_handler.setCameraExtrinsics(dai.CameraBoardSocket.RIGHT, dai.CameraBoardSocket.RGB, calib_data[7], calib_data[8], measuredTranslation)
+        if not self.args['disableLR']:
+            calibration_handler.setStereoLeft(left, calib_data[0])
+            calibration_handler.setStereoRight(right, calib_data[1])
 
+            calibration_handler.setDistortionCoefficients(left, calib_data[9])
+            calibration_handler.setDistortionCoefficients(right, calib_data[10])
+            calibration_handler.setCameraIntrinsics(left, calib_data[2], 1280, 800)
+            calibration_handler.setCameraIntrinsics(right, calib_data[3], 1280, 800)
+            calibration_handler.setFov(left, self.board_config['board_config']['left_fov_deg'])
+            calibration_handler.setFov(right, self.board_config['board_config']['left_fov_deg'])
 
-        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.LEFT, calib_data[9])
-        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.RIGHT, calib_data[10])
-        calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[11])
+            measuredTranslation = [self.board_config['board_config']['left_to_right_distance_cm'], 0.0, 0.0]
+            calibration_handler.setCameraExtrinsics(left, right, calib_data[5], calib_data[6], measuredTranslation)
 
-        calibration_handler.setFov(dai.CameraBoardSocket.LEFT, self.board_config['board_config']['left_fov_deg'])
-        calibration_handler.setFov(dai.CameraBoardSocket.RIGHT, self.board_config['board_config']['left_fov_deg'])
-        calibration_handler.setFov(dai.CameraBoardSocket.RGB, self.board_config['board_config']['rgb_fov_deg'])
+        if not self.args['disableRgb']:
+            calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[11])
+            calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[4], 1920, 1080)
+            calibration_handler.setFov(dai.CameraBoardSocket.RGB, self.board_config['board_config']['rgb_fov_deg'])
+            calibration_handler.setLensPosition(dai.CameraBoardSocket.RGB, self.focus_value)
 
-        calibration_handler.setLensPosition(dai.CameraBoardSocket.RGB, self.focus_value)
+            if not self.args['disableLR']:
+                measuredTranslation = [self.board_config['board_config']['left_to_rgb_distance_cm'], 0.0, 0.0]
+                calibration_handler.setCameraExtrinsics(right, dai.CameraBoardSocket.RGB, calib_data[7], calib_data[8], measuredTranslation)
 
         calibration_handler.eepromToJsonFile(calib_dest_path)
         try:
@@ -881,7 +902,7 @@ class depthai_calibration_node:
         except:
             print("Writing in except...")
             is_write_succesful = self.device.flashCalibration(calibration_handler)
-        
+
         # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
         # shutil.copy(calib_src_path, calib_dest_path)
         print("finished writing to EEPROM with Epipolar error of")
@@ -908,7 +929,10 @@ if __name__ == "__main__":
 
     rospy.init_node('depthai_calibration', anonymous=True)
     arg = {}
-    arg["swap_lr"] = rospy.get_param('~swap_lr')
+    arg["swapLR"] = rospy.get_param('~swap_lr')
+    arg["disableRgb"] = rospy.get_param('~disableRgb')
+    arg["disableLR"] = rospy.get_param('~disableLR')
+
     arg["field_of_view"] = rospy.get_param('~field_of_view')
     arg["baseline"] = rospy.get_param('~baseline')
     arg["package_path"] = rospy.get_param('~package_path')
@@ -931,8 +955,7 @@ if __name__ == "__main__":
     arg["capture_service_name"] = rospy.get_param(
         '~capture_service_name')  # Add  capture_checkerboard to launch file
     arg["calibration_service_name"] = rospy.get_param(
-        '~calibration_service_name')  # Add  capture_checkerboard to launch file
-
+        '~calibration_service_name')  # Add capture_checkerboard to launch file
 
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])
@@ -952,7 +975,7 @@ if __name__ == "__main__":
         with open(board_path) as fp:
             board_config = json.load(fp)
     # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
-    #     Please add the correct path using depthai_path:=[path] while executing launchfile")
+    # Please add the correct path using depthai_path:=[path] while executing launchfile")
 
     depthai_dev = depthai_calibration_node(arg)
     depthai_dev.publisher()

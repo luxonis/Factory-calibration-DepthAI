@@ -76,10 +76,11 @@ class StereoCalibration(object):
     def __init__(self):
         """Class to Calculate Calibration and Rectify a Stereo Camera."""
 
-    def calibrate(self, filepath, square_size, mrk_size, squaresX, squaresY, camera_model, calibrate_rgb, enable_disp_rectify):
+    def calibrate(self, filepath, square_size, mrk_size, squaresX, squaresY, camera_model, calibrate_LR, calibrate_rgb, enable_disp_rectify):
         """Function to calculate calibration for stereo camera."""
         start_time = time.time()
         # init object data
+        self.calibrate_LR = calibrate_LR
         self.calibrate_rgb = calibrate_rgb
         self.enable_rectification_disp = enable_disp_rectify
         self.cameraModel  = camera_model
@@ -91,27 +92,30 @@ class StereoCalibration(object):
                 square_size,
                 mrk_size,
                 self.aruco_dictionary)
-
         
-            # parameters = aruco.DetectorParameters_create()
+        # parameters = aruco.DetectorParameters_create()
         assert mrk_size != None,  "ERROR: marker size not set"
-        self.calibrate_charuco3D(filepath)
 
-            # self.stereo_calibrate_two_homography_calib()
-        print('~~~~~ Starting Stereo Calibration ~~~~~')
-        # self.stereo_calib_two_homo()
+        if self.calibrate_LR:
+            self.calibrate_charuco3D(filepath)
+        else:
+            self.R1 = np.zeros((3, 3), dtype=np.float32)
+            self.R2 = np.zeros((3, 3), dtype=np.float32)
+            self.M1 = np.zeros((3, 3), dtype=np.float32)
+            self.M2 = np.zeros((3, 3), dtype=np.float32)
+            self.d1 = np.zeros((3, 3), dtype=np.float32)
+            self.d2 = np.zeros((3, 3), dtype=np.float32)
+            self.R  = np.zeros((3, 3), dtype=np.float32)
+            self.T  = np.zeros((3, 3), dtype=np.float32)
 
         # rgb-right extrinsic calibration
         if self.calibrate_rgb:
-            # if True:
-            # things to do.
-            # First: change the center and other thigns of the calibration matrix of rgb camera
             self.rgb_calibrate(filepath)
         else:
-            self.M3 = np.zeros((3, 3), dtype=np.float32)
+            self.M3    = np.zeros((3, 3), dtype=np.float32)
             self.R_rgb = np.zeros((3, 3), dtype=np.float32)
             self.T_rgb = np.zeros(3, dtype=np.float32)
-            self.d3 = np.zeros(14, dtype=np.float32)
+            self.d3    = np.zeros(14, dtype=np.float32)
 
         # self.M3_scaled_write = np.copy(self.M3_scaled)
         # self.M3_scaled_write[1, 2] += 40
@@ -148,7 +152,7 @@ class StereoCalibration(object):
             print("\nR");          print(R_fp32)
             print("\nT");          print(T_fp32)
             print("\nM3 (rgb)");   print(M3_fp32)
-            print("\R (rgb)")
+            print("\nR (rgb)")
             print(R_rgb_fp32)
             print("\nT (rgb)")
             print(T_rgb_fp32)
@@ -181,11 +185,19 @@ class StereoCalibration(object):
 
         self.create_save_mesh()
 
+        epipolar_RRgb = None
+        epipolar_LR = None
+        rgb_reprojectErrors = None
         if self.calibrate_rgb:
-            return self.test_epipolar_charuco_lr(filepath), self.test_epipolar_charuco_rgbr(filepath), self.calib_data
-        else:
-            return self.test_epipolar_charuco_lr(filepath), None, self.calib_data
-
+            rgb_reprojectErrors = self.ret_rgb_scaled
+            if self.calibrate_LR:
+                epipolar_RRgb = self.test_epipolar_charuco_rgbr(filepath)
+    
+        if self.calibrate_LR:
+            epipolar_LR = self.test_epipolar_charuco_lr(filepath)
+    
+        return rgb_reprojectErrors, epipolar_LR, epipolar_RRgb, self.calib_data
+        
     def analyze_charuco(self, images, scale_req=False, req_resolution=(800, 1280)):
         """
         Charuco base pose estimation.
@@ -567,67 +579,9 @@ class StereoCalibration(object):
             images_rgb, scale_req=True, req_resolution=(720, 1280))
         self.img_shape_rgb_scaled = imsize_rgb_scaled[::-1]
 
-        ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
+        self.ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
             allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
 
-        allCorners_r_rgb, allIds_r_rgb, _, _, _, _ = self.analyze_charuco(
-            images_right, scale_req=True, req_resolution=(720, 1280))
-
-        print("RGB callleded RMS at 720")
-        print(ret_rgb_scaled)
-        print(imsize_rgb_scaled)
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        # print(self.M3_scaled)
-
-        # sampling common detected corners
-        rgb_scaled_rgb_corners_sampled = []
-        rgb_scaled_right_corners_sampled = []
-        rgb_scaled_obj_pts = []
-        rgb_pts = None
-        right_pts = None
-        one_pts = self.board.chessboardCorners
-        for i in range(len(allIds_rgb_scaled)):
-            rgb_sub_corners = []
-            right_sub_corners = []
-            obj_pts_sub = []
-            # if len(allIds_l[i]) < 70 or len(allIds_r[i]) < 70:
-            #     continue
-            for j in range(len(allIds_rgb_scaled[i])):
-                idx = np.where(allIds_r_rgb[i] == allIds_rgb_scaled[i][j])
-                if idx[0].size == 0:
-                    continue
-                rgb_sub_corners.append(allCorners_rgb_scaled[i][j])
-                right_sub_corners.append(allCorners_r_rgb[i][idx])
-                obj_pts_sub.append(one_pts[allIds_rgb_scaled[i][j]])
-
-            rgb_scaled_obj_pts.append(
-                np.array(obj_pts_sub, dtype=np.float32))
-            rgb_scaled_rgb_corners_sampled.append(
-                np.array(rgb_sub_corners, dtype=np.float32))
-            rgb_scaled_right_corners_sampled.append(
-                np.array(right_sub_corners, dtype=np.float32))
-            if rgb_pts is None:
-                rgb_pts = np.array(rgb_sub_corners, dtype=np.float32)
-                right_pts = np.array(right_sub_corners, dtype=np.float32)
-            else:
-                np.vstack(
-                    (rgb_pts, np.array(rgb_sub_corners, dtype=np.float32)))
-                np.vstack((right_pts, np.array(
-                    right_sub_corners, dtype=np.float32)))
-
-        self.objpoints_rgb_r = rgb_scaled_obj_pts
-        self.imgpoints_rgb = rgb_scaled_rgb_corners_sampled
-        self.imgpoints_rgb_right = rgb_scaled_right_corners_sampled
-        
-        flags = 0
-        flags |= cv2.CALIB_FIX_INTRINSIC
-        flags |= cv2.CALIB_RATIONAL_MODEL
-
-
-        stereocalib_criteria = (cv2.TERM_CRITERIA_COUNT +
-                                    cv2.TERM_CRITERIA_EPS, 100, 1e-5)
-
-        # print(M_RGB)
         print('vs. intrinisics computed after scaling the image --->')
         # self.M3, self.d3
         scale = 1920/1280
@@ -637,25 +591,85 @@ class StereoCalibration(object):
         self.d3 = self.d3_scaled
         print(self.M3_scaled)
         print(self.M3)
-
-        self.M2_rgb = np.copy(self.M2)
-        self.M2_rgb[1, 2] -= 40
-        self.d2_rgb = np.copy(self.d1)
         
-        ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
-            self.objpoints_rgb_r, self.imgpoints_rgb, self.imgpoints_rgb_right,
-            self.M3_scaled, self.d3_scaled, self.M2_rgb, self.d2_rgb, self.img_shape_rgb_scaled,
-            criteria=stereocalib_criteria, flags=flags)
-        print("~~~~~~ Stereo calibration rgb-left RMS error ~~~~~~~~")
-        print(ret)
+        print("RGB callleded RMS at 720")
+        print(self.ret_rgb_scaled)
+        print(imsize_rgb_scaled)
+        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
+        # print(self.M3_scaled)
+        
+        if self.calibrate_LR:
+            allCorners_r_rgb, allIds_r_rgb, _, _, _, _ = self.analyze_charuco(
+                images_right, scale_req=True, req_resolution=(720, 1280))
 
-        # Rectification is only to test the epipolar
-        self.R1_rgb, self.R2_rgb, self.P1_rgb, self.P2_rgb, self.Q_rgb, validPixROI1, validPixROI2 = cv2.stereoRectify(
-            self.M3_scaled,
-            self.d3_scaled,
-            self.M2_rgb,
-            self.d2_rgb,
-            self.img_shape_rgb_scaled, self.R_rgb, self.T_rgb)
+            # sampling common detected corners
+            rgb_scaled_rgb_corners_sampled = []
+            rgb_scaled_right_corners_sampled = []
+            rgb_scaled_obj_pts = []
+            rgb_pts = None
+            right_pts = None
+            one_pts = self.board.chessboardCorners
+            for i in range(len(allIds_rgb_scaled)):
+                rgb_sub_corners = []
+                right_sub_corners = []
+                obj_pts_sub = []
+                # if len(allIds_l[i]) < 70 or len(allIds_r[i]) < 70:
+                #     continue
+                for j in range(len(allIds_rgb_scaled[i])):
+                    idx = np.where(allIds_r_rgb[i] == allIds_rgb_scaled[i][j])
+                    if idx[0].size == 0:
+                        continue
+                    rgb_sub_corners.append(allCorners_rgb_scaled[i][j])
+                    right_sub_corners.append(allCorners_r_rgb[i][idx])
+                    obj_pts_sub.append(one_pts[allIds_rgb_scaled[i][j]])
+
+                rgb_scaled_obj_pts.append(
+                    np.array(obj_pts_sub, dtype=np.float32))
+                rgb_scaled_rgb_corners_sampled.append(
+                    np.array(rgb_sub_corners, dtype=np.float32))
+                rgb_scaled_right_corners_sampled.append(
+                    np.array(right_sub_corners, dtype=np.float32))
+                if rgb_pts is None:
+                    rgb_pts = np.array(rgb_sub_corners, dtype=np.float32)
+                    right_pts = np.array(right_sub_corners, dtype=np.float32)
+                else:
+                    np.vstack(
+                        (rgb_pts, np.array(rgb_sub_corners, dtype=np.float32)))
+                    np.vstack((right_pts, np.array(
+                        right_sub_corners, dtype=np.float32)))
+
+            self.objpoints_rgb_r = rgb_scaled_obj_pts
+            self.imgpoints_rgb = rgb_scaled_rgb_corners_sampled
+            self.imgpoints_rgb_right = rgb_scaled_right_corners_sampled
+            
+            flags = 0
+            flags |= cv2.CALIB_FIX_INTRINSIC
+            flags |= cv2.CALIB_RATIONAL_MODEL
+
+            stereocalib_criteria = (cv2.TERM_CRITERIA_COUNT +
+                                        cv2.TERM_CRITERIA_EPS, 100, 1e-5)
+
+            self.M2_rgb = np.copy(self.M2)
+            self.M2_rgb[1, 2] -= 40
+            self.d2_rgb = np.copy(self.d1)
+            
+            ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
+                self.objpoints_rgb_r, self.imgpoints_rgb, self.imgpoints_rgb_right,
+                self.M3_scaled, self.d3_scaled, self.M2_rgb, self.d2_rgb, self.img_shape_rgb_scaled,
+                criteria=stereocalib_criteria, flags=flags)
+            print("~~~~~~ Stereo calibration rgb-left RMS error ~~~~~~~~")
+            print(ret)
+
+            # Rectification is only to test the epipolar
+            self.R1_rgb, self.R2_rgb, self.P1_rgb, self.P2_rgb, self.Q_rgb, validPixROI1, validPixROI2 = cv2.stereoRectify(
+                self.M3_scaled,
+                self.d3_scaled,
+                self.M2_rgb,
+                self.d2_rgb,
+                self.img_shape_rgb_scaled, self.R_rgb, self.T_rgb)
+        else:
+            self.R_rgb = np.zeros((3, 3), dtype=np.float32)
+            self.T_rgb = np.zeros(3, dtype=np.float32)
 
     def test_epipolar_charuco_lr(self, dataset_dir):
         images_left = glob.glob(dataset_dir + '/left/*.png')
