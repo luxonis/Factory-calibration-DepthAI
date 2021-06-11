@@ -47,9 +47,6 @@ class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
-        # self.args['swapLR'] = False
-        # self.args['disableRgb'] = False
-        # self.args['disableLR'] = False
         self.bridge = CvBridge()
         self.is_service_active = False
 
@@ -60,6 +57,14 @@ class depthai_calibration_node:
 
         self.ccm_selector()
         self.focus_value = 135
+        ccm_names = ['Sunny', 'KingTop', 'ArduCam']
+
+        if self.rgbCcm == 'Sunny':
+            self.focus_value = 135
+        elif self.rgbCcm == 'KingTop':
+            self.focus_value = 135
+        elif self.rgbCcm == 'ArduCam':
+            self.focus_value = 135
 
         # self.frame_count = 0
         self.init_time = time.time()
@@ -82,9 +87,9 @@ class depthai_calibration_node:
 
         title = "Device Status"
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
-        self.auto_checkbox_names = ["USB3", "Left Camera Conencted", "Right Camera Conencted", "Rgb Camera Conencted", "Left Stream", "Right Stream", "RGB Stream"]
-        header = ['time', 'Mx_serial_id',
-                  'left_camera', 'right_camera', 'rgb_camera', 'Epipolar error L-R', 'Epipolar error R-Rgb']
+        self.auto_checkbox_names = ["USB3"]
+        header = ['time', 'Mx_serial_id','Mono-CCM', 'RGB-CCM',
+                  'left_camera', 'right_camera', 'rgb_camera', 'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
 
         if not self.args['disableLR']:
             self.auto_checkbox_names.append("Left Camera Conencted")
@@ -95,7 +100,7 @@ class depthai_calibration_node:
             self.auto_checkbox_names.append("Rgb Camera Conencted")
             self.auto_checkbox_names.append("Rgb Stream")
         
-        log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv" #TODO(sachin): Add device type here 
+        log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv"
         if not os.path.exists(log_file):
             with open(log_file, mode='w') as log_fopen:
                 log_csv_writer = csv.writer(log_fopen, delimiter=',')
@@ -166,7 +171,9 @@ class depthai_calibration_node:
                                                                             check_color=green, check=False, disable_pass = True))
             ccm_names_dict[ccm_names[i]][0].render_checkbox()
             ccm_names_dict[ccm_names[i]][1].render_checkbox()
-
+            fill_color = pygame.Rect(20, y_axis + 40, 750, 2)
+            pygame.draw.rect(self.screen, black, fill_color)
+        
         next_button =  pygame.Rect(600, 430, 60, 35)
         pygame.draw.rect(self.screen, orange, next_button)
         pygame_render_text(self.screen, 'Next', (605, 440))
@@ -491,7 +498,7 @@ class depthai_calibration_node:
                             self.auto_checkbox_dict["Right Camera Conencted"].check()
                         self.auto_checkbox_dict["Right Camera Conencted"].render_checkbox()
 
-                    if not self.args['disableLR']:
+                    if not self.args['disableRgb']:
                         if dai.CameraBoardSocket.RGB not in cameraList:
                             self.auto_checkbox_dict["Rgb Camera Conencted"].uncheck()
                             lost_camera = True
@@ -510,10 +517,11 @@ class depthai_calibration_node:
                     if not lost_camera:    
                         pipeline = self.create_pipeline()
                         self.device.startPipeline(pipeline)
-
-                        self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
-                        self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
-                        self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
+                        if not self.args['disableLR']:
+                            self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
+                            self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
+                        if not self.args['disableRgb']:
+                            self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
                     else:
                         print("Closing Device...")
 
@@ -578,9 +586,9 @@ class depthai_calibration_node:
 
             if not self.args['disableRgb']:
                 if not rgb_mipi:
-                    self.auto_checkbox_dict["RGB Stream"].uncheck()
+                    self.auto_checkbox_dict["Rgb Stream"].uncheck()
                 else:
-                    self.auto_checkbox_dict["RGB Stream"].check()
+                    self.auto_checkbox_dict["Rgb Stream"].check()
 
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
@@ -602,118 +610,6 @@ class depthai_calibration_node:
         self.is_service_active = False
         return (finished, dev_info.getMxId())
 
-    """
-    def device_status_handler_backup(self, req):
-        self.is_service_active = True
-        self.start_disp = True # TODO(sachin): Change code to Use this for display 
-
-        finished = False
-        while self.device.isClosed():
-            print("device_closed")
-            # TODO(Sachin): add a check for available devices..
-            pipeline = self.create_pipeline()
-            self.device = dai.Device() 
-            cameraList = self.device.getConnectedCameras()
-            for cam in cameraList:
-                if cam == dai.CameraBoardSocket.RIGHT:
-                    print("Getting RIght Cam")
-                    right_status = True
-                if cam == dai.CameraBoardSocket.LEFT:
-                    print("Getting Left Cam")
-                    left_status = True
-                if cam == dai.CameraBoardSocket.RGB:
-                    print("Getting RGB Cam")
-                    rgb_status = True
-
-            self.device.startPipeline(pipeline)
-
-            self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
-            self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
-            self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
-            # rospy.sleep(4)
-
-        # while not self.device.is_device_changed():
-        #     text = "Waiting for device change"
-        #     pygame_render_text(self.screen, text, (300, 400), orange, 40)
-
-        # to remove waiting for device change
-
-        dataset_path = Path(self.package_path + "/dataset")
-        if 0 and dataset_path.exists():
-            shutil.rmtree(str(dataset_path))
-
-
-        left_status  = False
-        right_status = False
-        rgb_status   = False
-
-        cameraList = self.device.getConnectedCameras()
-        for cam in cameraList:
-            if cam is dai.CameraBoardSocket.RIGHT:
-                print("Getting RIght Cam")
-                right_status = True
-            if cam is dai.CameraBoardSocket.LEFT:
-                print("Getting Left Cam")
-                left_status = True
-            if cam is dai.CameraBoardSocket.RGB:
-                print("Getting RGB Cam")
-                rgb_status = True
-
-
-        while not finished:
-            # print(self.device.is_device_changed())
-            if self.capture_exit():
-                print("signaling...")
-                rospy.signal_shutdown("Finished calibration")
-            is_usb3 = True if self.device.getUsbSpeed() is dai.UsbSpeed.SUPER or self.device.getUsbSpeed() is dai.UsbSpeed.SUPER_PLUS else False
-            left_mipi = False
-            right_mipi = False
-            rgb_mipi = False
-
-
-            if self.capture_exit():
-                rospy.signal_shutdown("Finished calibration")
-
-            # else
-            if left_status and rgb_status:
-                # mipi check using 20 iterations
-                # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
-                for _ in range(90):
-                    left_frame = self.left_camera_queue.get()
-                    if left_frame is not None:
-                        left_mipi = True
-                        self.image_pub_left.publish(
-                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
-                        
-                    rgb_frame = self.rgb_camera_queue.get()
-                    if rgb_frame is not None:
-                        rgb_mipi = True
-                        frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
-                        self.image_pub_color.publish(
-                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
-
-            if not left_mipi:
-                self.auto_checkbox_dict["Left Stream"].uncheck()
-            else:
-                print("Setting left_mipi to true")
-                self.auto_checkbox_dict["Left Stream"].check()
-
-            if not rgb_mipi:
-                self.auto_checkbox_dict["RGB Stream"].uncheck()
-            else:
-                print("Setting left_mipi to true")
-                self.auto_checkbox_dict["RGB Stream"].check()
-
-            for i in range(len(self.auto_checkbox_names)):
-                print(self.auto_checkbox_names[i])
-                self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
-
-        # self.set_focus()
-        # rospy.sleep(2)
-        self.is_service_active = False
-        return (True, dev_info.getMxId())
-    """
-
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
         recent_left = None
@@ -723,10 +619,6 @@ class depthai_calibration_node:
         self.is_service_active = True
         rospy.sleep(1)
 
-        rgb_check_count = 0
-        m_d2h_seq_focus = dict()
-        # color_pkt_queue = deque()
-        local_color_frame_count = 0
         # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
         while not finished:
             # left_frame = self.left_camera_queue.get()
@@ -772,12 +664,10 @@ class depthai_calibration_node:
             is_board_found_rgb = True
 
         if is_board_found_l and is_board_found_r and is_board_found_rgb:
-            print("Found------------------------->")
             self.parse_frame(recent_left, "left", req.name)
             self.parse_frame(recent_right, "right", req.name)
             self.parse_frame(recent_color, "rgb", req.name)
         else:
-            print("Not found--------------------->")
             self.is_service_active = False
             self.parse_frame(recent_left, "left_not", req.name)
             self.parse_frame(recent_right, "right_not", req.name)
@@ -808,19 +698,31 @@ class depthai_calibration_node:
             self.args['squares_y'],
             self.args['cameraModel'],
             not self.args['disableLR'], # turn on L-R calibration
-            not self.args['disableRgb'] # turn on rgb calibration
+            not self.args['disableRgb'], # turn on rgb calibration
             False) # Turn off enable disp rectify
  
         start_time = datetime.now()
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
         log_list = [time_stmp, mx_serial_id]
+        log_list.append(self.monoCcm)
+        log_list.append(self.rgbCcm)
 
-        log_list.append(True)
-        log_list.append(True)
+        if self.args['disableLR']:
+            log_list.append("LR Disabled")
+            log_list.append("LR Disabled")
+        else:
+            log_list.append("Calibrated")
+            log_list.append("Calibrated")
+
+        if self.args['disableRgb']:
+            log_list.append("Rgb Disabled")
+        else:
+            log_list.append("Calibrated")
 
         log_list.append(avg_epipolar_error_lr)
         log_list.append(avg_epipolar_error_r_rgb)
+        log_list.append(rgb_reproject_error)
 
         log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv"
         with open(log_file, mode='a') as log_fopen:
@@ -841,9 +743,8 @@ class depthai_calibration_node:
 
             if rgb_reproject_error is not None:
                 text = "RGB Reprojection Error: " + \
-                    format(avg_epipolar_error_r_rgb, '.6f')
+                    format(rgb_reproject_error, '.6f')
                 pygame_render_text(self.screen, text, (400, 240), color, 30)
-
 
         if avg_epipolar_error_lr is not None and avg_epipolar_error_lr > 0.5:
             text = "Failed due to high calibration error L-R"
@@ -903,11 +804,7 @@ class depthai_calibration_node:
             print("Writing in except...")
             is_write_succesful = self.device.flashCalibration(calibration_handler)
 
-        # calib_src_path = os.path.join(arg['depthai_path'], "resources/depthai.calib")
-        # shutil.copy(calib_src_path, calib_dest_path)
-        print("finished writing to EEPROM with Epipolar error of")
-        print(avg_epipolar_error_lr)
-        print(avg_epipolar_error_r_rgb)
+        print("Finished writing to EEPROM")
         
         self.is_service_active = False
         self.device.close()
