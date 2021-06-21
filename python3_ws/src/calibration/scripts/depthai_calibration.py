@@ -68,11 +68,12 @@ class depthai_calibration_node:
 
         # self.frame_count = 0
         self.init_time = time.time()
-        if arg['board']:
-            board_path = Path(arg['board'])
+        if self.args['board']:
+            board_path = Path(self.args['board'])
+            print(board_path)
             if not board_path.exists():
                 board_path = Path(consts.resource_paths.boards_dir_path) / \
-                    Path(arg['board'].upper()).with_suffix('.json')
+                    Path(self.args['board'].upper()).with_suffix('.json')
                 print(board_path)
                 if not board_path.exists():
                     raise ValueError(
@@ -84,10 +85,12 @@ class depthai_calibration_node:
             cv2.aruco.DICT_4X4_1000)
 
         # Connection checks ----------->
-
         title = "Device Status"
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
-        self.auto_checkbox_names = ["USB3"]
+        self.auto_checkbox_names = []
+        
+        if self.args['usbMode']:
+            self.auto_checkbox_names.append("USB3")
         header = ['time', 'Mx_serial_id','Mono-CCM', 'RGB-CCM',
                   'left_camera', 'right_camera', 'rgb_camera', 'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
 
@@ -123,8 +126,7 @@ class depthai_calibration_node:
 
         # text = 'call rosservice of device_status_handler to update the device status'
         for i in range(len(self.auto_checkbox_names)):
-            self.auto_checkbox_dict[self.auto_checkbox_names[i]
-                                    ].render_checkbox()
+            self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
         pygame.draw.rect(self.screen, red, no_button)
         pygame_render_text(self.screen, 'Exit', (500, 505))
         self.no_active = False
@@ -507,12 +509,13 @@ class depthai_calibration_node:
                         self.auto_checkbox_dict["Rgb Camera Conencted"].render_checkbox()
                         # print(self.device.getUsbSpeed())
 
-                    if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
-                        self.auto_checkbox_dict["USB3"].check()
-                    else:
-                        lost_camera = True
-                        self.auto_checkbox_dict["USB3"].uncheck()
-                    self.auto_checkbox_dict["USB3"].render_checkbox()
+                    if self.args['usbMode']:
+                        if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
+                            self.auto_checkbox_dict["USB3"].check()
+                        else:
+                            lost_camera = True
+                            self.auto_checkbox_dict["USB3"].uncheck()
+                        self.auto_checkbox_dict["USB3"].render_checkbox()
 
                     if not lost_camera:    
                         pipeline = self.create_pipeline()
@@ -829,6 +832,7 @@ if __name__ == "__main__":
     arg["swapLR"] = rospy.get_param('~swap_lr')
     arg["disableRgb"] = rospy.get_param('~disableRgb')
     arg["disableLR"] = rospy.get_param('~disableLR')
+    arg["usbMode"] = rospy.get_param('~usbMode')
 
     arg["field_of_view"] = rospy.get_param('~field_of_view')
     arg["baseline"] = rospy.get_param('~baseline')

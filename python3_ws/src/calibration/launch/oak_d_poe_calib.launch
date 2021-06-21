@@ -9,11 +9,11 @@
   <arg name="marker_size_cm"            default="1.5"/>
   <arg name="squares_x"                 default="22"/>
   <arg name="squares_y"                 default="16"/>
-  <arg name="usbMode"                   default="true"/>
+  <arg name="usbMode"                   default="false"/>
   <arg name="depthai_path"              default="/Desktop/depthai"/>
   <arg name="calib_path"                default="/Desktop/calib_files"/>
   <arg name="log_path"                  default="/Desktop/logs"/>
-  <arg name="brd"                       default="bw1098obc"/>
+  <arg name="brd"                       default="oakd_poe"/>
   <arg name="enable_IMU_test"           default="false"/>
   <arg name="capture_service_name"      default="capture_checkerboard"/>
   <arg name="calibration_service_name"  default="calibrate_stereo"/>
