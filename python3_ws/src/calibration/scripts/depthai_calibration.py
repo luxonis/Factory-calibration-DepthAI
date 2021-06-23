@@ -462,6 +462,10 @@ class depthai_calibration_node:
         fill_color_2 = pygame.Rect(50, 520, 400, 80)
         pygame.draw.rect(self.screen, white, fill_color_2)
 
+        for _, checkbox in self.auto_checkbox_dict.items():
+            checkbox.setUnattended()
+            checkbox.render_checkbox()
+
         finished = False
         while not finished:
             if self.capture_exit():
@@ -675,6 +679,7 @@ class depthai_calibration_node:
             self.parse_frame(recent_left, "left_not", req.name)
             self.parse_frame(recent_right, "right_not", req.name)
             self.parse_frame(recent_color, "rgb_not", req.name)
+            self.device.close()
             return (False, "Calibration board not found")
 
         print("Service ending")
