@@ -466,6 +466,10 @@ class depthai_calibration_node:
             checkbox.setUnattended()
             checkbox.render_checkbox()
 
+        if self.device is not None:
+            if not self.device.isClosed():
+                self.device.isClose()
+
         finished = False
         while not finished:
             if self.capture_exit():
@@ -758,18 +762,21 @@ class depthai_calibration_node:
             text = "Failed due to high calibration error L-R"
             pygame_render_text(self.screen, text, (400, 270), red, 30)
             print_epipolar_error(red)
+            self.device.close()
             return (False, text)
 
         if avg_epipolar_error_r_rgb is not None and avg_epipolar_error_r_rgb > 0.7:
             text = "Failed due to high calibration error RGB-R"
             pygame_render_text(self.screen, text, (400, 300), red, 30)
             print_epipolar_error(red)
+            self.device.close()
             return (False, text)
 
         if rgb_reproject_error is not None and rgb_reproject_error > 0.5:
             text = "Failed due to high Reprojection Error"
             pygame_render_text(self.screen, text, (400, 330), red, 30)
             print_epipolar_error(red)
+            self.device.close()
             return (False, text)
 
         calibration_handler = dai.CalibrationHandler()
