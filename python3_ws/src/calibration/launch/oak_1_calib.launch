@@ -11,7 +11,8 @@
   <arg name="depthai_path"              default="/Desktop/depthai"/>
   <arg name="calib_path"                default="/Desktop/calib_files"/>
   <arg name="log_path"                  default="/Desktop/logs"/>
-  <arg name="brd"                       default="oakd_poe"/>
+  <arg name="brd"                       default="oak-1"/>
+  <arg name="enable_IMU_test"           default="false"/>
   <arg name="capture_service_name"      default="capture_checkerboard"/>
   <arg name="calibration_service_name"  default="calibrate_stereo"/>
   
