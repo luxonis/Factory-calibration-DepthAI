@@ -273,6 +273,8 @@ class depthai_calibration_node:
 
             cam_right.setResolution(
                 dai.MonoCameraProperties.SensorResolution.THE_800_P)
+            cam_left.setFps(5)
+            cam_right.setFps(5)
 
             xout_left.setStreamName("left")
             cam_left.out.link(xout_left.input)
@@ -286,6 +288,7 @@ class depthai_calibration_node:
                 dai.ColorCameraProperties.SensorResolution.THE_4_K)
             rgb_cam.setInterleaved(False)
             rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
+            rgb_cam.setFps(5)
             rgb_cam.setIspScale(1, 3)
             rgb_cam.initialControl.setManualFocus(self.focus_value)
 
@@ -799,7 +802,7 @@ class depthai_calibration_node:
             calibration_handler.setFov(left, self.board_config['board_config']['left_fov_deg'])
             calibration_handler.setFov(right, self.board_config['board_config']['left_fov_deg'])
 
-            measuredTranslation = [self.board_config['board_config']['left_to_right_distance_cm'], 0.0, 0.0]
+            measuredTranslation = [-self.board_config['board_config']['left_to_right_distance_cm'], 0.0, 0.0]
             calibration_handler.setCameraExtrinsics(left, right, calib_data[5], calib_data[6], measuredTranslation)
 
         if not self.args['disableRgb']:
@@ -846,8 +849,6 @@ if __name__ == "__main__":
     arg["disableLR"] = rospy.get_param('~disableLR')
     arg["usbMode"] = rospy.get_param('~usbMode')
 
-    arg["field_of_view"] = rospy.get_param('~field_of_view')
-    arg["baseline"] = rospy.get_param('~baseline')
     arg["package_path"] = rospy.get_param('~package_path')
 
     arg["square_size_cm"] = rospy.get_param('~square_size_cm')
@@ -858,7 +859,6 @@ if __name__ == "__main__":
     arg["board"] = rospy.get_param('~brd')
     arg["depthai_path"] = rospy.get_param(
         '~depthai_path')  # Path of depthai repo
-    arg["enable_IMU_test"] = rospy.get_param('~enable_IMU_test')
     # local path to store calib files with using mx device id.
     arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
     arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
