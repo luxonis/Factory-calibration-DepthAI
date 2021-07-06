@@ -135,7 +135,7 @@ class StereoCalibration(object):
         d2_coeff_fp32 = self.d2.astype(np.float32)
         d3_coeff_fp32 = self.d3.astype(np.float32)
 
-        if self.calibrate_rgb:
+        if self.calibrate_rgb and self.calibrate_LR:
             R_rgb_fp32 = np.linalg.inv(R_rgb_fp32)
             T_rgb_fp32[0] = -T_rgb_fp32[0] 
             T_rgb_fp32[1] = -T_rgb_fp32[1]
@@ -152,10 +152,8 @@ class StereoCalibration(object):
             print("\nR");          print(R_fp32)
             print("\nT");          print(T_fp32)
             print("\nM3 (rgb)");   print(M3_fp32)
-            print("\nR (rgb)")
-            print(R_rgb_fp32)
-            print("\nT (rgb)")
-            print(T_rgb_fp32)
+            print("\nR (rgb)");    print(R_rgb_fp32)
+            print("\nT (rgb)");    print(T_rgb_fp32)
 
         if 0:  # Print computed homography, to compare with device data
             np.set_printoptions(suppress=True, precision=6)
@@ -183,7 +181,7 @@ class StereoCalibration(object):
         print("\tTook %i seconds to run image processing." %
               (round(time.time() - start_time, 2)))
 
-        self.create_save_mesh()
+        # self.create_save_mesh()
 
         epipolar_RRgb = None
         epipolar_LR = None
