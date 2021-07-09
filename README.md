@@ -57,7 +57,7 @@ Follow the video [here](https://youtu.be/oxK4ykVh1EE) till 30 min. and then pip 
 4. In #2 use the following command to launch the arm `roslaunch interbotix_moveit_interface moveit_interface.launch robot_name:=vx300s use_actual:=true  dof:=6`
 5. Alternative to step 4. An Applications icon called `arm node` has been created during build which can also be used to launch the arm. use `catkin_make install` in `interbotix_ws` to enable this.
 
-## Running calibration without arm Robot(Not Recommended Please use the python script [here](https://docs.luxonis.com/en/latest/pages/calibration/)).
+## Running calibration without arm Robot(Not Recommended. Please use the python script [here](https://docs.luxonis.com/en/latest/pages/calibration/)).
 1. Open three terminals say #1, #2 and #3
 2. in #1 start virtual env using `source ~/Factory-calibration-DepthAI/python3_ws/py3venv/bin/activate`
 3. In #1 start calibration node using `roslaunch calibration depthai_calib.launch brd:=bw1098obc`
