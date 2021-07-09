@@ -53,20 +53,21 @@ Follow the video [here](https://youtu.be/oxK4ykVh1EE) till 30 min. and then pip 
 ## Running calibration using Interbotix ViperX 300 Robot Arm
 1. Open two terminals say #1 and #2
 2. in #1 start virtual env using `source ~/Factory-calibration-DepthAI/python3_ws/py3venv/bin/activate`
-3. In #1 start calibration node using `roslaunch calibration depthai_calib.launch enable_IMU_test:=false brd:=bw1098obc` (set enable_IMU_test:=true if you want to test connection to IMU. change the board name and add the config file if it is not available)
+3. In #1 start calibration node using `roslaunch calibration depthai_calib.launch brd:=bw1098obc` (change the board name and add the config file if it is not available)
 4. In #2 use the following command to launch the arm `roslaunch interbotix_moveit_interface moveit_interface.launch robot_name:=vx300s use_actual:=true  dof:=6`
-5. Alternative to step 4. An Applications icon called `arm node` has been created during build which can also be used to launch the arm.
+5. Alternative to step 4. An Applications icon called `arm node` has been created during build which can also be used to launch the arm. use `catkin_make install` in `interbotix_ws` to enable this.
 
-## Running calibration without arm Robot(rgb_calibration branch).
+## Running calibration without arm Robot(Not Recommended Please use the python script [here]()).
 1. Open three terminals say #1, #2 and #3
 2. in #1 start virtual env using `source ~/Factory-calibration-DepthAI/python3_ws/py3venv/bin/activate`
-3. In #1 start calibration node using `roslaunch calibration depthai_calib.launch  enable_IMU_test:=false` (set enable_IMU_test:=true if you want to test connection to IMU)
-4. In #2 (if using rgb_calibration branc) start rqt visualization `rqt_image_view` (at the top right corner of the window select `color`)
+3. In #1 start calibration node using `roslaunch calibration depthai_calib.launch brd:=bw1098obc`
+4. Select the CCM in the window. (This is a local logging selection window and doesn't affect the calibration in any way as of now but needed to proceed.)
 5. Run all the following commands in #3 terminal
 6. Run `rosservice call /device_status "name: ''"` first to check connection and make window available.
-7. run `rosservice call /capture_checkerboard "name: 'right_1'"` execute this command to capture image when in position. (need to run this for different positon and while doing so change the name in the command.) And while doing so check the window created by #2 terminal to see if the image is sharp and not out of focus.
-8. After capturing 6+ sharp images in different position execute the following command to calibrate and write to eeprom. `rosservice call /calibrate_stereo "name: 'charuco'"`
-9.  Alternative to step 4. An Applications icon called `arm node` has been created during build which can also be used to launch the arm.
+7. In #2 (if using rgb_calibration branc) start rqt visualization `rqt_image_view` (at the top right corner of the window select `color`)
+8. run `rosservice call /capture_checkerboard "name: 'right_1'"` execute this command to capture image when in position. (need to run this for different positon and while doing so change the name in the command.) And while doing so check the window created by #2 terminal to see if the image is sharp and not out of focus.
+9. After capturing 6+ sharp images in different position execute the following command to calibrate and write to eeprom. `rosservice call /calibrate_stereo "name: 'charuco'"`
+10. Alternative to step 4. An Applications icon called `arm node` has been created during build which can also be used to launch the arm.
 
 ## Example Pass and Fail Results in the Calibration GUI
 
