@@ -19,11 +19,15 @@ Follow the video [here](https://youtu.be/oxK4ykVh1EE) till 30 min. and then pip 
 ## Workspace setup procedure on Ubuntu 18.04
 1. Install ROS melodic from [here](http://wiki.ros.org/melodic/Installation/Ubuntu)
 2. install dependencies &#8594; `sudo apt install git cmake python-pip python3-pip`
-3. install python virual env using `sudo pip install virtualenv`
+3. install python virual env using `sudo python3 -m pip install virtualenv`
 4. Go to home directory `cd ~`
 5. Clone the repo ` git clone https://github.com/luxonis/Factory-calibration-DepthAI.git`
 
 ### Calibration Node setup
+For convenience, you can use the `setup_calibration_node.py` script, which executes all the commands below automatically
+```
+$ python3 setup_calibration_node.py
+```
 1. Go to python_ws directory `cd ~/Factory-calibration-DepthAI/python3_ws`
 2. Create a virtual environment using `virtualenv py3venv --python=python3`
 3. Activate the virutalenv using `source py3venv/bin/activate`
@@ -36,6 +40,12 @@ Follow the video [here](https://youtu.be/oxK4ykVh1EE) till 30 min. and then pip 
 10. Reload the usb rules `sudo udevadm control --reload-rules && udevadm trigger`
 
 ### Interbotix viperx 300s arm Node setup
+For convenience, you can use the `setup_calibration_node.py` script, which executes all the commands below automatically
+
+```
+$ python3 setup_calibration_node.py
+```
+
 1. Open a new terminal
 2. Install rosdep `sudo apt install python-rosdep2`
 3. Open interbotix_ws workspace `cd ~/Factory-calibration-DepthAI/interbotix_ws`
