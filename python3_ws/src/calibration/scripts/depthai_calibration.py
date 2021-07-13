@@ -56,9 +56,9 @@ class depthai_calibration_node:
         self.disp.set_caption("Calibration - Device check ")
 
         self.ccm_selector()
-        self.focus_value = 135
-        ccm_names = ['Sunny', 'KingTop', 'ArduCam']
 
+        self.focus_value = 135
+        self.defaultLensPosition = 135
         if self.rgbCcm == 'Sunny':
             self.focus_value = 135
         elif self.rgbCcm == 'KingTop':
@@ -139,6 +139,8 @@ class depthai_calibration_node:
             self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
         self.dev_status_srv = rospy.Service(
             "device_status", Capture, self.device_status_handler)
+        self.focus_setting_srv = rospy.Service(
+            "rgb_focus_adjuster", Capture, self.rgb_focus_adjuster)
         # self.rgb_focus_srv = rospy.Service(
         #     "set_rgb_focus", Capture, self.rgb_focus_handler)
 
@@ -284,6 +286,8 @@ class depthai_calibration_node:
 
         if not self.args['disableRgb']:
             rgb_cam = pipeline.createColorCamera()
+            controlIn = pipeline.createXLinkIn()
+            
             rgb_cam.setResolution(
                 dai.ColorCameraProperties.SensorResolution.THE_4_K)
             rgb_cam.setInterleaved(False)
@@ -291,10 +295,13 @@ class depthai_calibration_node:
             rgb_cam.setFps(5)
             rgb_cam.setIspScale(1, 3)
             rgb_cam.initialControl.setManualFocus(self.focus_value)
+            
+            controlIn.setStreamName('control')
+            controlIn.out.link(rgb_cam.inputControl)
 
             xout_rgb_isp = pipeline.createXLinkOut()
             xout_rgb_isp.setStreamName("rgb")
-            rgb_cam.isp.link(xout_rgb_isp.input)        
+            rgb_cam.isp.link(xout_rgb_isp.input)
 
         return pipeline
 
@@ -350,7 +357,7 @@ class depthai_calibration_node:
                         frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
                         self.image_pub_color.publish(
                             self.bridge.cv2_to_imgmsg(frame, "passthrough"))
-
+    
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
         w = meta.getFrameWidth()
@@ -536,6 +543,7 @@ class depthai_calibration_node:
                             self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
                         if not self.args['disableRgb']:
                             self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
+                            self.rgb_control_queue  = self.device.getInputQueue("control", 5, False)
                     else:
                         print("Closing Device...")
 
@@ -692,6 +700,35 @@ class depthai_calibration_node:
         print("Service ending")
         self.is_service_active = False
         return (True, "No Error")
+
+    def rgb_focus_adjuster(self, req):
+        localLensPosition = self.defaultLensPosition
+        if not self.args['disableRgb']:
+            isFocused = False
+            while not isFocused:
+                rgb_frame = self.rgb_camera_queue.getAll()[-1]
+                rgb_gray = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                laplace_res = cv2.Laplacian(rgb_gray, cv2.CV_64F)
+                mu, sigma = cv2.meanStdDev(laplace_res)
+                if sigma < 27:
+                    lenPosDiff = localLensPosition - self.defaultLensPosition
+                    if lenPosDiff >= 0 and lenPosDiff < 10:
+                        localLensPosition += 1
+                    elif lenPosDiff > -10 and lenPosDiff < 0:
+                        localLensPosition -= 1
+                    else:
+                        print("Printing Lens Position: {}".format(localLensPosition))
+                        self.device.close()
+                        return (False, "RGB Camera out of Focus ")
+
+                    ctrl = dai.CameraControl()
+                    ctrl.setManualFocus(localLensPosition)
+                    self.rgb_control_queue.send(ctrl)
+                    rospy.sleep(2)
+                else:
+                    isFocused = True
+                    self.focus_value = localLensPosition
+                    return (True, "RGB Camera image in Focus ")
 
     def calibration_servive_handler(self, req):
         self.is_service_active = True
