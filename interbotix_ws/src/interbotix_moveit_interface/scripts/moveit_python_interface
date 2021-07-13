@@ -872,9 +872,13 @@ def main():
         if capture_exit():
           is_device_ready = False
           break
+
+        ## arm control
+        arm_control.go_to_next_joint_state(joints_goal_dict[act])
+        rospy.sleep(delay)
         
         if not isFocusSet:
-          focus_response = arm_control.focus_setting_srv("Set Focus")
+          focus_response = focus_setting_srv("Set Focus")
           if focus_response.success:
             isFocusSet = True
           else:
@@ -882,9 +886,6 @@ def main():
             pygame_render_text(screen, focus_response.error, (270,115), red, 30)
             recalibrate = True
             break
-        ## arm control
-        arm_control.go_to_next_joint_state(joints_goal_dict[act])
-        rospy.sleep(delay)
         ## calling capture service
         capture_resp = arm_control.capture_srv_client_handler(act)
         ## Evaulating response after capture

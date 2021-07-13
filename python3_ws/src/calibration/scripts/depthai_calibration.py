@@ -59,6 +59,7 @@ class depthai_calibration_node:
 
         self.focus_value = 135
         self.defaultLensPosition = 135
+        self.focusSigmaThreshold = 40
         if self.rgbCcm == 'Sunny':
             self.focus_value = 135
         elif self.rgbCcm == 'KingTop':
@@ -294,8 +295,9 @@ class depthai_calibration_node:
             rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
             rgb_cam.setFps(5)
             rgb_cam.setIspScale(1, 3)
-            rgb_cam.initialControl.setManualFocus(self.focus_value)
-            
+            rgb_cam.initialControl.setManualFocus(self.defaultLensPosition)
+            self.focus_value = self.defaultLensPosition
+
             controlIn.setStreamName('control')
             controlIn.out.link(rgb_cam.inputControl)
 
@@ -702,6 +704,7 @@ class depthai_calibration_node:
         return (True, "No Error")
 
     def rgb_focus_adjuster(self, req):
+        mode = 0
         localLensPosition = self.defaultLensPosition
         if not self.args['disableRgb']:
             isFocused = False
@@ -710,19 +713,28 @@ class depthai_calibration_node:
                 rgb_gray = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
                 laplace_res = cv2.Laplacian(rgb_gray, cv2.CV_64F)
                 mu, sigma = cv2.meanStdDev(laplace_res)
-                if sigma < 27:
+                print("at lens pose {},  Std Deviationn {}".format(localLensPosition, sigma))
+                if sigma < self.focusSigmaThreshold:
                     lenPosDiff = localLensPosition - self.defaultLensPosition
-                    if lenPosDiff >= 0 and lenPosDiff < 10:
-                        localLensPosition += 1
-                    elif lenPosDiff > -10 and lenPosDiff < 0:
-                        localLensPosition -= 1
-                    else:
-                        print("Printing Lens Position: {}".format(localLensPosition))
-                        self.device.close()
-                        return (False, "RGB Camera out of Focus ")
+                    if mode == 0:
+                        if lenPosDiff >= 0 and lenPosDiff < 10:
+                            localLensPosition += 1
+                        else:
+                            mode = 1
+                            localLensPosition = self.defaultLensPosition
+                            continue
+
+                    if mode == 1:
+                        if lenPosDiff > -10 and lenPosDiff <= 0:
+                            localLensPosition -= 1
+                        else:
+                            print("Printing Lens Position: {}".format(localLensPosition))
+                            self.device.close()
+                            return (False, "RGB Camera out of Focus ")
 
                     ctrl = dai.CameraControl()
                     ctrl.setManualFocus(localLensPosition)
+                    print("Sending Control")
                     self.rgb_control_queue.send(ctrl)
                     rospy.sleep(2)
                 else:
