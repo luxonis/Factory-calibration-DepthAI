@@ -452,6 +452,15 @@ class depthai_calibration_node:
         print("Markers count ... {}".format(len(marker_corners)))
         return not (len(marker_corners) < 30)
 
+    def close_device(self):
+        if hasattr(self, 'left_camera_queue') and hasattr(self, 'right_camera_queue'):
+            delattr(self, 'left_camera_queue')
+            delattr(self, 'right_camera_queue')
+        if hasattr(self, 'rgb_camera_queue') and hasattr(self, 'rgb_control_queue'):
+            delattr(self, 'rgb_camera_queue')
+            delattr(self, 'rgb_control_queue')
+        self.device.close()
+
     def device_status_handler(self, req):
         self.is_service_active = True
         self.start_disp = True # TODO(sachin): Change code to Use this for display 
@@ -556,7 +565,7 @@ class depthai_calibration_node:
                         text = "Click RETEST when device is ready!!!"
                         pygame_render_text(self.screen, text, (400, 180), red, 30)
 
-                        self.device.close()
+                        self.close_device()
                         self.retest()
                         print("Restarting Device...")
 
@@ -624,7 +633,7 @@ class depthai_calibration_node:
             if isAllPassed:
                 finished = True
             else:
-                self.device.close()
+                self.close_device()
                 self.retest()
 
         dataset_path = Path(self.package_path + "/dataset")
@@ -696,7 +705,7 @@ class depthai_calibration_node:
             self.parse_frame(recent_left, "left_not", req.name)
             self.parse_frame(recent_right, "right_not", req.name)
             self.parse_frame(recent_color, "rgb_not", req.name)
-            self.device.close()
+            self.close_device()
             return (False, "Calibration board not found")
 
         print("Service ending")
@@ -729,7 +738,7 @@ class depthai_calibration_node:
                             localLensPosition -= 1
                         else:
                             print("Printing Lens Position: {}".format(localLensPosition))
-                            self.device.close()
+                            self.close_device()
                             return (False, "RGB Camera out of Focus ")
 
                     ctrl = dai.CameraControl()
@@ -814,21 +823,21 @@ class depthai_calibration_node:
             text = "Failed due to high calibration error L-R"
             pygame_render_text(self.screen, text, (400, 270), red, 30)
             print_epipolar_error(red)
-            self.device.close()
+            self.close_device()
             return (False, text)
 
         if avg_epipolar_error_r_rgb is not None and avg_epipolar_error_r_rgb > 0.7:
             text = "Failed due to high calibration error RGB-R"
             pygame_render_text(self.screen, text, (400, 300), red, 30)
             print_epipolar_error(red)
-            self.device.close()
+            self.close_device()
             return (False, text)
 
         if rgb_reproject_error is not None and rgb_reproject_error > 0.5:
             text = "Failed due to high Reprojection Error"
             pygame_render_text(self.screen, text, (400, 330), red, 30)
             print_epipolar_error(red)
-            self.device.close()
+            self.close_device()
             return (False, text)
 
         calibration_handler = dai.CalibrationHandler()
@@ -874,7 +883,7 @@ class depthai_calibration_node:
         print("Finished writing to EEPROM")
         
         self.is_service_active = False
-        self.device.close()
+        self.close_device()
         if is_write_succesful:
             print_epipolar_error(green)
             text = "EEPROM written succesfully"
