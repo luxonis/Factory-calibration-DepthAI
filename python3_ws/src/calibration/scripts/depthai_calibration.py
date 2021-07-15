@@ -59,7 +59,7 @@ class depthai_calibration_node:
 
         self.focus_value = 135
         self.defaultLensPosition = 135
-        self.focusSigmaThreshold = 31
+        self.focusSigmaThreshold = 22
         if self.rgbCcm == 'Sunny':
             self.focus_value = 135
         elif self.rgbCcm == 'KingTop':
