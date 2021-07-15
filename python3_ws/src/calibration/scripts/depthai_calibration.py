@@ -726,7 +726,7 @@ class depthai_calibration_node:
                 if sigma < self.focusSigmaThreshold:
                     lenPosDiff = localLensPosition - self.defaultLensPosition
                     if mode == 0:
-                        if lenPosDiff >= 0 and lenPosDiff < 10:
+                        if lenPosDiff >= 0 and lenPosDiff < 15:
                             localLensPosition += 1
                         else:
                             mode = 1
