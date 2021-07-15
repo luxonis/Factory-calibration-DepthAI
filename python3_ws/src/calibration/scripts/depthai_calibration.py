@@ -474,12 +474,7 @@ class depthai_calibration_node:
         now_time = datetime.now()
         text = "date/time : " + now_time.strftime("%m-%d-%Y %H:%M:%S")
         pygame_render_text(self.screen, text, (400, 80), black, 30)
-        """ 
-        dev_info = self.device.getDeviceInfo()
-        text = "device Mx_id : " + dev_info.getMxId()
-        pygame_render_text(self.screen, text, (400, 120), black, 30)
-        rospy.sleep(1)
-        """
+
         fill_color_2 = pygame.Rect(50, 520, 400, 80)
         pygame.draw.rect(self.screen, white, fill_color_2)
 
@@ -507,8 +502,9 @@ class depthai_calibration_node:
                     fill_color_2 = pygame.Rect(390, 120, 500, 100)
                     pygame.draw.rect(self.screen, white, fill_color_2)
 
-                    dev_info = self.device.getDeviceInfo()
-                    text = "device Mx_id : " + dev_info.getMxId()
+                    rospy.sleep(2)
+                    # dev_info = self.device.getDeviceInfo()
+                    text = "device Mx_id : " + self.device.getMxId()
                     pygame_render_text(self.screen, text, (400, 120), black, 30)
                     text = "Device Connected!!!"
                     pygame_render_text(self.screen, text, (400, 150), green, 30)
@@ -639,9 +635,9 @@ class depthai_calibration_node:
         dataset_path = Path(self.package_path + "/dataset")
         if 1 and dataset_path.exists():
             shutil.rmtree(str(dataset_path))
-        dev_info = self.device.getDeviceInfo()
+        # dev_info = self.device.getDeviceInfo()
         self.is_service_active = False
-        return (finished, dev_info.getMxId())
+        return (finished, self.device.getMxId())
 
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
@@ -756,9 +752,9 @@ class depthai_calibration_node:
         print("calibration Service Started")
         # pygame.draw.rect(self.screen, white, no_button)
 
-        # mx_serial_id = self.device.get_mx_id()
-        dev_info = self.device.getDeviceInfo()
-        mx_serial_id = dev_info.getMxId()
+        mx_serial_id = self.device.getMxId()
+        # dev_info = self.device.getDeviceInfo()
+        # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
             arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.json')
         
