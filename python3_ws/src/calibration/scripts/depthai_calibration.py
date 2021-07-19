@@ -295,8 +295,8 @@ class depthai_calibration_node:
             rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
             rgb_cam.setFps(5)
             rgb_cam.setIspScale(1, 3)
-            rgb_cam.initialControl.setManualFocus(self.defaultLensPosition)
-            self.focus_value = self.defaultLensPosition
+            # rgb_cam.initialControl.setManualFocus(self.defaultLensPosition)
+            # self.focus_value = self.defaultLensPosition
 
             controlIn.setStreamName('control')
             controlIn.out.link(rgb_cam.inputControl)
@@ -670,6 +670,8 @@ class depthai_calibration_node:
                 recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
                 self.image_pub_color.publish(
                         self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
+                
+                if rgb_frame.getLensPosition() != self.focus_value:
 
 
             if (not self.args['disableLR']) and (not self.args['disableRgb']):
@@ -709,6 +711,34 @@ class depthai_calibration_node:
         return (True, "No Error")
 
     def rgb_focus_adjuster(self, req):
+        if not self.args['disableRgb']:
+            count = 0
+            isFocused = False
+            while not isFocused:
+                rospy.sleep(1)
+
+                rgb_frame = self.rgb_camera_queue.getAll()[-1]
+                rgb_gray = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                laplace_res = cv2.Laplacian(rgb_gray, cv2.CV_64F)
+                mu, sigma = cv2.meanStdDev(laplace_res)
+                if sigma > self.focusSigmaThreshold:
+                    self.focus_value = rgb_frame.getLensPosition()
+                    isFocused = True
+
+                    ctrl = dai.CameraControl()
+                    ctrl.setManualFocus(self.focus_value)
+                    print("Sending Control")
+                    self.rgb_control_queue.send(ctrl)
+                    return (True, "RGB not enabled")
+                else:
+                    count += 1
+                    if count == 30:
+                        return (False, "RGB camera out of focus")
+        else:
+            return (True, "RGB not enabled")
+
+
+    """ def rgb_focus_adjuster(self, req):
         mode = 0
         localLensPosition = self.defaultLensPosition
         if not self.args['disableRgb']:
@@ -745,7 +775,7 @@ class depthai_calibration_node:
                 else:
                     isFocused = True
                     self.focus_value = localLensPosition
-                    return (True, "RGB Camera image in Focus ")
+                    return (True, "RGB Camera image in Focus ") """
 
     def calibration_servive_handler(self, req):
         self.is_service_active = True

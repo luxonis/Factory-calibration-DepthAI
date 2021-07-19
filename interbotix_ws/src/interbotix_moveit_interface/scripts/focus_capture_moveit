@@ -45,10 +45,10 @@ class MoveGroupPythonIntefaceTutorial(object):
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('move_group_python_interface_tutorial',
                     anonymous=True)
-    # try:
-    #   self.capture_srv = rospy.ServiceProxy('/capture_checkerboard', Capture)  
-    # except rospy.ServiceException as e:
-    #   print("Service call failed: %s"%e)
+    try:
+      self.capture_srv = rospy.ServiceProxy('/capture_checkerboard', Capture)  
+    except rospy.ServiceException as e:
+      print("Service call failed: %s"%e)
 
     print("ininitalized service---------------------------------------->")
     ## Get the name of the robot - this will be used to properly define the end-effector link when adding a box
