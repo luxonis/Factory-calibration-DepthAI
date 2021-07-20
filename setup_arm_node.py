@@ -38,7 +38,7 @@ def run_command(command: str, workdir=None, sudo=False):
 repo_root = Path(__file__).parent
 run_command("apt install -y python-rosdep2", sudo=True)
 run_command("rm -rf py3venv", workdir=repo_root / "interbotix_ws")
-run_command("virtualenv py2venv --python=python2", workdir=repo_root / "interbotix_ws")
+run_command(f"{sys.executable} -m virtualenv py2venv --python=python2", workdir=repo_root / "interbotix_ws")
 run_command("rosdep init", sudo=True, workdir=repo_root / "interbotix_ws")
 run_command("catkin_make", workdir=repo_root / "interbotix_ws")
 run_command("rosdep update", workdir=repo_root / "interbotix_ws")

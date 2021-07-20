@@ -19,7 +19,7 @@ Follow the video [here](https://youtu.be/oxK4ykVh1EE) till 30 min. and then pip 
 ## Workspace setup procedure on Ubuntu 18.04
 1. Install ROS melodic from [here](http://wiki.ros.org/melodic/Installation/Ubuntu)
 2. install dependencies &#8594; `sudo apt install git cmake python-pip python3-pip`
-3. install python virual env using `sudo python3 -m pip install virtualenv`
+3. install python virual env using `python3 -m pip install virtualenv`
 4. Go to home directory `cd ~`
 5. Clone the repo ` git clone https://github.com/luxonis/Factory-calibration-DepthAI.git`
 
