@@ -276,8 +276,8 @@ class depthai_calibration_node:
 
             cam_right.setResolution(
                 dai.MonoCameraProperties.SensorResolution.THE_800_P)
-            cam_left.setFps(5)
-            cam_right.setFps(5)
+            cam_left.setFps(10)
+            cam_right.setFps(10)
 
             xout_left.setStreamName("left")
             cam_left.out.link(xout_left.input)
@@ -293,7 +293,7 @@ class depthai_calibration_node:
                 dai.ColorCameraProperties.SensorResolution.THE_4_K)
             rgb_cam.setInterleaved(False)
             rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
-            rgb_cam.setFps(5)
+            rgb_cam.setFps(10)
             rgb_cam.setIspScale(1, 3)
             # rgb_cam.initialControl.setManualFocus(self.defaultLensPosition)
             # self.focus_value = self.defaultLensPosition
@@ -493,6 +493,7 @@ class depthai_calibration_node:
             while self.device is None or self.device.isClosed():
                 if self.capture_exit():
                     rospy.signal_shutdown("Stopping calibration")
+                
                 # TODO(Sachin): add a check for available devices..
                 searchTime = timedelta(seconds=80)
                 isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
@@ -526,6 +527,10 @@ class depthai_calibration_node:
                         self.auto_checkbox_dict["Right Camera Conencted"].render_checkbox()
 
                     if not self.args['disableRgb']:
+                        calibrationHandler = self.device.readCalibration()
+                        self.focus_value = calibrationHandler.getLensPosition(dai.CameraBoardSocket.RGB)
+                        print('Focus value from the eeprom is {}'.format(self.focus_value))
+
                         if dai.CameraBoardSocket.RGB not in cameraList:
                             self.auto_checkbox_dict["Rgb Camera Conencted"].uncheck()
                             lost_camera = True
@@ -672,7 +677,13 @@ class depthai_calibration_node:
                         self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
                 
                 if rgb_frame.getLensPosition() != self.focus_value:
-
+                    ctrl = dai.CameraControl()
+                    ctrl.setManualFocus(self.focus_value)
+                    print("Sending Control")
+                    self.rgb_control_queue.send(ctrl)
+                    recent_color = None
+                    rospy.sleep(1)
+                    continue
 
             if (not self.args['disableLR']) and (not self.args['disableRgb']):
                 if recent_left is not None and recent_right is not None and recent_color is not None:
@@ -711,12 +722,16 @@ class depthai_calibration_node:
         return (True, "No Error")
 
     def rgb_focus_adjuster(self, req):
+        ctrl = dai.CameraControl()
+        ctrl.setManualFocus(self.focus_value)
+        print("Sending Control")
+        self.rgb_control_queue.send(ctrl)
+        rospy.sleep(1)
+    
         if not self.args['disableRgb']:
             count = 0
             isFocused = False
             while not isFocused:
-                rospy.sleep(1)
-
                 rgb_frame = self.rgb_camera_queue.getAll()[-1]
                 rgb_gray = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
                 laplace_res = cv2.Laplacian(rgb_gray, cv2.CV_64F)
@@ -725,10 +740,6 @@ class depthai_calibration_node:
                     self.focus_value = rgb_frame.getLensPosition()
                     isFocused = True
 
-                    ctrl = dai.CameraControl()
-                    ctrl.setManualFocus(self.focus_value)
-                    print("Sending Control")
-                    self.rgb_control_queue.send(ctrl)
                     return (True, "RGB not enabled")
                 else:
                     count += 1
