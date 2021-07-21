@@ -1,5 +1,6 @@
-
-opencv-contrib-python==4.4.0.46
+--extra-index-url https://www.piwheels.org/simple/
+opencv-python
+opencv-contrib-python
 requests==2.24.0
 argcomplete==1.12.1
 pygame==2.0.0
