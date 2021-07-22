@@ -36,7 +36,7 @@ def run_command(command: str, workdir=None, sudo=False):
 
 repo_root = Path(__file__).parent
 run_command("rm -rf py3venv", workdir=repo_root / "python3_ws")
-run_command(f"{sys.executable} -m virtualenv py3venv --python=python3", workdir=repo_root / "python3_ws")
+run_command(f"{sys.executable} -m virtualenv py3venv --python=python3.7", workdir=repo_root / "python3_ws")
 run_command("apt-get install -y python-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsdl1.2-dev python-numpy libportmidi-dev libjpeg-dev libtiff5-dev libx11-6 libx11-dev xfonts-base xfonts-100dpi xfonts-75dpi xfonts-cyrillic fluid-soundfont-gm libsdl2-dev libsdl2-image-dev libsdl2-mixer-dev libsdl2-ttf-dev", sudo=True)
 run_command("python3_ws/py3venv/bin/python -m pip install --no-cache-dir -r requirements.txt", workdir=repo_root)
 run_command("catkin_make", workdir=repo_root / "python3_ws")
