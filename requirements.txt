@@ -6,4 +6,4 @@ pygame==2.0.0
 rospkg==1.2.8
 # depthai==0.3.0.0
 --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-python-snapshot-local/
-depthai==2.7.0.0.dev0+4ff170cfa515933b1bbb254d448e889bce1f32c8
+depthai==2.7.2.0.dev0+fd33eaa1fda1ab9b36bdb5cee6141af6bb2c697c
