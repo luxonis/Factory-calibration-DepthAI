@@ -57,15 +57,15 @@ class depthai_calibration_node:
 
         self.ccm_selector()
 
-        self.focus_value = 135
-        self.defaultLensPosition = 135
+        self.focus_value = 0
+        # self.defaultLensPosition = 135
         self.focusSigmaThreshold = 22
-        if self.rgbCcm == 'Sunny':
-            self.focus_value = 135
-        elif self.rgbCcm == 'KingTop':
-            self.focus_value = 135
-        elif self.rgbCcm == 'ArduCam':
-            self.focus_value = 135
+        # if self.rgbCcm == 'Sunny':
+        #     self.focus_value = 135
+        # elif self.rgbCcm == 'KingTop':
+        #     self.focus_value = 135
+        # elif self.rgbCcm == 'ArduCam':
+        #     self.focus_value = 135
 
         # self.frame_count = 0
         self.init_time = time.time()
@@ -494,7 +494,6 @@ class depthai_calibration_node:
                 if self.capture_exit():
                     rospy.signal_shutdown("Stopping calibration")
                 
-                # TODO(Sachin): add a check for available devices..
                 searchTime = timedelta(seconds=80)
                 isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
                 if isFound:
@@ -675,7 +674,7 @@ class depthai_calibration_node:
                 recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
                 self.image_pub_color.publish(
                         self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-                
+                print("Current Lens Position -> {}".format(rgb_frame.getLensPosition()))
                 if rgb_frame.getLensPosition() != self.focus_value:
                     ctrl = dai.CameraControl()
                     ctrl.setManualFocus(self.focus_value)
@@ -722,9 +721,10 @@ class depthai_calibration_node:
         return (True, "No Error")
 
     def rgb_focus_adjuster(self, req):
+        
         ctrl = dai.CameraControl()
         ctrl.setManualFocus(self.focus_value)
-        print("Sending Control")
+        print("Sending Control {}".format(self.focus_value))
         self.rgb_control_queue.send(ctrl)
         rospy.sleep(1)
     
@@ -736,14 +736,22 @@ class depthai_calibration_node:
                 rgb_gray = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
                 laplace_res = cv2.Laplacian(rgb_gray, cv2.CV_64F)
                 mu, sigma = cv2.meanStdDev(laplace_res)
+                print("Std Deviation value is {}".format(sigma))
+                print("Lens Position -> {}".format(rgb_frame.getLensPosition()))
+
+                if rgb_frame.getLensPosition() != self.focus_value:
+                    ctrl.setManualFocus(self.focus_value)
+                    print("Sending Control {}".format(self.focus_value))
+                    self.rgb_control_queue.send(ctrl)
+                    rospy.sleep(1)
+                    
                 if sigma > self.focusSigmaThreshold:
                     self.focus_value = rgb_frame.getLensPosition()
                     isFocused = True
-
-                    return (True, "RGB not enabled")
+                    return (True, "RGB in Focus")
                 else:
                     count += 1
-                    if count == 30:
+                    if count == 90:
                         return (False, "RGB camera out of focus")
         else:
             return (True, "RGB not enabled")
