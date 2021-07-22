@@ -37,7 +37,7 @@ def run_command(command: str, workdir=None, sudo=False):
 repo_root = Path(__file__).parent
 run_command("rm -rf py3venv", workdir=repo_root / "python3_ws")
 run_command(f"{sys.executable} -m virtualenv py3venv --python=python3", workdir=repo_root / "python3_ws")
-run_command("apt-get install -y python3-pygame python-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsdl1.2-dev libsmpeg-dev python-numpy subversion libportmidi-dev ffmpeg libswscale-dev libavformat-dev libavcodec-dev libfreetype6-dev", sudo=True)
+run_command("apt-get install -y python-dev libsdl-image1.2-dev libsdl-mixer1.2-dev libsdl-ttf2.0-dev libsdl1.2-dev libsmpeg-dev python-numpy subversion libportmidi-dev ffmpeg libswscale-dev libavformat-dev libavcodec-dev libfreetype6-dev", sudo=True)
 run_command("python3_ws/py3venv/bin/python -m pip install --no-cache-dir -r requirements.txt", workdir=repo_root)
 run_command("catkin_make", workdir=repo_root / "python3_ws")
 run_command(f"""echo "source {str(repo_root.absolute())}/python3_ws/devel/setup.bash" >> ~/.bashrc""")
