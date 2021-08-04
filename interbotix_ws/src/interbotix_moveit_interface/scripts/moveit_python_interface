@@ -710,8 +710,6 @@ def main():
   ## rendering window title and exit button
   title = "Arm Control"
 
-
-
   arm_control = MoveGroupPythonIntefaceTutorial()
   pygame_render_text(screen, title, (350,20), orange, 50)
   pygame.draw.rect(screen, orange, no_button)
