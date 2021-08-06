@@ -575,6 +575,8 @@ def capture_exit():
 
 
 def main():
+  global screen, disp, arm_control
+
   rospy.on_shutdown(shutdown_handler)
 
   disp = pygame.display
