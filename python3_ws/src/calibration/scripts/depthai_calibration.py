@@ -89,7 +89,8 @@ class depthai_calibration_node:
         title = "Device Status"
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
         self.auto_checkbox_names = []
-        
+        self.auto_focus_checkbox_names = []
+
         if self.args['usbMode']:
             self.auto_checkbox_names.append("USB3")
         header = ['time', 'Mx_serial_id','Mono-CCM', 'RGB-CCM',
@@ -100,9 +101,12 @@ class depthai_calibration_node:
             self.auto_checkbox_names.append("Right Camera Conencted")
             self.auto_checkbox_names.append("Left Stream")
             self.auto_checkbox_names.append("Right Stream")
+            self.auto_focus_checkbox_names.append("Left Focus")
+            self.auto_focus_checkbox_names.append("Right Focus")
         if not self.args['disableRgb']:
             self.auto_checkbox_names.append("Rgb Camera Conencted")
             self.auto_checkbox_names.append("Rgb Stream")
+            self.auto_focus_checkbox_names.append("Rgb Focus")
         
         log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv"
         if not os.path.exists(log_file):
@@ -124,10 +128,26 @@ class depthai_calibration_node:
             self.screen.blit(font_surf, (x_axis, y_axis))
             self.auto_checkbox_dict[self.auto_checkbox_names[i]] = Checkbox(self.screen, x + 10, y_axis-5, outline_color=green,
                                                                             check_color=green, check=False)
-
         # text = 'call rosservice of device_status_handler to update the device status'
         for i in range(len(self.auto_checkbox_names)):
             self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
+
+        y = y + (40*len(self.auto_checkbox_names))
+        self.auto_focus_checkbox_dict = {}
+        
+        for i in range(len(self.auto_focus_checkbox_names)):
+            w, h = font.size(self.auto_focus_checkbox_names[i])
+            x_axis = x - w
+            y_axis = y + (40*i)
+            font_surf = font.render(self.auto_focus_checkbox_names[i], True, green)
+            self.screen.blit(font_surf, (x_axis, y_axis))
+            self.auto_focus_checkbox_dict[self.auto_focus_checkbox_names[i]] = Checkbox(self.screen, x + 10, y_axis-5, outline_color=green,
+                                                                            check_color=green, check=False)
+
+        for i in range(len(self.auto_focus_checkbox_names)):
+            self.auto_focus_checkbox_dict[self.auto_focus_checkbox_names[i]].render_checkbox()
+
+
         pygame.draw.rect(self.screen, red, no_button)
         pygame_render_text(self.screen, 'Exit', (500, 505))
         self.no_active = False
@@ -297,6 +317,7 @@ class depthai_calibration_node:
             rgb_cam.setIspScale(1, 3)
             # rgb_cam.initialControl.setManualFocus(self.defaultLensPosition)
             # self.focus_value = self.defaultLensPosition
+            rgb_cam.initialControl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
 
             controlIn.setStreamName('control')
             controlIn.out.link(rgb_cam.inputControl)
@@ -546,7 +567,7 @@ class depthai_calibration_node:
                             self.auto_checkbox_dict["USB3"].uncheck()
                         self.auto_checkbox_dict["USB3"].render_checkbox()
 
-                    if not lost_camera:    
+                    if not lost_camera:
                         pipeline = self.create_pipeline()
                         self.device.startPipeline(pipeline)
                         if not self.args['disableLR']:
@@ -571,6 +592,7 @@ class depthai_calibration_node:
 
                         fill_color_2 = pygame.Rect(390, 430, 120, 35)
                         pygame.draw.rect(self.screen, white, fill_color_2)
+
             left_mipi = False
             right_mipi = False
             rgb_mipi = False
@@ -721,41 +743,120 @@ class depthai_calibration_node:
         return (True, "No Error")
 
     def rgb_focus_adjuster(self, req):
-        
+        self.is_service_active = True
+        maxCountFocus   = 90
+        rgbCountFocus   = 0
+        rightCountFocus  = 0
+        leftCountFocus = 0
+
+        lensPosition = 0
+
+        isLeftFocused = False
+        isRightFocused = False
+        isRgbFocused = False
         ctrl = dai.CameraControl()
-        ctrl.setManualFocus(self.focus_value)
-        print("Sending Control {}".format(self.focus_value))
+        ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
+        ctrl.setAutoFocusTrigger()
         self.rgb_control_queue.send(ctrl)
         rospy.sleep(1)
-    
-        if not self.args['disableRgb']:
-            count = 0
-            isFocused = False
-            while not isFocused:
+        trigCount = 0
+
+        while True:
+            if not self.args['disableLR']:
+                left_frame =  self.left_camera_queue.getAll()[-1]
+                right_frame = self.right_camera_queue.getAll()[-1]
+                
+                dst_left = cv2.Laplacian(left_frame.getCvFrame(), cv2.CV_64F)
+                # abs_dst_left = cv2.convertScaleAbs(dst_left)
+                mu, sigma_left = cv2.meanStdDev(dst_left)
+
+                dst_right = cv2.Laplacian(right_frame.getCvFrame(), cv2.CV_64F)
+                # abs_dst_right = cv2.convertScaleAbs(dst_right)
+                mu, sigma_right = cv2.meanStdDev(dst_right)
+                print("SdtDev of Left: {} and right: {}".format(sigma_left, sigma_right))
+
+                if sigma_right > self.focusSigmaThreshold:
+                    isRightFocused = True
+                rightCountFocus += 1
+
+                if sigma_left > self.focusSigmaThreshold:
+                    isLeftFocused = True
+                leftCountFocus += 1
+            
+            if not self.args['disableRgb']:
                 rgb_frame = self.rgb_camera_queue.getAll()[-1]
-                rgb_gray = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-                laplace_res = cv2.Laplacian(rgb_gray, cv2.CV_64F)
-                mu, sigma = cv2.meanStdDev(laplace_res)
-                print("Std Deviation value is {}".format(sigma))
-                print("Lens Position -> {}".format(rgb_frame.getLensPosition()))
+                recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                marker_corners, _, _ = cv2.aruco.detectMarkers(recent_color, self.aruco_dictionary)
 
-                if rgb_frame.getLensPosition() != self.focus_value:
-                    ctrl.setManualFocus(self.focus_value)
-                    print("Sending Control {}".format(self.focus_value))
-                    self.rgb_control_queue.send(ctrl)
-                    rospy.sleep(1)
-                    
-                if sigma > self.focusSigmaThreshold:
-                    self.focus_value = rgb_frame.getLensPosition()
-                    isFocused = True
-                    return (True, "RGB in Focus")
+                if len(marker_corners) < 30:
+                    print("Board not detected. Waiting...!!!")
+                    trig_count += 1
+                    rgbCountFocus += 1
+                    if trig_count > 31:
+                        trig_count = 0
+                        self.rgb_control_queue.send(ctrl)
+                        time.sleep(1)
+                    if rgbCountFocus > maxCountFocus:
+                        break
+                    continue
+
+                dst_rgb = cv2.Laplacian(recent_color, cv2.CV_64F)
+                # abs_dst_rgb = cv2.convertScaleAbs(dst_rgb)
+                mu, sigma_rgb = cv2.meanStdDev(dst_rgb)
+                print("SdtDev of RGB: {} with lens position of {}".format(sigma_rgb, rgb_frame.getLensPosition()))
+                # cv2.imshow(" Recent Color Image", recent_color)
+                # cv2.waitKey(1)
+
+                if sigma_rgb > self.focusSigmaThreshold:
+                    lensPosition = rgb_frame.getLensPosition()
+                    isRgbFocused = True
                 else:
-                    count += 1
-                    if count == 90:
-                        return (False, "RGB camera out of focus")
-        else:
-            return (True, "RGB not enabled")
+                    trig_count += 1
+                    if trig_count > 31:
+                        trig_count = 0
+                        self.rgb_control_queue.send(ctrl)
+                        time.sleep(1)
+                    
+                rgbCountFocus += 1
 
+            if not self.args['disableLR'] and not self.args['disableRgb']:
+                print("right count: {}, left count: {} and rgb count: {}".format(rightCountFocus, leftCountFocus, rgbCountFocus))
+                if rightCountFocus > maxCountFocus and leftCountFocus > maxCountFocus and rgbCountFocus > maxCountFocus:
+                    break
+            elif not self.args['disableRgb']:
+                if rgbCountFocus > maxCountFocus:
+                    break
+        
+        self.is_service_active = False
+
+        if isRgbFocused and isLeftFocused and isRightFocused:
+            self.focus_value = lensPosition 
+            ctrl = dai.CameraControl()
+            ctrl.setManualFocus(self.focus_value)
+            print("Sending Control")
+            self.rgb_control_queue.send(ctrl)
+            rospy.sleep(1)
+            self.auto_focus_checkbox_dict["Rgb Focus"].check()
+            self.auto_focus_checkbox_dict["Rgb Focus"].render_checkbox()
+            self.auto_focus_checkbox_dict["Left Focus"].check()
+            self.auto_focus_checkbox_dict["Left Focus"].render_checkbox()
+            self.auto_focus_checkbox_dict["Right Focus"].check()
+            self.auto_focus_checkbox_dict["Right Focus"].render_checkbox()
+            return (True, "RGB in Focus")
+        else:
+            self.close_device()
+            if not isRgbFocused:
+                self.auto_focus_checkbox_dict["Rgb Focus"].uncheck()
+                self.auto_focus_checkbox_dict["Rgb Focus"].render_checkbox()
+                return (False, "RGB is out of Focus")
+            if not isLeftFocused:
+                self.auto_focus_checkbox_dict["Left Focus"].uncheck()
+                self.auto_focus_checkbox_dict["Left Focus"].render_checkbox()
+                return (False, "Left is out of Focus")
+            if not isRightFocused:
+                self.auto_focus_checkbox_dict["Right Focus"].uncheck()
+                self.auto_focus_checkbox_dict["Right Focus"].render_checkbox()
+                return (False, "Right is out of Focus")
 
     """ def rgb_focus_adjuster(self, req):
         mode = 0
