@@ -94,7 +94,9 @@ class depthai_calibration_node:
         if self.args['usbMode']:
             self.auto_checkbox_names.append("USB3")
         header = ['time', 'Mx_serial_id','Mono-CCM', 'RGB-CCM',
-                  'left_camera', 'right_camera', 'rgb_camera', 'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
+                  'left_camera', 'right_camera', 'rgb_camera', 
+                  'left_focus_stdDev', 'right_focus_stdDev', 'rgb_focus_stdDev',
+                  'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
 
         if not self.args['disableLR']:
             self.auto_checkbox_names.append("Left Camera Conencted")
@@ -502,6 +504,10 @@ class depthai_calibration_node:
             checkbox.setUnattended()
             checkbox.render_checkbox()
 
+        for _, checkbox in self.auto_focus_checkbox_dict.items():
+            checkbox.setUnattended()
+            checkbox.render_checkbox()
+
         if self.device is not None:
             if not self.device.isClosed():
                 self.device.isClose()
@@ -546,9 +552,9 @@ class depthai_calibration_node:
                         self.auto_checkbox_dict["Right Camera Conencted"].render_checkbox()
 
                     if not self.args['disableRgb']:
-                        calibrationHandler = self.device.readCalibration()
-                        self.focus_value = calibrationHandler.getLensPosition(dai.CameraBoardSocket.RGB)
-                        print('Focus value from the eeprom is {}'.format(self.focus_value))
+                        # calibrationHandler = self.device.readCalibration()
+                        # self.focus_value = calibrationHandler.getLensPosition(dai.CameraBoardSocket.RGB)
+                        # print('Focus value from the eeprom is {}'.format(self.focus_value))
 
                         if dai.CameraBoardSocket.RGB not in cameraList:
                             self.auto_checkbox_dict["Rgb Camera Conencted"].uncheck()
@@ -743,16 +749,20 @@ class depthai_calibration_node:
 
     def rgb_focus_adjuster(self, req):
         self.is_service_active = True
-        maxCountFocus   = 90
+        maxCountFocus   = 50
         rgbCountFocus   = 0
-        rightCountFocus  = 0
-        leftCountFocus = 0
+        rightCountFocus = 0
+        leftCountFocus  = 0
+
+        self.leftFocuSigma = 0
+        self.rightFocuSigma = 0
+        self.rgbFocuSigma = 0
 
         lensPosition = 0
-
         isLeftFocused = False
         isRightFocused = False
         isRgbFocused = False
+
         ctrl = dai.CameraControl()
         ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
         ctrl.setAutoFocusTrigger()
@@ -764,7 +774,11 @@ class depthai_calibration_node:
             if not self.args['disableLR']:
                 left_frame =  self.left_camera_queue.getAll()[-1]
                 right_frame = self.right_camera_queue.getAll()[-1]
-                
+                self.image_pub_left.publish(
+                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
+                self.image_pub_right.publish(
+                            self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
+
                 dst_left = cv2.Laplacian(left_frame.getCvFrame(), cv2.CV_64F)
                 # abs_dst_left = cv2.convertScaleAbs(dst_left)
                 mu, sigma_left = cv2.meanStdDev(dst_left)
@@ -776,23 +790,27 @@ class depthai_calibration_node:
 
                 if sigma_right > self.focusSigmaThreshold:
                     isRightFocused = True
+                    self.rightFocuSigma = sigma_right
                 rightCountFocus += 1
 
                 if sigma_left > self.focusSigmaThreshold:
                     isLeftFocused = True
+                    self.leftFocuSigma = sigma_left
                 leftCountFocus += 1
             
             if not self.args['disableRgb']:
                 rgb_frame = self.rgb_camera_queue.getAll()[-1]
                 recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
                 marker_corners, _, _ = cv2.aruco.detectMarkers(recent_color, self.aruco_dictionary)
+                self.image_pub_color.publish(
+                            self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
 
                 if len(marker_corners) < 30:
                     print("Board not detected. Waiting...!!!")
-                    trig_count += 1
+                    trigCount += 1
                     rgbCountFocus += 1
-                    if trig_count > 31:
-                        trig_count = 0
+                    if trigCount > 31:
+                        trigCount = 0
                         self.rgb_control_queue.send(ctrl)
                         time.sleep(1)
                     if rgbCountFocus > maxCountFocus:
@@ -809,10 +827,11 @@ class depthai_calibration_node:
                 if sigma_rgb > self.focusSigmaThreshold:
                     lensPosition = rgb_frame.getLensPosition()
                     isRgbFocused = True
+                    self.rgbFocuSigma = sigma_rgb
                 else:
-                    trig_count += 1
-                    if trig_count > 31:
-                        trig_count = 0
+                    trigCount += 1
+                    if trigCount > 31:
+                        trigCount = 0
                         self.rgb_control_queue.send(ctrl)
                         time.sleep(1)
                     
@@ -937,6 +956,10 @@ class depthai_calibration_node:
             log_list.append("Rgb Disabled")
         else:
             log_list.append("Calibrated")
+        
+        log_list.append(self.leftFocuSigma)
+        log_list.append(self.rightFocuSigma)
+        log_list.append(self.rgbFocuSigma)
 
         log_list.append(avg_epipolar_error_lr)
         log_list.append(avg_epipolar_error_r_rgb)
