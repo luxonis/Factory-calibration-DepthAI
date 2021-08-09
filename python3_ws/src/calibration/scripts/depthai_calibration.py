@@ -797,7 +797,13 @@ class depthai_calibration_node:
                     isLeftFocused = True
                     self.leftFocuSigma = sigma_left
                 leftCountFocus += 1
-            
+
+                if self.leftFocuSigma - self.rightFocuSigma > 10:
+                    isRightFocused = False
+                if self.rightFocuSigma - self.leftFocuSigma > 10:
+                    isLeftFocused = False
+                    
+
             if not self.args['disableRgb']:
                 rgb_frame = self.rgb_camera_queue.getAll()[-1]
                 recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
@@ -842,6 +848,9 @@ class depthai_calibration_node:
                 if rightCountFocus > maxCountFocus and leftCountFocus > maxCountFocus and rgbCountFocus > maxCountFocus:
                     break
             elif not self.args['disableRgb']:
+                print(" rgb count Only: {}".format(rgbCountFocus))
+                isLeftFocused  = True
+                isRightFocused = True
                 if rgbCountFocus > maxCountFocus:
                     break
         
