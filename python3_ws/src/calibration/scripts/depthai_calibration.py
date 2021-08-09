@@ -802,7 +802,6 @@ class depthai_calibration_node:
                     isRightFocused = False
                 if self.rightFocuSigma - self.leftFocuSigma > 10:
                     isLeftFocused = False
-                    
 
             if not self.args['disableRgb']:
                 rgb_frame = self.rgb_camera_queue.getAll()[-1]
@@ -884,45 +883,6 @@ class depthai_calibration_node:
                 self.auto_focus_checkbox_dict["Right Focus"].uncheck()
                 self.auto_focus_checkbox_dict["Right Focus"].render_checkbox()
                 return (False, "Right is out of Focus")
-
-    """ def rgb_focus_adjuster(self, req):
-        mode = 0
-        localLensPosition = self.defaultLensPosition
-        if not self.args['disableRgb']:
-            isFocused = False
-            while not isFocused:
-                rgb_frame = self.rgb_camera_queue.getAll()[-1]
-                rgb_gray = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-                laplace_res = cv2.Laplacian(rgb_gray, cv2.CV_64F)
-                mu, sigma = cv2.meanStdDev(laplace_res)
-                print("at lens pose {},  Std Deviationn {}".format(localLensPosition, sigma))
-                if sigma < self.focusSigmaThreshold:
-                    lenPosDiff = localLensPosition - self.defaultLensPosition
-                    if mode == 0:
-                        if lenPosDiff >= 0 and lenPosDiff < 15:
-                            localLensPosition += 1
-                        else:
-                            mode = 1
-                            localLensPosition = self.defaultLensPosition
-                            continue
-
-                    if mode == 1:
-                        if lenPosDiff > -10 and lenPosDiff <= 0:
-                            localLensPosition -= 1
-                        else:
-                            print("Printing Lens Position: {}".format(localLensPosition))
-                            self.close_device()
-                            return (False, "RGB Camera out of Focus ")
-
-                    ctrl = dai.CameraControl()
-                    ctrl.setManualFocus(localLensPosition)
-                    print("Sending Control")
-                    self.rgb_control_queue.send(ctrl)
-                    rospy.sleep(2)
-                else:
-                    isFocused = True
-                    self.focus_value = localLensPosition
-                    return (True, "RGB Camera image in Focus ") """
 
     def calibration_servive_handler(self, req):
         self.is_service_active = True
