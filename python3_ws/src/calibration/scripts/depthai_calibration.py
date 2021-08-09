@@ -790,12 +790,12 @@ class depthai_calibration_node:
 
                 if sigma_right > self.focusSigmaThreshold:
                     isRightFocused = True
-                    self.rightFocuSigma = sigma_right
+                    self.rightFocuSigma = sigma_right[0][0]
                 rightCountFocus += 1
 
                 if sigma_left > self.focusSigmaThreshold:
                     isLeftFocused = True
-                    self.leftFocuSigma = sigma_left
+                    self.leftFocuSigma = sigma_left[0][0]
                 leftCountFocus += 1
 
                 if self.leftFocuSigma - self.rightFocuSigma > 10:
@@ -832,19 +832,23 @@ class depthai_calibration_node:
                 if sigma_rgb > self.focusSigmaThreshold:
                     lensPosition = rgb_frame.getLensPosition()
                     isRgbFocused = True
-                    self.rgbFocuSigma = sigma_rgb
+                    self.rgbFocuSigma = sigma_rgb[0][0]
                 else:
                     trigCount += 1
                     if trigCount > 31:
                         trigCount = 0
                         self.rgb_control_queue.send(ctrl)
                         time.sleep(1)
-                    
                 rgbCountFocus += 1
 
             if not self.args['disableLR'] and not self.args['disableRgb']:
                 print("right count: {}, left count: {} and rgb count: {}".format(rightCountFocus, leftCountFocus, rgbCountFocus))
                 if rightCountFocus > maxCountFocus and leftCountFocus > maxCountFocus and rgbCountFocus > maxCountFocus:
+                    break
+            elif not self.args['disableLR']:
+                print("right count: {}, left count: {}.".format(rightCountFocus, leftCountFocus))
+                rgbCountFocus = True
+                if rightCountFocus > maxCountFocus and leftCountFocus > maxCountFocus:
                     break
             elif not self.args['disableRgb']:
                 print(" rgb count Only: {}".format(rgbCountFocus))
@@ -852,7 +856,7 @@ class depthai_calibration_node:
                 isRightFocused = True
                 if rgbCountFocus > maxCountFocus:
                     break
-        
+
         self.is_service_active = False
 
         if isRgbFocused and isLeftFocused and isRightFocused:
@@ -862,27 +866,31 @@ class depthai_calibration_node:
             print("Sending Control")
             self.rgb_control_queue.send(ctrl)
             rospy.sleep(1)
-            self.auto_focus_checkbox_dict["Rgb Focus"].check()
-            self.auto_focus_checkbox_dict["Rgb Focus"].render_checkbox()
-            self.auto_focus_checkbox_dict["Left Focus"].check()
-            self.auto_focus_checkbox_dict["Left Focus"].render_checkbox()
-            self.auto_focus_checkbox_dict["Right Focus"].check()
-            self.auto_focus_checkbox_dict["Right Focus"].render_checkbox()
+            if not self.args['disableRgb']:
+                self.auto_focus_checkbox_dict["Rgb Focus"].check()
+                self.auto_focus_checkbox_dict["Rgb Focus"].render_checkbox()
+            if not self.args['disableLR']:
+                self.auto_focus_checkbox_dict["Left Focus"].check()
+                self.auto_focus_checkbox_dict["Left Focus"].render_checkbox()
+                self.auto_focus_checkbox_dict["Right Focus"].check()
+                self.auto_focus_checkbox_dict["Right Focus"].render_checkbox()
             return (True, "RGB in Focus")
         else:
             self.close_device()
-            if not isRgbFocused:
-                self.auto_focus_checkbox_dict["Rgb Focus"].uncheck()
-                self.auto_focus_checkbox_dict["Rgb Focus"].render_checkbox()
-                return (False, "RGB is out of Focus")
-            if not isLeftFocused:
-                self.auto_focus_checkbox_dict["Left Focus"].uncheck()
-                self.auto_focus_checkbox_dict["Left Focus"].render_checkbox()
-                return (False, "Left is out of Focus")
-            if not isRightFocused:
-                self.auto_focus_checkbox_dict["Right Focus"].uncheck()
-                self.auto_focus_checkbox_dict["Right Focus"].render_checkbox()
-                return (False, "Right is out of Focus")
+            if not self.args['disableRgb']:
+                if not isRgbFocused:
+                    self.auto_focus_checkbox_dict["Rgb Focus"].uncheck()
+                    self.auto_focus_checkbox_dict["Rgb Focus"].render_checkbox()
+                    return (False, "RGB is out of Focus")
+            if not self.args['disableLR']:
+                if not isLeftFocused:
+                    self.auto_focus_checkbox_dict["Left Focus"].uncheck()
+                    self.auto_focus_checkbox_dict["Left Focus"].render_checkbox()
+                    return (False, "Left is out of Focus")
+                if not isRightFocused:
+                    self.auto_focus_checkbox_dict["Right Focus"].uncheck()
+                    self.auto_focus_checkbox_dict["Right Focus"].render_checkbox()
+                    return (False, "Right is out of Focus")
 
     def calibration_servive_handler(self, req):
         self.is_service_active = True
