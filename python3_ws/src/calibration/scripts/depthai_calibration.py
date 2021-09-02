@@ -757,6 +757,10 @@ class depthai_calibration_node:
         self.leftFocuSigma = 0
         self.rightFocuSigma = 0
         self.rgbFocuSigma = 0
+        
+        currLeftImage  = None
+        currRightImage = None
+        currRgbImage   = None 
 
         lensPosition = 0
         isLeftFocused = False
@@ -774,6 +778,9 @@ class depthai_calibration_node:
             if not self.args['disableLR']:
                 left_frame =  self.left_camera_queue.getAll()[-1]
                 right_frame = self.right_camera_queue.getAll()[-1]
+                currLeftImage = left_frame.getCvFrame()
+                currRightImage = right_frame.getCvFrame()
+
                 self.image_pub_left.publish(
                             self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
                 self.image_pub_right.publish(
@@ -806,6 +813,7 @@ class depthai_calibration_node:
             if not self.args['disableRgb']:
                 rgb_frame = self.rgb_camera_queue.getAll()[-1]
                 recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                currRgbImage = recent_color
                 marker_corners, _, _ = cv2.aruco.detectMarkers(recent_color, self.aruco_dictionary)
                 self.image_pub_color.publish(
                             self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
@@ -853,6 +861,13 @@ class depthai_calibration_node:
                 if rgbCountFocus > maxCountFocus:
                     break
         
+        backupFocusPath = self.args['ds_backup_path'] + '/focus'
+        if not os.path.exists(backupFocusPath):
+            os.makedirs(backupFocusPath)
+        cv2.imwrite(backupFocusPath + "/left_{}".format(self.device.getMxId()), currLeftImage)
+        cv2.imwrite(backupFocusPath + "/right_{}".format(self.device.getMxId()), currRightImage)
+        cv2.imwrite(backupFocusPath + "/rgb_{}".format(self.device.getMxId()), currRgbImage)
+
         self.is_service_active = False
 
         if isRgbFocused and isLeftFocused and isRightFocused:
