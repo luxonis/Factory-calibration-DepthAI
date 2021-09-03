@@ -46,6 +46,6 @@
     <param name="calibration_service_name" value="$(arg calibration_service_name)"/>
   </node>
 
-  <node name="color_image_view" pkg="rqt_image_view" type="rqt_image_view" args="/color"/>
+  <node name="image_viewer" pkg="rqt_gui" type="rqt_gui" args="--perspective-file $(find calibration)/perspective/image.perspective"/>
 
 </launch> 

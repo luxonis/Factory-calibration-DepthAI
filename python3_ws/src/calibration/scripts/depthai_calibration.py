@@ -865,12 +865,12 @@ class depthai_calibration_node:
                 if rgbCountFocus > maxCountFocus:
                     break
         
-        backupFocusPath = self.args['ds_backup_path'] + '/focus'
+        backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
         if not os.path.exists(backupFocusPath):
             os.makedirs(backupFocusPath)
-        cv2.imwrite(backupFocusPath + "/left_{}".format(self.device.getMxId()), currLeftImage)
-        cv2.imwrite(backupFocusPath + "/right_{}".format(self.device.getMxId()), currRightImage)
-        cv2.imwrite(backupFocusPath + "/rgb_{}".format(self.device.getMxId()), currRgbImage)
+        cv2.imwrite(backupFocusPath + "/left{}".format('.png'), currLeftImage)
+        cv2.imwrite(backupFocusPath + "/right{}".format('.png'), currRightImage)
+        cv2.imwrite(backupFocusPath + "/rgb{}".format('.png'), currRgbImage)
 
         self.is_service_active = False
 
