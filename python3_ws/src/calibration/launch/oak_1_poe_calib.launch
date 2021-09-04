@@ -7,7 +7,7 @@
   <arg name="marker_size_cm"            default="1.5"/>
   <arg name="squares_x"                 default="22"/>
   <arg name="squares_y"                 default="16"/>
-  <arg name="usbMode"                   default="true"/>
+  <arg name="usbMode"                   default="false"/>
   <arg name="depthai_path"              default="/Desktop/depthai"/>
   <arg name="calib_path"                default="/Desktop/calib_files"/>
   <arg name="log_path"                  default="/Desktop/logs"/>
