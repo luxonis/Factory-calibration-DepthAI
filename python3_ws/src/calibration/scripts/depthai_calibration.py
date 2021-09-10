@@ -868,9 +868,12 @@ class depthai_calibration_node:
         backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
         if not os.path.exists(backupFocusPath):
             os.makedirs(backupFocusPath)
-        cv2.imwrite(backupFocusPath + "/left{}".format('.png'), currLeftImage)
-        cv2.imwrite(backupFocusPath + "/right{}".format('.png'), currRightImage)
-        cv2.imwrite(backupFocusPath + "/rgb{}".format('.png'), currRgbImage)
+        
+        if currLeftImage is not None and currRightImage is not None:
+            cv2.imwrite(backupFocusPath + "/left{}".format('.png'), currLeftImage)
+            cv2.imwrite(backupFocusPath + "/right{}".format('.png'), currRightImage)
+        if currRgbImage is not None:
+            cv2.imwrite(backupFocusPath + "/rgb{}".format('.png'), currRgbImage)
 
         self.is_service_active = False
 
