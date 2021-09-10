@@ -805,9 +805,9 @@ class depthai_calibration_node:
                     self.leftFocuSigma = sigma_left[0][0]
                 leftCountFocus += 1
 
-                if self.leftFocuSigma - self.rightFocuSigma > 10:
+                if self.leftFocuSigma - self.rightFocuSigma > 15:
                     isRightFocused = False
-                if self.rightFocuSigma - self.leftFocuSigma > 10:
+                if self.rightFocuSigma - self.leftFocuSigma > 15:
                     isLeftFocused = False
 
             if not self.args['disableRgb']:
