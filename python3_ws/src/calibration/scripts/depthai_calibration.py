@@ -293,10 +293,10 @@ class depthai_calibration_node:
                 cam_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
                     
             cam_left.setResolution(
-                dai.MonoCameraProperties.SensorResolution.THE_800_P)
+                dai.MonoCameraProperties.SensorResolution.THE_480_P)
 
             cam_right.setResolution(
-                dai.MonoCameraProperties.SensorResolution.THE_800_P)
+                dai.MonoCameraProperties.SensorResolution.THE_480_P)
             cam_left.setFps(10)
             cam_right.setFps(10)
 

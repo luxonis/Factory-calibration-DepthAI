@@ -280,8 +280,8 @@ class StereoCalibration(object):
 
         # calcorners_l = []  # 2d points in image
         # calcorners_r = []  # 2d points in image
-        # calids_l = []  # ids found in imag
-        # calids_r = []  # ids found in imag
+        # calids_l = []  # ids found in image
+        # calids_r = []  # ids found in image
 
         images_left = glob.glob(filepath + "/left/*")
         images_right = glob.glob(filepath + "/right/*")
@@ -329,7 +329,6 @@ class StereoCalibration(object):
 
         # TODO(sachin): Fix rectify for Fisheye
         if self.cameraModel == 'perspective':
-
             self.R1, self.R2, self.P1, self.P2, self.Q, validPixROI1, validPixROI2 = cv2.stereoRectify(
                                                                                         self.M1,
                                                                                         self.d1,
@@ -463,7 +462,7 @@ class StereoCalibration(object):
 
         if self.cameraModel == 'perspective':
             flags = 0
-            flags |= cv2.CALIB_USE_INTRINSIC_GUESS # TODO(sACHIN): Try without intrinsic guess
+            flags |= cv2.CALIB_FIX_INTRINSIC # TODO(sACHIN): Try without intrinsic guess
             flags |= cv2.CALIB_RATIONAL_MODEL
 
             return cv2.stereoCalibrate(
@@ -494,25 +493,30 @@ class StereoCalibration(object):
                 flags=flags, criteria=stereocalib_criteria), None, None
         
     def rgb_calibrate(self, filepath):
-        images_right = glob.glob(filepath + "/right/*")
-        images_rgb = glob.glob(filepath + "/rgb/*")
-
         images_rgb_pth = Path(filepath + "/rgb")
         if not images_rgb_pth.exists():
             raise RuntimeError("RGB dataset folder not found!! To skip rgb calibration use -drgb argument")
 
+        images_right = glob.glob(filepath + "/right/*")
+        images_rgb = glob.glob(filepath + "/rgb/*")
+
         images_right.sort()
         images_rgb.sort()
+        if len(images_right) <= 0 or len(images_rgb) <= 0:
+            raise RuntimeError("Image Files not found")
 
+        # frame_right_shape = cv2.imread(images_right[0]).shape
+        # frame_left_shape = cv2.imread(images_rgb[0]).shape
+        
         allCorners_rgb_scaled, allIds_rgb_scaled, _, _, imsize_rgb_scaled, _ = self.analyze_charuco(
-            images_rgb, scale_req=True, req_resolution=(720, 1280))
+            images_rgb, scale_req=True, req_resolution=(360, 640))
         self.img_shape_rgb_scaled = imsize_rgb_scaled[::-1]
 
         self.ret_rgb_scaled, self.M3_scaled, self.d3_scaled, rvecs, tvecs = self.calibrate_camera_charuco(
             allCorners_rgb_scaled, allIds_rgb_scaled, imsize_rgb_scaled[::-1])
 
         print('vs. intrinisics computed after scaling the image --->')
-        scale = 1920/1280
+        scale = 1920/640
         scale_mat = np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]])
         self.M3 = np.matmul(scale_mat, self.M3_scaled)
         self.d3 = self.d3_scaled
@@ -524,7 +528,7 @@ class StereoCalibration(object):
         
         if self.calibrate_LR:
             allCorners_r_rgb, allIds_r_rgb, _, _, _, _ = self.analyze_charuco(
-                images_right, scale_req=True, req_resolution=(720, 1280))
+                images_right, scale_req=True, req_resolution=(360, 640))
 
             # sampling common detected corners
             rgb_scaled_rgb_corners_sampled = []
@@ -574,7 +578,7 @@ class StereoCalibration(object):
                                         cv2.TERM_CRITERIA_EPS, 100, 1e-5)
 
             self.M2_rgb = np.copy(self.M2)
-            self.M2_rgb[1, 2] -= 40
+            self.M2_rgb[1, 2] -= 60
             self.d2_rgb = np.copy(self.d1)
             
             ret, _, _, _, _, self.R_rgb, self.T_rgb, E, F = cv2.stereoCalibrate(
@@ -729,20 +733,20 @@ class StereoCalibration(object):
             # read images
             img_rgb = cv2.imread(image_rgb, 0)
             img_r = cv2.imread(image_right, 0)
-            img_r = img_r[40: 760, :]
+            img_r = img_r[60: 420, :]
 
             dest_res = (int(img_rgb.shape[1] * scale_width),
                         int(img_rgb.shape[0] * scale_width))
 
 
-            if img_rgb.shape[0] < 720:
-                raise RuntimeError("resizeed height of rgb is smaller than required. {0} < {1}".format(
-                    img_rgb.shape[0], req_resolution[0]))
-            del_height = (img_rgb.shape[0] - 720) // 2
-            img_rgb = img_rgb[del_height: del_height + 720, :]
+            # if img_rgb.shape[0] < 720:
+            #     raise RuntimeError("resizeed height of rgb is smaller than required. {0} < {1}".format(
+            #         img_rgb.shape[0], req_resolution[0]))
+            # del_height = (img_rgb.shape[0] - 720) // 2
+            # img_rgb = img_rgb[del_height: del_height + 720, :]
             # self.parse_frame(img_rgb, "rectified_rgb_before",
             #                  "rectified_"+str(count))
-
+            img_rgb = cv2.resize(img_rgb, (0, 0), fx=0.5, fy=0.5)
             # warp right image
 
             # img_rgb = cv2.warpPerspective(img_rgb, self.H1_rgb, img_rgb.shape[::-1],
