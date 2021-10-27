@@ -319,6 +319,7 @@ class depthai_calibration_node:
             # rgb_cam.initialControl.setManualFocus(self.defaultLensPosition)
             # self.focus_value = self.defaultLensPosition
             rgb_cam.initialControl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
+            rgb_cam.initialControl.setAutoFocusLensRange(77, 204)
 
             controlIn.setStreamName('control')
             controlIn.out.link(rgb_cam.inputControl)
@@ -510,7 +511,7 @@ class depthai_calibration_node:
 
         if self.device is not None:
             if not self.device.isClosed():
-                self.device.isClose()
+                self.device.close()
 
         finished = False
         while not finished:
@@ -878,7 +879,9 @@ class depthai_calibration_node:
         self.is_service_active = False
 
         if isRgbFocused and isLeftFocused and isRightFocused:
-            self.focus_value = lensPosition 
+            self.focus_value = lensPosition
+            print("focus_value Control: {}".format(self.focus_value))
+
             ctrl = dai.CameraControl()
             ctrl.setManualFocus(self.focus_value)
             print("Sending Control")

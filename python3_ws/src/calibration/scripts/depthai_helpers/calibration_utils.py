@@ -302,6 +302,8 @@ class StereoCalibration(object):
         print("~~~~~~~~~~~ POSE ESTIMATION LEFT CAMERA ~~~~~~~~~~~~~")
         allCorners_l, allIds_l, _, _, imsize, _ = self.analyze_charuco(
             images_left)
+
+        print("~~~~~~~~~~~ POSE ESTIMATION RIGHT CAMERA ~~~~~~~~~~~~~")
         allCorners_r, allIds_r, _, _, imsize, _ = self.analyze_charuco(
             images_right)
         self.img_shape = imsize[::-1]
@@ -370,7 +372,11 @@ class StereoCalibration(object):
         """
         print("CAMERA CALIBRATION")
         print(imsize)
-        if imsize[1] < 1100:
+        if imsize[1] < 700:
+            cameraMatrixInit = np.array([[400.0,    0.0,      imsize[0]/2],
+                                         [0.0,     400.0,  imsize[1]/2],
+                                         [0.0,        0.0,        1.0]])
+        elif imsize[1] < 1100:
             cameraMatrixInit = np.array([[857.1668,    0.0,      643.9126],
                                          [0.0,     856.0823,  387.56018],
                                          [0.0,        0.0,        1.0]])
@@ -431,10 +437,10 @@ class StereoCalibration(object):
         one_pts = self.board.chessboardCorners
         print('allIds_l')
         print(len(allIds_l))
+        print('allIds_r')
         print(len(allIds_r))
         print('allIds_l')
         # print(allIds_l)
-        print('allIds_r')
         # print(allIds_r)
 
         for i in range(len(allIds_l)):
