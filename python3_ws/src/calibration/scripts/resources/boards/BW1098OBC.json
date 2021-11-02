@@ -3,7 +3,23 @@
     {
         "name": "BW1098OBC",
         "revision": "R0M0E0",
-        "swap_left_and_right_cameras": true,
+        "cameras":{
+            "CAM_A": {
+                "name": "rgb",
+                "hfov": 68.7938,
+            },
+            "CAM_B": {
+                "name": "left",
+                "hfov": 71.86
+            },
+            "CAM_C": {
+                "name": "right",
+                "hfov": 71.86
+            }
+        },
+        "extrinsics":{
+            
+        }
         "left_fov_deg": 71.86,
         "rgb_fov_deg": 68.7938,
         "left_to_right_distance_cm": 7.5,
