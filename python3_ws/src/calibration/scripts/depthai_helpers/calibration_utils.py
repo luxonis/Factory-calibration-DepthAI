@@ -475,13 +475,14 @@ class StereoCalibration(object):
                 obj_pts, left_corners_sampled, right_corners_sampled,
                 cameraMatrix_l, distCoeff_l, cameraMatrix_r, distCoeff_r, imsize,
                 criteria=stereocalib_criteria, flags=flags)
+            
         elif self.cameraModel == 'fisheye':
             print(len(obj_pts))
             print('obj_pts')
             # print(obj_pts) 
             print(len(left_corners_sampled))
             print('left_corners_sampled')
-            # print(left_corners_sampled) 
+            # print(left_corners_sampled)
             print(len(right_corners_sampled))
             print('right_corners_sampled')
             # print(right_corners_sampled)

@@ -42,7 +42,44 @@ green = [4, 143, 7]
 black = [0, 0, 0]
 pygame.init()
 
+stringToCam = {
+                'RGB'   : dai.CameraBoardSocket.CAM_A,
+                'LEFT'  : dai.CameraBoardSocket.CAM_B,
+                'RIGHT' : dai.CameraBoardSocket.CAM_C,
+                'CAM_A' : dai.CameraBoardSocket.CAM_A,
+                'CAM_B' : dai.CameraBoardSocket.CAM_B,
+                'CAM_C' : dai.CameraBoardSocket.CAM_C,
+                'CAM_D' : dai.CameraBoardSocket.CAM_D,
+                'CAM_E' : dai.CameraBoardSocket.CAM_E,
+                'CAM_F' : dai.CameraBoardSocket.CAM_F,
+                'CAM_G' : dai.CameraBoardSocket.CAM_G,
+                'CAM_H' : dai.CameraBoardSocket.CAM_H
+                }
 
+CamToString = {
+                dai.CameraBoardSocket.CAM_A : 'RGB'  ,
+                dai.CameraBoardSocket.CAM_B : 'LEFT' ,
+                dai.CameraBoardSocket.CAM_C : 'RIGHT',
+                dai.CameraBoardSocket.CAM_A : 'CAM_A',
+                dai.CameraBoardSocket.CAM_B : 'CAM_B',
+                dai.CameraBoardSocket.CAM_C : 'CAM_C',
+                dai.CameraBoardSocket.CAM_D : 'CAM_D',
+                dai.CameraBoardSocket.CAM_E : 'CAM_E',
+                dai.CameraBoardSocket.CAM_F : 'CAM_F',
+                dai.CameraBoardSocket.CAM_G : 'CAM_G',
+                dai.CameraBoardSocket.CAM_H : 'CAM_H'
+                }
+
+camToMonoRes = {
+                'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
+                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P
+                }
+
+camToRgbRes = {
+                'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
+                'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
+                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P
+                }
 class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
@@ -93,22 +130,24 @@ class depthai_calibration_node:
 
         if self.args['usbMode']:
             self.auto_checkbox_names.append("USB3")
-        header = ['time', 'Mx_serial_id','Mono-CCM', 'RGB-CCM',
-                  'left_camera', 'right_camera', 'rgb_camera', 
-                  'left_focus_stdDev', 'right_focus_stdDev', 'rgb_focus_stdDev',
-                  'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
-
-        if not self.args['disableLR']:
-            self.auto_checkbox_names.append("Left Camera Conencted")
-            self.auto_checkbox_names.append("Right Camera Conencted")
-            self.auto_checkbox_names.append("Left Stream")
-            self.auto_checkbox_names.append("Right Stream")
-            self.auto_focus_checkbox_names.append("Left Focus")
-            self.auto_focus_checkbox_names.append("Right Focus")
-        if not self.args['disableRgb']:
-            self.auto_checkbox_names.append("Rgb Camera Conencted")
-            self.auto_checkbox_names.append("Rgb Stream")
-            self.auto_focus_checkbox_names.append("Rgb Focus")
+        header = ['time', 'Mx_serial_id']
+        for cam_id in self.board_config.cameras:
+            cam_info = self.board_config.cameras[cam_id]
+            header.append(cam_info.name + '-CCM')
+            header.append(cam_info.name + '-camera')
+            header.append(cam_info.name + '-focus-stdDev')
+            header.append(cam_info.name + '-Reprojection-Error')
+            self.auto_checkbox_names.append(cam_info.name  + '-Camera-Conencted')
+            self.auto_checkbox_names.append(cam_info.name  + '-Stream')
+            self.auto_focus_checkbox_names.append(cam_info.name  + '-Focus')
+            
+        for cam_id in self.board_config.extrinsics:
+            header.append('Epipolar-error-' + cam_id + '-' + self.board_config.extrinsics[cam_id])
+            
+        # ['Mono-CCM', 'RGB-CCM',
+        #           'left_camera', 'right_camera', 'rgb_camera', 
+        #           'left_focus_stdDev', 'right_focus_stdDev', 'rgb_focus_stdDev',
+        #           'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
         
         log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv"
         if not os.path.exists(log_file):
@@ -167,11 +206,11 @@ class depthai_calibration_node:
         #     "set_rgb_focus", Capture, self.rgb_focus_handler)
 
         self.args['cameraModel'] = 'perspective'
-        if not self.args['disableLR']:
-            self.image_pub_left = rospy.Publisher("left", Image, queue_size=10)
-            self.image_pub_right = rospy.Publisher("right", Image, queue_size=10)
-        if not self.args['disableRgb']:
-            self.image_pub_color = rospy.Publisher("color", Image, queue_size=10)
+        self.imgPublishers = dict()
+        for cam_id in self.board_config.cameras:
+            name = self.board_config.cameras[cam_id].name
+            self.imgPublishers[name] = rospy.Publisher(name, Image, queue_size=10)
+
         self.device = None
 
     def ccm_selector(self):
@@ -275,8 +314,38 @@ class depthai_calibration_node:
         print(self.monoCcm)
         print(self.rgbCcm)
 
-    def create_pipeline(self):
+    def create_pipeline(self, camProperties):
         pipeline = dai.Pipeline()
+
+        for cam_id in self.board_config.cameras:
+            cam_info = self.board_config.cameras[cam_id]
+            if cam_info.type == 'mono':
+                cam_node = pipeline.createMonoCamera()
+                xout = pipeline.createXLinkOut()
+
+                cam_node.setBoardSocket(stringToCam[cam_id])
+                cam_node.setResolution(camToMonoRes[cam_info.sensorName])
+                cam_node.setFps(10)
+
+                xout.setStreamName(cam_info.name)
+                cam_node.out.link(xout.input)
+            else:
+                cam_node = pipeline.createColorCamera()
+                xout = pipeline.createXLinkOut()
+                
+                cam_node.setBoardSocket(stringToCam[cam_id])
+                cam_node.setResolution(camToMonoRes[cam_info.sensorName])
+                cam_node.setFps(10)
+
+                xout.setStreamName(cam_info.name)
+                cam_node.isp.link(xout.input)
+
+                if cam_info.hasAutofocus:
+                    controlIn = pipeline.createXLinkIn()
+                    controlIn.setStreamName(cam_info.name + '-control')
+                    controlIn.out.link(cam_node.inputControl)
+
+        return pipeline
 
         if not self.args['disableLR']:
             cam_left = pipeline.createMonoCamera()
@@ -365,23 +434,15 @@ class depthai_calibration_node:
             self.disp.update()
 
             if not self.is_service_active and self.device is not None and not self.device.isClosed(): 
-                if not self.args['disableLR']:
-                    left_frame = self.left_camera_queue.tryGet()
-                    if left_frame is not None:
-                        self.image_pub_left.publish(
-                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
-                    
-                    right_frame = self.right_camera_queue.tryGet()
-                    if right_frame is not None:
-                        self.image_pub_right.publish(
-                            self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
-                
-                if not self.args['disableRgb']:
-                    rgb_frame = self.rgb_camera_queue.tryGet()
-                    if rgb_frame is not None:
-                        frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
-                        self.image_pub_color.publish(
-                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+                for config_cam in self.board_config.cameras:
+                    cam_info = self.board_config.cameras[config_cam]
+                    frame = self.camera_queue[cam_info.name].tryGet()
+                    if frame is not None:
+                        # currFrame = frame.getCvFrame()
+                        currFrame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                        self.imgPublishers[cam_info.name].publish(
+                                self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
+
     
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
@@ -525,7 +586,8 @@ class depthai_calibration_node:
                 isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
                 if isFound:
                     self.device = dai.Device() 
-                    cameraList = self.device.getConnectedCameras()
+                    # cameraList = self.device.getConnectedCameras()
+                    cameraProperties = self.device.getConnectedCameraProperties()
                     fill_color_2 = pygame.Rect(390, 120, 500, 100)
                     pygame.draw.rect(self.screen, white, fill_color_2)
 
@@ -537,33 +599,21 @@ class depthai_calibration_node:
                     pygame_render_text(self.screen, text, (400, 150), green, 30)
 
                     lost_camera = False
-                    if not self.args['disableLR']:
-                        if dai.CameraBoardSocket.LEFT not in cameraList:
-                            self.auto_checkbox_dict["Left Camera Conencted"].uncheck()
-                            lost_camera = True
-                        else:
-                            self.auto_checkbox_dict["Left Camera Conencted"].check()
-                        self.auto_checkbox_dict["Left Camera Conencted"].render_checkbox()
-                        
-                        if dai.CameraBoardSocket.RIGHT not in cameraList:
-                            self.auto_checkbox_dict["Right Camera Conencted"].uncheck()
-                            lost_camera = True
-                        else:
-                            self.auto_checkbox_dict["Right Camera Conencted"].check()
-                        self.auto_checkbox_dict["Right Camera Conencted"].render_checkbox()
+                    for properties in cameraProperties:
+                        for in_cam in self.board_config.cameras:
+                            cam_info = self.board_config.cameras[in_cam]
+                            if properties.socket == stringToCam[in_cam]:
+                                self.board_config.cameras[in_cam].sensorName = properties.sensorName
+                                self.board_config.cameras[in_cam].hasAutofocus = properties.hasAutofocus
+                                self.auto_checkbox_dict[cam_info.name  + '-Camera-Conencted'].check()
+                                break
 
-                    if not self.args['disableRgb']:
-                        # calibrationHandler = self.device.readCalibration()
-                        # self.focus_value = calibrationHandler.getLensPosition(dai.CameraBoardSocket.RGB)
-                        # print('Focus value from the eeprom is {}'.format(self.focus_value))
-
-                        if dai.CameraBoardSocket.RGB not in cameraList:
-                            self.auto_checkbox_dict["Rgb Camera Conencted"].uncheck()
+                    for config_cam in self.board_config.cameras:
+                        cam_info = self.board_config.cameras[config_cam]
+                        if self.auto_checkbox_dict[cam_info.name  + '-Camera-Conencted'].isUnattended():
+                            self.auto_checkbox_dict[cam_info.name  + '-Camera-Conencted'].uncheck()
                             lost_camera = True
-                        else:
-                            self.auto_checkbox_dict["Rgb Camera Conencted"].check()
-                        self.auto_checkbox_dict["Rgb Camera Conencted"].render_checkbox()
-                        # print(self.device.getUsbSpeed())
+                        self.auto_checkbox_dict[cam_info.name  + '-Camera-Conencted'].render_checkbox()
 
                     if self.args['usbMode']:
                         if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
@@ -574,14 +624,15 @@ class depthai_calibration_node:
                         self.auto_checkbox_dict["USB3"].render_checkbox()
 
                     if not lost_camera:
-                        pipeline = self.create_pipeline()
+                        pipeline = self.create_pipeline(cameraProperties)
                         self.device.startPipeline(pipeline)
-                        if not self.args['disableLR']:
-                            self.left_camera_queue = self.device.getOutputQueue("left", 5, False)
-                            self.right_camera_queue = self.device.getOutputQueue("right", 5, False)
-                        if not self.args['disableRgb']:
-                            self.rgb_camera_queue  = self.device.getOutputQueue("rgb", 5, False)
-                            self.rgb_control_queue  = self.device.getInputQueue("control", 5, False)
+                        self.camera_queue = {}
+                        self.control_queue = {}
+                        for config_cam in self.board_config.cameras:
+                            cam = self.board_config.cameras[config_cam]
+                            self.camera_queue[cam.name] = self.device.getOutputQueue(cam.name, 5, False)
+                            if cam.hasAutofocus:
+                                self.control_queue[cam.name] = self.device.getOutputQueue(cam.name + '-control', 5, False)
                     else:
                         print("Closing Device...")
 
@@ -599,12 +650,26 @@ class depthai_calibration_node:
                         fill_color_2 = pygame.Rect(390, 430, 120, 35)
                         pygame.draw.rect(self.screen, white, fill_color_2)
 
+            mipi = {}
+            for config_cam in self.board_config.cameras:
+                mipi[self.board_config.cameras[config_cam].name] = False
+
             left_mipi = False
             right_mipi = False
             rgb_mipi = False
 
             for _ in range(120):
-                if not self.args['disableLR']:
+                for config_cam in self.board_config.cameras:
+                    name = self.board_config.cameras[config_cam].name
+                    imageFrame = self.camera_queue[name].tryGet()
+                    if imageFrame is not None:
+                        mipi[name] = True
+                        frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                        self.imgPublishers[name].publish(
+                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+
+
+                """ if not self.args['disableLR']:
                     left_frame = self.left_camera_queue.tryGet()
                     if left_frame is not None:
                         left_mipi = True                
@@ -628,28 +693,21 @@ class depthai_calibration_node:
                         self.image_pub_color.publish(
                             self.bridge.cv2_to_imgmsg(frame, "passthrough"))
                 else:
-                    rgb_mipi = True
+                    rgb_mipi = True """
 
-                if left_mipi and right_mipi and rgb_mipi:
+                isMipiReady = True
+                for config_cam in self.board_config.cameras:
+                    name = self.board_config.cameras[config_cam].name
+                    isMipiReady = isMipiReady and mipi[name] 
+                if isMipiReady:
                     break
                 rospy.sleep(1)
-
-            if not self.args['disableLR']:
-                if not left_mipi:
-                    self.auto_checkbox_dict["Left Stream"].uncheck()
+            
+            for key in mipi.keys():
+                if not mipi[key]:
+                    self.auto_checkbox_dict[key + "-Stream"].uncheck()
                 else:
-                    self.auto_checkbox_dict["Left Stream"].check()
-
-                if not right_mipi:
-                    self.auto_checkbox_dict["Right Stream"].uncheck()
-                else:
-                    self.auto_checkbox_dict["Right Stream"].check()
-
-            if not self.args['disableRgb']:
-                if not rgb_mipi:
-                    self.auto_checkbox_dict["Rgb Stream"].uncheck()
-                else:
-                    self.auto_checkbox_dict["Rgb Stream"].check()
+                    self.auto_checkbox_dict[key + "-Stream"].check()
 
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
@@ -671,247 +729,150 @@ class depthai_calibration_node:
         self.is_service_active = False
         return (finished, self.device.getMxId())
 
-    def capture_servive_handler(self, req):
-        print("Capture image Service Started")
-        recent_left = None
-        recent_right = None
-        recent_color = None
-        finished = False
-        self.is_service_active = True
-        rospy.sleep(1)
-
-        # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
-        while not finished:
-            # left_frame = self.left_camera_queue.get()
-            if not self.args['disableLR']:
-                left_frame = self.left_camera_queue.getAll()[-1]
-                self.image_pub_left.publish(
-                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
-
-                # right_frame = self.right_camera_queue.get()
-                right_frame = self.right_camera_queue.getAll()[-1]
-                self.image_pub_right.publish(
-                            self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
-  
-                recent_left = left_frame.getCvFrame()
-                recent_right = right_frame.getCvFrame()
-
-            # rgb_frame = self.rgb_camera_queue.get()
-            if not self.args['disableRgb']:
-                rgb_frame = self.rgb_camera_queue.getAll()[-1]
-                recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-                self.image_pub_color.publish(
-                        self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-                print("Current Lens Position -> {}".format(rgb_frame.getLensPosition()))
-                if rgb_frame.getLensPosition() != self.focus_value:
-                    ctrl = dai.CameraControl()
-                    ctrl.setManualFocus(self.focus_value)
-                    print("Sending Control")
-                    self.rgb_control_queue.send(ctrl)
-                    recent_color = None
-                    rospy.sleep(1)
-                    continue
-
-            if (not self.args['disableLR']) and (not self.args['disableRgb']):
-                if recent_left is not None and recent_right is not None and recent_color is not None:
-                    finished = True
-            elif self.args['disableLR'] and (not self.args['disableRgb']) and recent_color is not None:
-                finished = True
-            elif self.args['disableRgb'] and (not self.args['disableLR']) and recent_left is not None and recent_right is not None:
-                finished = True
-
-        if not self.args['disableLR']:
-            is_board_found_l = self.is_markers_found(recent_left)
-            is_board_found_r = self.is_markers_found(recent_right)
-        else:
-            is_board_found_l = True
-            is_board_found_r = True
-
-        if not self.args['disableRgb']:
-            is_board_found_rgb = self.is_markers_found(recent_color)
-        else:
-            is_board_found_rgb = True
-
-        if is_board_found_l and is_board_found_r and is_board_found_rgb:
-            self.parse_frame(recent_left, "left", req.name)
-            self.parse_frame(recent_right, "right", req.name)
-            self.parse_frame(recent_color, "rgb", req.name)
-        else:
-            self.is_service_active = False
-            self.parse_frame(recent_left, "left_not", req.name)
-            self.parse_frame(recent_right, "right_not", req.name)
-            self.parse_frame(recent_color, "rgb_not", req.name)
-            self.close_device()
-            return (False, "Calibration board not found")
-
-        print("Service ending")
-        self.is_service_active = False
-        return (True, "No Error")
 
     def rgb_focus_adjuster(self, req):
         self.is_service_active = True
         maxCountFocus   = 50
-        rgbCountFocus   = 0
-        rightCountFocus = 0
-        leftCountFocus  = 0
-
-        self.leftFocuSigma = 0
-        self.rightFocuSigma = 0
-        self.rgbFocuSigma = 0
-        
-        currLeftImage  = None
-        currRightImage = None
-        currRgbImage   = None 
-
-        lensPosition = 0
-        isLeftFocused = False
-        isRightFocused = False
-        isRgbFocused = False
-
+        focusCount = {}
+        isFocused = {}
+        self.focusSigma = {}
+        trigCount = {}
+        self.lensPosition = {}
         ctrl = dai.CameraControl()
         ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
         ctrl.setAutoFocusTrigger()
-        self.rgb_control_queue.send(ctrl)
+        capturedFrames = {}
+
+        for config_cam in self.board_config.cameras:
+            cam_info = self.board_config.cameras[config_cam]
+            focusCount[cam_info.name] = 0
+            self.focusSigma[cam_info.name] = 0
+            self.lensPosition[cam_info.name] = 0;
+            isFocused[cam_info.name] = False
+            capturedFrames[cam_info.name] = None
+
+            if cam_info.hasAutofocus:
+                trigCount[cam_info.name] = 0
+            self.control_queue[cam_info.name].send(ctrl)
+
         rospy.sleep(1)
-        trigCount = 0
-
+        focusFailed  = False
         while True:
-            if not self.args['disableLR']:
-                left_frame =  self.left_camera_queue.getAll()[-1]
-                right_frame = self.right_camera_queue.getAll()[-1]
-                currLeftImage = left_frame.getCvFrame()
-                currRightImage = right_frame.getCvFrame()
+            for config_cam in self.board_config.cameras:
+                cam_info = self.board_config.cameras[config_cam]
+                frame = self.camera_queue[cam_info.name].getAll()[-1]
+                currFrame = frame.getCvFrame()
+                capturedFrames[cam_info.name] = currFrame 
+                currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
+                self.imgPublishers[cam_info.name].publish(
+                            self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
 
-                self.image_pub_left.publish(
-                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
-                self.image_pub_right.publish(
-                            self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
+                if cam_info.hasAutofocus:
+                    marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
+                    if len(marker_corners) < 30:
+                        print("Board not detected. Waiting...!!!")
+                        trigCount[cam_info.name] += 1
+                        focusCount[cam_info.name] += 1
+                        if trigCount[cam_info.name] > 31:
+                            trigCount[cam_info.name] = 0
+                            self.control_queue[cam_info.name].send(ctrl)
+                            time.sleep(1)
+                        if focusCount[cam_info.name] > maxCountFocus:
+                            focusFailed = True
+                            break
+                        continue
 
-                dst_left = cv2.Laplacian(left_frame.getCvFrame(), cv2.CV_64F)
-                # abs_dst_left = cv2.convertScaleAbs(dst_left)
-                mu, sigma_left = cv2.meanStdDev(dst_left)
+                dst_laplace = cv2.Laplacian(currFrame, cv2.CV_64F)
+                mu, sigma = cv2.meanStdDev(dst_laplace)
 
-                dst_right = cv2.Laplacian(right_frame.getCvFrame(), cv2.CV_64F)
-                # abs_dst_right = cv2.convertScaleAbs(dst_right)
-                mu, sigma_right = cv2.meanStdDev(dst_right)
-                print("SdtDev of Left: {} and right: {}".format(sigma_left, sigma_right))
-
-                if sigma_right > self.focusSigmaThreshold:
-                    isRightFocused = True
-                    self.rightFocuSigma = sigma_right[0][0]
-                rightCountFocus += 1
-
-                if sigma_left > self.focusSigmaThreshold:
-                    isLeftFocused = True
-                    self.leftFocuSigma = sigma_left[0][0]
-                leftCountFocus += 1
-
-                if self.leftFocuSigma - self.rightFocuSigma > 15:
-                    isRightFocused = False
-                if self.rightFocuSigma - self.leftFocuSigma > 15:
-                    isLeftFocused = False
-
-            if not self.args['disableRgb']:
-                rgb_frame = self.rgb_camera_queue.getAll()[-1]
-                recent_color = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-                currRgbImage = recent_color
-                marker_corners, _, _ = cv2.aruco.detectMarkers(recent_color, self.aruco_dictionary)
-                self.image_pub_color.publish(
-                            self.bridge.cv2_to_imgmsg(recent_color, "passthrough"))
-
-                if len(marker_corners) < 30:
-                    print("Board not detected. Waiting...!!!")
-                    trigCount += 1
-                    rgbCountFocus += 1
-                    if trigCount > 31:
-                        trigCount = 0
-                        self.rgb_control_queue.send(ctrl)
-                        time.sleep(1)
-                    if rgbCountFocus > maxCountFocus:
-                        break
-                    continue
-
-                dst_rgb = cv2.Laplacian(recent_color, cv2.CV_64F)
-                # abs_dst_rgb = cv2.convertScaleAbs(dst_rgb)
-                mu, sigma_rgb = cv2.meanStdDev(dst_rgb)
-                print("SdtDev of RGB: {} with lens position of {}".format(sigma_rgb, rgb_frame.getLensPosition()))
-                # cv2.imshow(" Recent Color Image", recent_color)
-                # cv2.waitKey(1)
-
-                if sigma_rgb > self.focusSigmaThreshold:
-                    lensPosition = rgb_frame.getLensPosition()
-                    isRgbFocused = True
-                    self.rgbFocuSigma = sigma_rgb[0][0]
+                if sigma > self.focusSigmaThreshold:
+                    isFocused[cam_info.name] = True
+                    self.focusSigma[cam_info.name] = sigma
+                    if cam_info.hasAutofocus:
+                        self.lensPosition[cam_info.name] = frame.getLensPosition()
                 else:
-                    trigCount += 1
-                    if trigCount > 31:
-                        trigCount = 0
-                        self.rgb_control_queue.send(ctrl)
-                        time.sleep(1)
-                rgbCountFocus += 1
+                    if cam_info.hasAutofocus:
+                        trigCount[cam_info.name] += 1
+                        if trigCount[cam_info.name] > 31:
+                            trigCount[cam_info.name] = 0
+                            self.control_queue[cam_info.name].send(ctrl)
+                            time.sleep(1)
+                focusCount[cam_info.name] += 1
 
-            if not self.args['disableLR'] and not self.args['disableRgb']:
-                print("right count: {}, left count: {} and rgb count: {}".format(rightCountFocus, leftCountFocus, rgbCountFocus))
-                if rightCountFocus > maxCountFocus and leftCountFocus > maxCountFocus and rgbCountFocus > maxCountFocus:
+            if focusFailed:
+                break
+            
+            isCountFull = True 
+            for key in focusCount.keys():
+                if focusCount[key] < maxCountFocus:
+                    isCountFull = False
                     break
-            elif not self.args['disableLR']:
-                print("right count: {}, left count: {}.".format(rightCountFocus, leftCountFocus))
-                rgbCountFocus = True
-                if rightCountFocus > maxCountFocus and leftCountFocus > maxCountFocus:
-                    break
-            elif not self.args['disableRgb']:
-                print(" rgb count Only: {}".format(rgbCountFocus))
-                isLeftFocused  = True
-                isRightFocused = True
-                if rgbCountFocus > maxCountFocus:
-                    break
+            if isCountFull:
+                break
         
         backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
         if not os.path.exists(backupFocusPath):
             os.makedirs(backupFocusPath)
-        
-        if currLeftImage is not None and currRightImage is not None:
-            cv2.imwrite(backupFocusPath + "/left{}".format('.png'), currLeftImage)
-            cv2.imwrite(backupFocusPath + "/right{}".format('.png'), currRightImage)
-        if currRgbImage is not None:
-            cv2.imwrite(backupFocusPath + "/rgb{}".format('.png'), currRgbImage)
+
+        for name, image in capturedFrames.items():
+            cv2.imwrite(backupFocusPath + "/" + name + '.png', image)
 
         self.is_service_active = False
+        for key in isFocused.keys():
+            if isFocused[key]:
+                if self.board_config.cameras[key].hasAutofocus:
+                    ctrl = dai.CameraControl()
+                    ctrl.setManualFocus(self.lensPosition[key])
+                    print("Sending manual focus Control")
+                    self.control_queue[key].send(ctrl)
+                self.auto_focus_checkbox_dict[key + "-Focus"].check()
+                self.auto_focus_checkbox_dict[key + "-Focus"].render_checkbox()
+            else:
+                self.auto_focus_checkbox_dict[key + "-Focus"].unckeck()
+                self.auto_focus_checkbox_dict[key + "-Focus"].render_checkbox()
 
-        if isRgbFocused and isLeftFocused and isRightFocused:
-            self.focus_value = lensPosition
-            print("focus_value Control: {}".format(self.focus_value))
+        for key in self.auto_focus_checkbox_dict.keys():
+            if not self.auto_focus_checkbox_dict[key].is_checked:
+                self.close_device()
+                return (False, key + " is out of Focus")
+        
+        return (True, "RGB in Focus")
 
-            ctrl = dai.CameraControl()
-            ctrl.setManualFocus(self.focus_value)
-            print("Sending Control")
-            self.rgb_control_queue.send(ctrl)
-            rospy.sleep(1)
-            if not self.args['disableRgb']:
-                self.auto_focus_checkbox_dict["Rgb Focus"].check()
-                self.auto_focus_checkbox_dict["Rgb Focus"].render_checkbox()
-            if not self.args['disableLR']:
-                self.auto_focus_checkbox_dict["Left Focus"].check()
-                self.auto_focus_checkbox_dict["Left Focus"].render_checkbox()
-                self.auto_focus_checkbox_dict["Right Focus"].check()
-                self.auto_focus_checkbox_dict["Right Focus"].render_checkbox()
-            return (True, "RGB in Focus")
+
+    def capture_servive_handler(self, req):
+        print("Capture image Service Started")
+        """ recent_left = None
+        recent_right = None
+        recent_color = None
+        finished = False """
+        self.is_service_active = True
+        rospy.sleep(1)
+
+        # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
+        frameCount = 0
+        detection_failed = False
+        # while not finished:
+
+        for key in self.camera_queue.keys():
+            frame = self.camera_queue[key].getAll()[-1]
+            gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+            self.imgPublishers[key].publish(
+                        self.bridge.cv2_to_imgmsg(gray_frame.getCvFrame(), "passthrough"))
+            
+            is_board_found = self.is_markers_found(gray_frame)
+            if is_board_found:
+                self.parse_frame(gray_frame, key, req.name)
+            else:
+                self.parse_frame(gray_frame, key + '_not', req.name)
+                detection_failed = True
+        #TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
+
+        self.is_service_active = False
+        if detection_failed:
+            self.device.close()
+            return (False, "Calibration board not found")
         else:
-            self.close_device()
-            if not self.args['disableRgb']:
-                if not isRgbFocused:
-                    self.auto_focus_checkbox_dict["Rgb Focus"].uncheck()
-                    self.auto_focus_checkbox_dict["Rgb Focus"].render_checkbox()
-                    return (False, "RGB is out of Focus")
-            if not self.args['disableLR']:
-                if not isLeftFocused:
-                    self.auto_focus_checkbox_dict["Left Focus"].uncheck()
-                    self.auto_focus_checkbox_dict["Left Focus"].render_checkbox()
-                    return (False, "Left is out of Focus")
-                if not isRightFocused:
-                    self.auto_focus_checkbox_dict["Right Focus"].uncheck()
-                    self.auto_focus_checkbox_dict["Right Focus"].render_checkbox()
-                    return (False, "Right is out of Focus")
+            return (True, "No Error")
 
     def calibration_servive_handler(self, req):
         self.is_service_active = True
