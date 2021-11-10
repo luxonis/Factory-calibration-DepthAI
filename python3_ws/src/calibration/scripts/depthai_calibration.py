@@ -117,6 +117,7 @@ class depthai_calibration_node:
                         'Board config not found: {}'.format(board_path))
             with open(board_path) as fp:
                 self.board_config = json.load(fp)
+                self.board_config = self.board_config['board_config']
 
         self.aruco_dictionary = cv2.aruco.Dictionary_get(
             cv2.aruco.DICT_4X4_1000)
@@ -132,8 +133,8 @@ class depthai_calibration_node:
         if self.args['usbMode']:
             self.auto_checkbox_names.append("USB3")
         header = ['time', 'Mx_serial_id']
-        for cam_id in self.board_config.cameras:
-            cam_info = self.board_config.cameras[cam_id]
+        for cam_id in self.board_config['cameras'].keys():
+            cam_info = self.board_config['cameras'][cam_id]
             header.append(cam_info.name + '-CCM')
             header.append(cam_info.name + '-camera')
             header.append(cam_info.name + '-focus-stdDev')
@@ -141,9 +142,10 @@ class depthai_calibration_node:
             self.auto_checkbox_names.append(cam_info.name  + '-Camera-Conencted')
             self.auto_checkbox_names.append(cam_info.name  + '-Stream')
             self.auto_focus_checkbox_names.append(cam_info.name  + '-Focus')
-            
-        for cam_id in self.board_config.extrinsics:
-            header.append('Epipolar-error-' + cam_id + '-' + self.board_config.extrinsics[cam_id])
+            if cam_info.has_key('extrinsics'):
+                if cam_info.extrinsics.has_key('to_cam'):
+                    right_cam = self.board_config['cameras'][cam_info.extrinsics.to_cam].name    
+                    header.append('Epipolar-error-' + cam_info.name + '-' + right_cam)
             
         # ['Mono-CCM', 'RGB-CCM',
         #           'left_camera', 'right_camera', 'rgb_camera', 
