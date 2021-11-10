@@ -2,7 +2,15 @@
     "board_config":
     {
         "name": "OAK-1-POE",
-        "revision": "R1M0E0",
-        "rgb_fov_deg": 68.7938
+        "revision": "R1M1E1",
+        "cameras":{
+            "CAM_A": {
+                "name": "rgb",
+                "hfov": 68.7938,
+                "type": "color"
+            }
+        }
+        
     }
 }
+

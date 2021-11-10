@@ -3,6 +3,12 @@
     {
         "name": "BW1093OAK",
         "revision": "R1M1E1",
-        "rgb_fov_deg": 68.7938
+        "cameras":{
+            "CAM_A": {
+                "name": "rgb",
+                "hfov": 68.7938,
+                "type": "color"
+            }
+        }
     }
 }
