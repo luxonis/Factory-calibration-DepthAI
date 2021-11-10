@@ -80,6 +80,7 @@ camToRgbRes = {
                 'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
                 'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P
                 }
+
 class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
@@ -92,9 +93,7 @@ class depthai_calibration_node:
         self.screen.fill(white)
         self.disp.set_caption("Calibration - Device check ")
 
-        self.ccm_selector()
-
-        self.focus_value = 0
+        # self.focus_value = 0
         # self.defaultLensPosition = 135
         self.focusSigmaThreshold = 22
         # if self.rgbCcm == 'Sunny':
@@ -121,6 +120,8 @@ class depthai_calibration_node:
 
         self.aruco_dictionary = cv2.aruco.Dictionary_get(
             cv2.aruco.DICT_4X4_1000)
+        
+        self.ccm_selector()
 
         # Connection checks ----------->
         title = "Device Status"
@@ -216,13 +217,18 @@ class depthai_calibration_node:
     def ccm_selector(self):
         title = "Select the mono Camera and RGB camera vendor"
         pygame_render_text(self.screen, title, (70, 20), black, 40)
-        title = "MONO Camera Vendor                  RGB Camera Vendor"
+        space = "         "
+        title = ""
+        for camera in self.board_config.cameras.keys():
+            title += self.board_config.cameras[camera].name + space
+
         pygame_render_text(self.screen, title, (200, 100), green, 25)
         ccm_names = ['Sunny', 'KingTop', 'ArduCam']
         ccm_names_dict = dict()
         y = 200
         x = 110
         font = pygame.font.Font(None, 30)
+
         for i in range(len(ccm_names)):
             w, h = font.size(ccm_names[i])
             x_axis = x - w
@@ -230,12 +236,19 @@ class depthai_calibration_node:
             font_surf = font.render(ccm_names[i], True, black)
             self.screen.blit(font_surf, (x_axis, y_axis))
             ccm_names_dict[ccm_names[i]] = []
-            ccm_names_dict[ccm_names[i]].append(Checkbox(self.screen, x + 150, y_axis-5, outline_color=green,
-                                                                            check_color=green, check=False, disable_pass = True))
-            ccm_names_dict[ccm_names[i]].append(Checkbox(self.screen, x + 420, y_axis-5, outline_color=green, 
-                                                                            check_color=green, check=False, disable_pass = True))
-            ccm_names_dict[ccm_names[i]][0].render_checkbox()
-            ccm_names_dict[ccm_names[i]][1].render_checkbox()
+            offset = 150
+            offset_increment = 1
+            for camera in self.board_config.cameras.keys():
+                # ccm_names_dict[ccm_names[i]].append()
+                ccm_names_dict[ccm_names[i]].append(Checkbox(self.screen, x + (offset * offset_increment), y_axis-5, outline_color=green,
+                                                                                check_color=green, check=False, disable_pass = True))
+                ccm_names_dict[ccm_names[i]][-1].render_checkbox()
+                offset_increment += 1
+
+            # ccm_names_dict[ccm_names[i]].append(Checkbox(self.screen, x + 420, y_axis-5, outline_color=green, 
+            #                                                                 check_color=green, check=False, disable_pass = True))
+            # ccm_names_dict[ccm_names[i]][0].render_checkbox()
+            # ccm_names_dict[ccm_names[i]][1].render_checkbox()
             fill_color = pygame.Rect(20, y_axis + 40, 750, 2)
             pygame.draw.rect(self.screen, black, fill_color)
         
@@ -244,11 +257,15 @@ class depthai_calibration_node:
         pygame_render_text(self.screen, 'Next', (605, 440))
 
         is_saved = False
-        is_mono_selected = False
-        is_rgb_selected = False
+
         self.monoCcm = None
         self.rgbCcm = None
+        is_ccm_selected = []
+        self.ccm_selected = {}
 
+        for camera in self.board_config.cameras.keys():
+            is_ccm_selected.append(False)
+            self.ccm_selected[self.board_config.cameras[camera].name] = None
         while not is_saved:
             self.disp.update()
             for event in pygame.event.get():
@@ -266,7 +283,11 @@ class depthai_calibration_node:
                 if event.type == pygame.MOUSEBUTTONUP:
                     if active and not is_saved and click:
                         click = False
-                        if is_rgb_selected and is_mono_selected:
+                        isAllChecked = True
+                        for val in is_ccm_selected:
+                            isAllChecked = isAllChecked and val
+
+                        if isAllChecked:
                             is_saved = True                
                             pygame.draw.rect(self.screen, green, next_button)
                             pygame_render_text(self.screen, 'Next', (605, 440))
@@ -279,40 +300,27 @@ class depthai_calibration_node:
                 ccm1 = ccm_names_dict[ccm_names[0]]
                 ccm2 = ccm_names_dict[ccm_names[1]]
                 ccm3 = ccm_names_dict[ccm_names[2]]
+                for i in range(self.board_config.cameras.keys()):
+                    ccm1[i].update_checkbox_rel(event, ccm2[i], ccm3[i])
+                    ccm2[i].update_checkbox_rel(event, ccm1[i], ccm3[i])
+                    ccm3[i].update_checkbox_rel(event, ccm1[i], ccm2[i]) 
+                    ccm1[i].render_checkbox()
+                    ccm2[i].render_checkbox()
+                    ccm3[i].render_checkbox()
+                    if ccm1[i].is_checked() or ccm2[i].is_checked() or ccm3[i].is_checked():
+                        is_ccm_selected[i] = True
 
-                ccm1[0].update_checkbox_rel(event, ccm2[0], ccm3[0])
-                ccm2[0].update_checkbox_rel(event, ccm1[0], ccm3[0])
-                ccm3[0].update_checkbox_rel(event, ccm1[0], ccm2[0]) 
-                ccm1[0].render_checkbox()
-                ccm2[0].render_checkbox()
-                ccm3[0].render_checkbox()
-
-                ccm1[1].update_checkbox_rel(event, ccm2[1], ccm3[1])
-                ccm2[1].update_checkbox_rel(event, ccm1[1], ccm3[1])
-                ccm3[1].update_checkbox_rel(event, ccm1[1], ccm2[1]) 
-                ccm1[1].render_checkbox()
-                ccm2[1].render_checkbox()
-                ccm3[1].render_checkbox()
-                
-                if not is_mono_selected:
-                    if ccm1[0].is_checked() or ccm2[0].is_checked() or ccm3[0].is_checked():
-                        is_mono_selected = True
-
-                if not is_rgb_selected:
-                    if ccm1[1].is_checked() or ccm2[1].is_checked() or ccm3[1].is_checked():
-                        is_rgb_selected = True
-
+        camList = list(self.board_config.cameras)
+        print("selected CCMS:")
+    
         for i in range(len(ccm_names)):
-            if ccm_names_dict[ccm_names[i]][0].is_checked():
-                self.monoCcm = ccm_names[i]
-            if ccm_names_dict[ccm_names[i]][1].is_checked():
-                self.rgbCcm = ccm_names[i]
+            for j in range(self.board_config.cameras.keys()):
+                if ccm_names_dict[ccm_names[i]][j].is_checked():
+                    self.ccm_selected[self.board_config.cameras[camList[j]].name] = ccm_names[i]
+                    print(self.board_config.cameras[camList[j]].name, '=> ', ccm_names[i])
         
         self.screen.fill(white)
         self.disp.update()
-        print("selected CCMS:")
-        print(self.monoCcm)
-        print(self.rgbCcm)
 
     def create_pipeline(self, camProperties):
         pipeline = dai.Pipeline()
@@ -345,9 +353,7 @@ class depthai_calibration_node:
                     controlIn.setStreamName(cam_info.name + '-control')
                     controlIn.out.link(cam_node.inputControl)
 
-        return pipeline
-
-        if not self.args['disableLR']:
+        """ if not self.args['disableLR']:
             cam_left = pipeline.createMonoCamera()
             cam_right = pipeline.createMonoCamera()
 
@@ -397,7 +403,10 @@ class depthai_calibration_node:
             xout_rgb_isp.setStreamName("rgb")
             rgb_cam.isp.link(xout_rgb_isp.input)
 
+        return pipeline """
+
         return pipeline
+
 
     def capture_exit(self):
         is_clicked = False
@@ -443,7 +452,6 @@ class depthai_calibration_node:
                         self.imgPublishers[cam_info.name].publish(
                                 self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
 
-    
     def cvt_bgr(self, packet):
         meta = packet.getMetadata()
         w = meta.getFrameWidth()
@@ -456,7 +464,7 @@ class depthai_calibration_node:
     def parse_frame(self, frame, stream_name, file_name):
         if frame is None:
             print("Frame with stream name -> {} was None".format(stream_name))
-            return True
+            return False
 
         file_name += '.png'
         # filename = image_filename(stream_name, self.current_polygon, self.images_captured)
@@ -537,12 +545,12 @@ class depthai_calibration_node:
         return not (len(marker_corners) < 30)
 
     def close_device(self):
-        if hasattr(self, 'left_camera_queue') and hasattr(self, 'right_camera_queue'):
-            delattr(self, 'left_camera_queue')
-            delattr(self, 'right_camera_queue')
-        if hasattr(self, 'rgb_camera_queue') and hasattr(self, 'rgb_control_queue'):
-            delattr(self, 'rgb_camera_queue')
-            delattr(self, 'rgb_control_queue')
+        # if hasattr(self, 'left_camera_queue') and hasattr(self, 'right_camera_queue'):
+        #     delattr(self, 'left_camera_queue')
+        #     delattr(self, 'right_camera_queue')
+        # if hasattr(self, 'rgb_camera_queue') and hasattr(self, 'rgb_control_queue'):
+        #     delattr(self, 'rgb_camera_queue')
+        #     delattr(self, 'rgb_control_queue')
         self.device.close()
 
     def device_status_handler(self, req):
@@ -730,18 +738,20 @@ class depthai_calibration_node:
         return (finished, self.device.getMxId())
 
 
-    def rgb_focus_adjuster(self, req):
+    def camera_focus_adjuster(self, req):
         self.is_service_active = True
         maxCountFocus   = 50
         focusCount = {}
         isFocused = {}
-        self.focusSigma = {}
         trigCount = {}
+        capturedFrames = {}
+        
         self.lensPosition = {}
+        self.focusSigma = {}
+        
         ctrl = dai.CameraControl()
         ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
         ctrl.setAutoFocusTrigger()
-        capturedFrames = {}
 
         for config_cam in self.board_config.cameras:
             cam_info = self.board_config.cameras[config_cam]
@@ -883,144 +893,110 @@ class depthai_calibration_node:
         # dev_info = self.device.getDeviceInfo()
         # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
-            arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.json')
+            self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
         
         stereo_calib = StereoCalibration()
-        rgb_reproject_error, avg_epipolar_error_lr, avg_epipolar_error_r_rgb, calib_data = stereo_calib.calibrate(
-            self.package_path + "/dataset",
-            self.args['square_size_cm'],
-            self.args['marker_size_cm'],
-            self.args['squares_x'],
-            self.args['squares_y'],
-            self.args['cameraModel'],
-            not self.args['disableLR'], # turn on L-R calibration
-            not self.args['disableRgb'], # turn on rgb calibration
-            False) # Turn off enable disp rectify
+        stats, result_config = stereo_calib.calibrate(
+                                        self.board_config,
+                                        self.package_path + "/dataset",
+                                        self.args['square_size_cm'],
+                                        self.args['marker_size_cm'],
+                                        self.args['squares_x'],
+                                        self.args['squares_y'],
+                                        self.args['cameraModel'],
+                                        False) # Turn off enable disp rectify
  
         start_time = datetime.now()
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
         log_list = [time_stmp, mx_serial_id]
-        log_list.append(self.monoCcm)
-        log_list.append(self.rgbCcm)
-
-        if self.args['disableLR']:
-            log_list.append("LR Disabled")
-            log_list.append("LR Disabled")
-        else:
-            log_list.append("Calibrated")
-            log_list.append("Calibrated")
-
-        if self.args['disableRgb']:
-            log_list.append("Rgb Disabled")
-        else:
-            log_list.append("Calibrated")
+        for key in self.ccm_selected.keys():
+            log_list.append(self.ccm_selected[key])
         
-        log_list.append(self.leftFocuSigma)
-        log_list.append(self.rightFocuSigma)
-        log_list.append(self.rgbFocuSigma)
+        if stats == -1:
+            self.is_service_active = False
+            self.close_device()
+            return result_config
 
-        log_list.append(avg_epipolar_error_lr)
-        log_list.append(avg_epipolar_error_r_rgb)
-        log_list.append(rgb_reproject_error)
+        vis_x = 400
+        vis_y = 180
+        error_text = []
+        calibration_handler = dai.CalibrationHandler()
+        for camera in result_config.cameras.keys():
+            cam_info = result_config.cameras[camera]
+            color = green
+            
+            if cam_info.reprojection_error > 0.5:
+                color = red
+                error_text.append("high Reprojection Error")
+            text = cam_info.name + ' Reprojection Error: ' + format(cam_info.reprojection_error, '.6f')
+            pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
+            
+            calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info.dist_coeff)
+            calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info.intrinsics,  cam_info.size[1], cam_info.size[0])
+            calibration_handler.setFov(stringToCam[camera], cam_info.hfov)
 
-        log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv"
+            if cam_info.hasAutofocus:
+                calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info.name])
+            
+            log_list.append(self.focusSigma[cam_info.name])
+            log_list.append(cam_info.reprojection_error)
+            
+            vis_y += 30
+            color = green
+            if cam_info.has_key('extrinsics'):
+                if cam_info.extrinsics.has_key('to_cam'):
+                    right_cam = result_config.cameras[cam_info.extrinsics.to_cam].name
+                    left_cam = cam_info.name
+                    
+                    if cam_info.extrinsics.epipolar_error > 0.5:
+                        color = red
+                        error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
+                    
+                    log_list.append(cam_info.extrinsics.epipolar_error)
+                    text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info.extrinsics.epipolar_error, '.6f')
+                    pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
+                    vis_y += 30
+
+                    calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info.extrinsics.to_cam], cam_info.extrinsics.rotation_matrix, cam_info.extrinsics.translation, cam_info.extrinsics.specTranslation)
+                    if result_config.stereo_config.left_cam == left_cam and result_config.stereo_config.right_cam == right_cam:
+                        calibration_handler.setStereoLeft(stringToCam[camera], result_config.stereo_config.rectification_left)
+                        calibration_handler.setStereoRight(stringToCam[cam_info.extrinsics.to_cam], result_config.stereo_config.rectification_right)
+            else:
+                log_list.append("N/A")
+        
+        log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
         with open(log_file, mode='a') as log_fopen:
             # header =
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
-
-        def print_epipolar_error(color):
-            if avg_epipolar_error_lr is not None:
-                text = "Avg Epipolar error L-R: " + \
-                    format(avg_epipolar_error_lr, '.6f')
-                pygame_render_text(self.screen, text, (400, 180), color, 30)
-
-            if avg_epipolar_error_r_rgb is not None:
-                text = "Avg Epipolar error RGB-R: " + \
-                    format(avg_epipolar_error_r_rgb, '.6f')
-                pygame_render_text(self.screen, text, (400, 210), color, 30)
-
-            if rgb_reproject_error is not None:
-                text = "RGB Reprojection Error: " + \
-                    format(rgb_reproject_error, '.6f')
-                pygame_render_text(self.screen, text, (400, 240), color, 30)
-
-        if avg_epipolar_error_lr is not None and avg_epipolar_error_lr > 0.5:
-            text = "Failed due to high calibration error L-R"
-            pygame_render_text(self.screen, text, (400, 270), red, 30)
-            print_epipolar_error(red)
-            self.close_device()
-            return (False, text)
-
-        if avg_epipolar_error_r_rgb is not None and avg_epipolar_error_r_rgb > 0.7:
-            text = "Failed due to high calibration error RGB-R"
-            pygame_render_text(self.screen, text, (400, 300), red, 30)
-            print_epipolar_error(red)
-            self.close_device()
-            return (False, text)
-
-        if rgb_reproject_error is not None and rgb_reproject_error > 0.5:
-            text = "Failed due to high Reprojection Error"
-            pygame_render_text(self.screen, text, (400, 330), red, 30)
-            print_epipolar_error(red)
-            self.close_device()
-            return (False, text)
-
-        calibration_handler = dai.CalibrationHandler()
         calibration_handler.setBoardInfo(self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
-
-        left  = dai.CameraBoardSocket.LEFT
-        right = dai.CameraBoardSocket.RIGHT
-        if self.args['swapLR']:
-            left  = dai.CameraBoardSocket.RIGHT
-            right = dai.CameraBoardSocket.LEFT
-
-        if not self.args['disableLR']:
-            calibration_handler.setStereoLeft(left, calib_data[0])
-            calibration_handler.setStereoRight(right, calib_data[1])
-
-            calibration_handler.setDistortionCoefficients(left, calib_data[9])
-            calibration_handler.setDistortionCoefficients(right, calib_data[10])
-            calibration_handler.setCameraIntrinsics(left, calib_data[2], 1280, 800)
-            calibration_handler.setCameraIntrinsics(right, calib_data[3], 1280, 800)
-            calibration_handler.setFov(left, self.board_config['board_config']['left_fov_deg'])
-            calibration_handler.setFov(right, self.board_config['board_config']['left_fov_deg'])
-
-            measuredTranslation = [-self.board_config['board_config']['left_to_right_distance_cm'], 0.0, 0.0]
-            calibration_handler.setCameraExtrinsics(left, right, calib_data[5], calib_data[6], measuredTranslation)
-
-        if not self.args['disableRgb']:
-            calibration_handler.setDistortionCoefficients(dai.CameraBoardSocket.RGB, calib_data[11])
-            calibration_handler.setCameraIntrinsics(dai.CameraBoardSocket.RGB, calib_data[4], 1920, 1080)
-            calibration_handler.setFov(dai.CameraBoardSocket.RGB, self.board_config['board_config']['rgb_fov_deg'])
-            calibration_handler.setLensPosition(dai.CameraBoardSocket.RGB, self.focus_value)
-
-            if not self.args['disableLR']:
-                measuredTranslation = [self.board_config['board_config']['left_to_rgb_distance_cm'], 0.0, 0.0]
-                calibration_handler.setCameraExtrinsics(right, dai.CameraBoardSocket.RGB, calib_data[7], calib_data[8], measuredTranslation)
-
-        calibration_handler.eepromToJsonFile(calib_dest_path)
-        try:
-            is_write_succesful = self.device.flashCalibration(calibration_handler)
-        except:
-            print("Writing in except...")
-            is_write_succesful = self.device.flashCalibration(calibration_handler)
-
-        print("Finished writing to EEPROM")
         
         self.is_service_active = False
         self.close_device()
-        if is_write_succesful:
-            print_epipolar_error(green)
-            text = "EEPROM written succesfully"
-            pygame_render_text(self.screen, text, (400, 270), green, 30)
-            return (True, "EEPROM written succesfully")
+        if len(error_text) == 0:
+            calibration_handler.eepromToJsonFile(calib_dest_path)
+            try:
+                is_write_succesful = self.device.flashCalibration(calibration_handler)
+            except:
+                print("Writing in except...")
+                is_write_succesful = self.device.flashCalibration(calibration_handler)
+            if is_write_succesful:
+                # print_epipolar_error(green)
+                text = "EEPROM written succesfully"
+                pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
+                return (True, "EEPROM written succesfully")
+            else:
+                # print_epipolar_error(red)
+                text = "EEPROM write Failed!!"
+                pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
+                return (False, "EEPROM write Failed!!")
         else:
-            print_epipolar_error(red)
-            text = "EEPROM write Failed!!"
-            pygame_render_text(self.screen, text, (400, 270), red, 30)
-            return (False, "EEPROM write Failed!!")
+            text = error_text[0]
+            pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
+            print(error_text)
+            return (False, error_text[0])
+
 
 
 no_button = pygame.Rect(490, 500, 80, 45)
@@ -1030,8 +1006,6 @@ if __name__ == "__main__":
     rospy.init_node('depthai_calibration', anonymous=True)
     arg = {}
     arg["swapLR"] = rospy.get_param('~swap_lr')
-    arg["disableRgb"] = rospy.get_param('~disableRgb')
-    arg["disableLR"] = rospy.get_param('~disableLR')
     arg["usbMode"] = rospy.get_param('~usbMode')
 
     arg["package_path"] = rospy.get_param('~package_path')

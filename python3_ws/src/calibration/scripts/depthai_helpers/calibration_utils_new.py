@@ -5,6 +5,7 @@ import glob
 import os
 import shutil
 import numpy as np
+from scipy.spatial.transform import Rotation as R
 import re
 import time
 import json
@@ -87,135 +88,64 @@ class StereoCalibration(object):
     def __init__(self):
         """Class to Calculate Calibration and Rectify a Stereo Camera."""
 
-    def calibrate(self, dataset, square_size, mrk_size, squaresX, squaresY, camera_model, calibrate_LR, calibrate_rgb, enable_disp_rectify):
+    def calibrate(self, board_config, filepath, square_size, mrk_size, squaresX, squaresY, camera_model, enable_disp_rectify):
         """Function to calculate calibration for stereo camera."""
-        # start_time = time.time()
+        start_time = time.time()
         # init object data
-        self.calibrate_LR = calibrate_LR
-        self.calibrate_rgb = calibrate_rgb
         self.enable_rectification_disp = enable_disp_rectify
-        self.cameraModel = camera_model
-        self.data_path = dataset
+        self.cameraModel  = camera_model
+        self.data_path = filepath
         self.aruco_dictionary = aruco.Dictionary_get(aruco.DICT_4X4_1000)
         self.board = aruco.CharucoBoard_create(
-            # 22, 16,
-            squaresX, squaresY,
-            square_size,
-            mrk_size,
-            self.aruco_dictionary)
-
+                # 22, 16,
+                squaresX, squaresY,
+                square_size,
+                mrk_size,
+                self.aruco_dictionary)
+        
         # parameters = aruco.DetectorParameters_create()
         assert mrk_size != None,  "ERROR: marker size not set"
 
-        if self.calibrate_LR:
-            self.calibrate_charuco3D(dataset)
-        else:
-            self.R1 = np.zeros((3, 3), dtype=np.float32)
-            self.R2 = np.zeros((3, 3), dtype=np.float32)
-            self.M1 = np.zeros((3, 3), dtype=np.float32)
-            self.M2 = np.zeros((3, 3), dtype=np.float32)
-            self.d1 = np.zeros((3, 3), dtype=np.float32)
-            self.d2 = np.zeros((3, 3), dtype=np.float32)
-            self.R = np.zeros((3, 3), dtype=np.float32)
-            self.T = np.zeros((3, 3), dtype=np.float32)
+        for camera in board_config.cameras.keys():
+            cam_info = board_config.cameras[camera]
+            images_path = filepath + '/' + cam_info.name
+            ret, intrinsics, dist_coeff, _, _, size = self.calibrate_intrinsics(images_path)
+            cam_info['intrinsics'] = intrinsics
+            cam_info['dist_coeff'] = dist_coeff
+            cam_info['size'] = size
+            cam_info['reprojection_error'] = ret
 
-        # rgb-right extrinsic calibration
-        if self.calibrate_rgb:
-            self.rgb_calibrate(dataset)
-        else:
-            self.M3 = np.zeros((3, 3), dtype=np.float32)
-            self.R_rgb = np.zeros((3, 3), dtype=np.float32)
-            self.T_rgb = np.zeros(3, dtype=np.float32)
-            self.d3 = np.zeros(14, dtype=np.float32)
+        for camera in board_config.cameras.keys():
+            left_cam_info = board_config.cameras[camera]
+            if left_cam_info.has_key('extrinsics'):
+                if left_cam_info.extrinsics.has_key('to_cam'):
+                    left_cam = camera
+                    right_cam = left_cam_info.extrinsics.to_cam
+                    left_path = filepath + '/' + left_cam_info.name
 
-        # self.M3_scaled_write = np.copy(self.M3_scaled)
-        # self.M3_scaled_write[1, 2] += 40
+                    right_cam_info = board_config.cameras[left_cam_info.extrinsics.to_cam]
+                    right_path = filepath + '/' + right_cam_info.name
 
-        R1_fp32 = self.R1.astype(np.float32)
-        R2_fp32 = self.R2.astype(np.float32)
-        M1_fp32 = self.M1.astype(np.float32)
-        M2_fp32 = self.M2.astype(np.float32)
-        M3_fp32 = self.M3.astype(np.float32)
+                    specTranslation = left_cam_info.extrinsics.specTranslation
+                    rot = left_cam_info.extrinsics.rotation
 
-        R_fp32 = self.R.astype(np.float32)  # L-R rotation
-        T_fp32 = self.T.astype(np.float32)  # L-R translation
-        R_rgb_fp32 = self.R_rgb.astype(np.float32)
-        T_rgb_fp32 = self.T_rgb.astype(np.float32)
+                    translation = [specTranslation.x, specTranslation.y, specTranslation.z]
+                    rotation = R.from_euler('xyz', [rot.r, rot.p, rot.y], degrees=True)
+                    
+                    extrinsics = self.calibrate_extrinsics(left_path, right_path, left_cam_info['intrinsics'], left_cam_info['dist_coeff'], right_cam_info['intrinsics'], right_cam_info['dist_coeff'], translation, rotation)
+                    if extrinsics[0] != -1:
+                        return extrinsics
 
-        d1_coeff_fp32 = self.d1.astype(np.float32)
-        d2_coeff_fp32 = self.d2.astype(np.float32)
-        d3_coeff_fp32 = self.d3.astype(np.float32)
+                    if board_config.stereo_config.left_cam == left_cam and board_config.stereo_config.right_cam == right_cam:
+                        board_config.stereo_config.rectification_left = extrinsics[3]
+                        board_config.stereo_config.rectification_right = extrinsics[4]
 
-        if self.calibrate_rgb and self.calibrate_LR:
-            R_rgb_fp32 = np.linalg.inv(R_rgb_fp32)
-            T_rgb_fp32[0] = -T_rgb_fp32[0]
-            T_rgb_fp32[1] = -T_rgb_fp32[1]
-            T_rgb_fp32[2] = -T_rgb_fp32[2]
-
-        self.calib_data = [R1_fp32, R2_fp32, M1_fp32, M2_fp32, M3_fp32, R_fp32,
-                           T_fp32, R_rgb_fp32, T_rgb_fp32, d1_coeff_fp32, d2_coeff_fp32, d3_coeff_fp32]
-
-        if 1:  # Print matrices, to compare with device data
-            np.set_printoptions(suppress=True, precision=6)
-            print("\nR1 (left)")
-            print(R1_fp32)
-            print("\nR2 (right)")
-            print(R2_fp32)
-            print("\nM1 (left)")
-            print(M1_fp32)
-            print("\nM2 (right)")
-            print(M2_fp32)
-            print("\nR")
-            print(R_fp32)
-            print("\nT")
-            print(T_fp32)
-            print("\nM3 (rgb)")
-            print(M3_fp32)
-            print("\nR (rgb)")
-            print(R_rgb_fp32)
-            print("\nT (rgb)")
-            print(T_rgb_fp32)
-
-        if 0:  # Print computed homography, to compare with device data
-            np.set_printoptions(suppress=True, precision=6)
-            for res_height in [800, 720, 400]:
-                m1 = np.copy(M1_fp32)
-                m2 = np.copy(M2_fp32)
-                if res_height == 720:
-                    m1[1, 2] -= 40
-                    m2[1, 2] -= 40
-                if res_height == 400:
-                    m_scale = [[0.5,   0, 0],
-                               [0, 0.5, 0],
-                               [0,   0, 1]]
-                    m1 = np.matmul(m_scale, m1)
-                    m2 = np.matmul(m_scale, m2)
-                h1 = np.matmul(np.matmul(m2, R1_fp32), np.linalg.inv(m1))
-                h2 = np.matmul(np.matmul(m2, R2_fp32), np.linalg.inv(m2))
-                h1 = np.linalg.inv(h1)
-                h2 = np.linalg.inv(h2)
-                print('\nHomography H1, H2 for height =', res_height)
-                print(h1)
-                print()
-                print(h2)
-
-        print("\tTook %i seconds to run image processing." %
-              (round(time.time() - start_time, 2)))
-
-        # self.create_save_mesh()
-
-        epipolar_RRgb = None
-        epipolar_LR = None
-        rgb_reprojectErrors = None
-        if self.calibrate_rgb:
-            rgb_reprojectErrors = self.ret_rgb_scaled
-            if self.calibrate_LR:
-                epipolar_RRgb = self.test_epipolar_charuco_rgbr(filepath)
-
-        if self.calibrate_LR:
-            epipolar_LR = self.test_epipolar_charuco_lr(filepath)
-
-        return rgb_reprojectErrors, epipolar_LR, epipolar_RRgb, self.calib_data
+                    left_cam_info.extrinsics.rotation_matrix = extrinsics[1]
+                    left_cam_info.extrinsics.translation = extrinsics[2]
+                    left_cam_info.extrinsics.stereo_error = extrinsics[0]
+                    left_cam_info.extrinsics.epipolar_error = self.test_epipolar_charuco(left_path, right_path, left_cam_info.intrinsics, left_cam_info.dist_coeff, right_cam_info.intrinsics, right_cam_info.dist_coeff, extrinsics[3], extrinsics[4])
+    
+        return [1, board_config]
 
     def analyze_charuco(self, images, scale_req=False, req_resolution=(800, 1280)):
         """
@@ -295,20 +225,24 @@ class StereoCalibration(object):
         return allCorners, allIds, all_marker_corners, all_marker_ids, imsize, all_recovered
 
     def calibrate_intrinsics(self, image_files):
+        image_files = glob.glob(image_files + "/*")
         image_files.sort()
         assert len(
             image_files) != 0, "ERROR: Images not read correctly, check directory"
 
         allCorners, allIds, _, _, imsize, _ = self.analyze_charuco(image_files)
         if self.camera_model == 'perspective':
-            return self.calibrate_camera_charuco(allCorners, allIds, imsize[::-1])
+            return self.calibrate_camera_charuco(allCorners, allIds, imsize[::-1]), imsize[::-1] # (Height, width)
         else:
-            return self.calibrate_fisheye(allCorners, allIds, imsize[::-1])
+            return self.calibrate_fisheye(allCorners, allIds, imsize[::-1]), imsize[::-1] # (Height, width)
 
     def calibrate_extrinsics(self, images_left, images_right, M_l, d_l, M_r, d_r, guess_translation, guess_rotation):
         self.objpoints = []  # 3d point in real world space
         self.imgpoints_l = []  # 2d points in image plane.
         self.imgpoints_r = []  # 2d points in image plane.
+
+        images_left = glob.glob(images_left + "/*")
+        images_right = glob.glob(images_right + "/*")
 
         images_left.sort()
         images_right.sort()
@@ -591,6 +525,147 @@ class StereoCalibration(object):
                 # raise SystemExit()
 
         cv2.destroyWindow('Stereo Pair')
+
+    def test_epipolar_charuco(self, left_img_pth, right_img_pth, M_l, d_l, M_r, d_r, r_l, r_r):
+        images_left = glob.glob(left_img_pth + '/*.png')
+        images_right = glob.glob(right_img_pth + '/*.png')
+        images_left.sort()
+        images_right.sort()
+        print("<-----------------Left-Right camera Epiploar error---------------->")
+        assert len(images_left) != 0, "ERROR: Images not read correctly"
+        assert len(images_right) != 0, "ERROR: Images not read correctly"
+
+        scale = None
+        scale_req = False
+        frame_left_shape = cv2.imread(images_left[0]).shape
+        frame_right_shape = cv2.imread(images_right[0]).shape
+        scalable_res = frame_left_shape
+        scaled_res = frame_right_shape
+        if frame_right_shape[0] < frame_left_shape[0] and frame_right_shape[1] < frame_left_shape[1]:
+            scale_req = True
+            scale = frame_right_shape[1] / frame_left_shape[1]
+        elif frame_right_shape[0] > frame_left_shape[0] and frame_right_shape[1] > frame_left_shape[1]:
+            scale_req = True
+            scale = frame_left_shape[1] / frame_right_shape[1]
+            scalable_res = frame_right_shape
+            scaled_res = frame_left_shape
+
+        if scale_req:
+            scaled_height = scale * scalable_res[0]
+            diff = scaled_height - scaled_res[0]
+            # if scaled_height <  smaller_res[0]:
+            if diff < 0:
+                scaled_res = (scaled_height, scaled_res[1])
+        
+        M_lp = self.scale_intrinsics(M_l, frame_left_shape, scaled_res)
+        M_rp = self.scale_intrinsics(M_r, frame_right_shape, scaled_res)
+
+        print("~~~~~~~~~~~ POSE ESTIMATION LEFT CAMERA ~~~~~~~~~~~~~")
+        allCorners_l, allIds_l, _, _, imsize_l, _ = self.analyze_charuco(
+            images_left, scale_req, scaled_res)
+
+        print("~~~~~~~~~~~ POSE ESTIMATION RIGHT CAMERA ~~~~~~~~~~~~~")
+        allCorners_r, allIds_r, _, _, imsize_r, _ = self.analyze_charuco(
+            images_right, scale_req, scaled_res)
+
+        assert imsize_r != imsize_l, "Epipolar: Left and right resolution scaling is wrong"
+
+        criteria = (cv2.TERM_CRITERIA_EPS +
+                    cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
+
+        mapx_l, mapy_l = cv2.initUndistortRectifyMap(
+                                    M_l, d_l, r_l, M_r, imsize_r, cv2.CV_32FC1)
+        mapx_r, mapy_r = cv2.initUndistortRectifyMap(
+                                    M_r, d_r, r_r, M_r, imsize_r, cv2.CV_32FC1)
+        image_data_pairs = []
+        for image_left, image_right in zip(images_left, images_right):
+            # read images
+            img_l = cv2.imread(image_left, 0)
+            img_r = cv2.imread(image_right, 0)
+
+            # warp right image
+            # img_l = cv2.warpPerspective(img_l, self.H1, img_l.shape[::-1],
+            #                             cv2.INTER_CUBIC +
+            #                             cv2.WARP_FILL_OUTLIERS +
+            #                             cv2.WARP_INVERSE_MAP)
+
+            # img_r = cv2.warpPerspective(img_r, self.H2, img_r.shape[::-1],
+            #                             cv2.INTER_CUBIC +
+            #                             cv2.WARP_FILL_OUTLIERS +
+            #                             cv2.WARP_INVERSE_MAP)
+
+            img_l = cv2.remap(img_l, mapx_l, mapy_l, cv2.INTER_LINEAR)
+            img_r = cv2.remap(img_r, mapx_r, mapy_r, cv2.INTER_LINEAR)
+
+            image_data_pairs.append((img_l, img_r))
+
+        # compute metrics
+        imgpoints_r = []
+        imgpoints_l = []
+        for i, image_data_pair in enumerate(image_data_pairs):
+            #             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            marker_corners_l, ids_l, rejectedImgPoints = cv2.aruco.detectMarkers(
+                image_data_pair[0], self.aruco_dictionary)
+            marker_corners_l, ids_l, _, _ = cv2.aruco.refineDetectedMarkers(image_data_pair[0], self.board,
+                                                                            marker_corners_l, ids_l,
+                                                                            rejectedCorners=rejectedImgPoints)
+
+            marker_corners_r, ids_r, rejectedImgPoints = cv2.aruco.detectMarkers(
+                image_data_pair[1], self.aruco_dictionary)
+            marker_corners_r, ids_r, _, _ = cv2.aruco.refineDetectedMarkers(image_data_pair[1], self.board,
+                                                                            marker_corners_r, ids_r,
+                                                                            rejectedCorners=rejectedImgPoints)
+
+            res2_l = cv2.aruco.interpolateCornersCharuco(
+                marker_corners_l, ids_l, image_data_pair[0], self.board)
+            res2_r = cv2.aruco.interpolateCornersCharuco(
+                marker_corners_r, ids_r, image_data_pair[1], self.board)
+
+            if res2_l[1] is not None and res2_r[2] is not None and len(res2_l[1]) > 3 and len(res2_r[1]) > 3:
+
+                cv2.cornerSubPix(image_data_pair[0], res2_l[1],
+                                 winSize=(5, 5),
+                                 zeroZone=(-1, -1),
+                                 criteria=criteria)
+                cv2.cornerSubPix(image_data_pair[1], res2_r[1],
+                                 winSize=(5, 5),
+                                 zeroZone=(-1, -1),
+                                 criteria=criteria)
+
+                # termination criteria
+                img_pth = Path(images_right[i])
+                corners_l = []
+                corners_r = []
+                for j in range(len(res2_l[2])):
+                    idx = np.where(res2_r[2] == res2_l[2][j])
+                    if idx[0].size == 0:
+                        continue
+                    corners_l.append(res2_l[1][j])
+                    corners_r.append(res2_r[1][idx])
+
+                imgpoints_l.extend(corners_l)
+                imgpoints_r.extend(corners_r)
+                epi_error_sum = 0
+                for l_pt, r_pt in zip(corners_l, corners_r):
+                    epi_error_sum += abs(l_pt[0][1] - r_pt[0][1])
+                
+                print("Average Epipolar Error per image on host in " + img_pth.name + " : " +
+                    str(epi_error_sum / len(corners_l)))
+            else:
+                return -1
+
+        epi_error_sum = 0
+        for l_pt, r_pt in zip(imgpoints_l, imgpoints_r):
+            epi_error_sum += abs(l_pt[0][1] - r_pt[0][1])
+
+        avg_epipolar = epi_error_sum / len(imgpoints_r)
+        print("Average Epipolar Error of Left-Right: " + str(avg_epipolar))
+
+        if self.enable_rectification_disp:
+            self.display_rectification(image_data_pairs)
+
+        return avg_epipolar
+
 
     def create_save_mesh(self):  # , output_path):
 

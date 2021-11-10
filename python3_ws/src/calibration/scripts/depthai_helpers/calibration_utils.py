@@ -76,12 +76,10 @@ class StereoCalibration(object):
     def __init__(self):
         """Class to Calculate Calibration and Rectify a Stereo Camera."""
 
-    def calibrate(self, filepath, square_size, mrk_size, squaresX, squaresY, camera_model, calibrate_LR, calibrate_rgb, enable_disp_rectify):
+    def calibrate(self, board_config, filepath, square_size, mrk_size, squaresX, squaresY, camera_model, enable_disp_rectify):
         """Function to calculate calibration for stereo camera."""
         start_time = time.time()
         # init object data
-        self.calibrate_LR = calibrate_LR
-        self.calibrate_rgb = calibrate_rgb
         self.enable_rectification_disp = enable_disp_rectify
         self.cameraModel  = camera_model
         self.data_path = filepath
@@ -96,50 +94,10 @@ class StereoCalibration(object):
         # parameters = aruco.DetectorParameters_create()
         assert mrk_size != None,  "ERROR: marker size not set"
 
-        if self.calibrate_LR:
-            self.calibrate_charuco3D(filepath)
-        else:
-            self.R1 = np.zeros((3, 3), dtype=np.float32)
-            self.R2 = np.zeros((3, 3), dtype=np.float32)
-            self.M1 = np.zeros((3, 3), dtype=np.float32)
-            self.M2 = np.zeros((3, 3), dtype=np.float32)
-            self.d1 = np.zeros((3, 3), dtype=np.float32)
-            self.d2 = np.zeros((3, 3), dtype=np.float32)
-            self.R  = np.zeros((3, 3), dtype=np.float32)
-            self.T  = np.zeros((3, 3), dtype=np.float32)
-
-        # rgb-right extrinsic calibration
-        if self.calibrate_rgb:
-            self.rgb_calibrate(filepath)
-        else:
-            self.M3    = np.zeros((3, 3), dtype=np.float32)
-            self.R_rgb = np.zeros((3, 3), dtype=np.float32)
-            self.T_rgb = np.zeros(3, dtype=np.float32)
-            self.d3    = np.zeros(14, dtype=np.float32)
-
-        # self.M3_scaled_write = np.copy(self.M3_scaled)
-        # self.M3_scaled_write[1, 2] += 40
-
-        R1_fp32 = self.R1.astype(np.float32)
-        R2_fp32 = self.R2.astype(np.float32)
-        M1_fp32 = self.M1.astype(np.float32)
-        M2_fp32 = self.M2.astype(np.float32)
-        M3_fp32 = self.M3.astype(np.float32)
-
-        R_fp32 = self.R.astype(np.float32) # L-R rotation
-        T_fp32 = self.T.astype(np.float32) # L-R translation
-        R_rgb_fp32 = self.R_rgb.astype(np.float32)
-        T_rgb_fp32 = self.T_rgb.astype(np.float32)
-
-        d1_coeff_fp32 = self.d1.astype(np.float32)
-        d2_coeff_fp32 = self.d2.astype(np.float32)
-        d3_coeff_fp32 = self.d3.astype(np.float32)
-
-        if self.calibrate_rgb and self.calibrate_LR:
-            R_rgb_fp32 = np.linalg.inv(R_rgb_fp32)
-            T_rgb_fp32[0] = -T_rgb_fp32[0] 
-            T_rgb_fp32[1] = -T_rgb_fp32[1]
-            T_rgb_fp32[2] = -T_rgb_fp32[2]
+        for camera in board_config.cameras.keys():
+            cam_info = board_config.cameras[camera]
+            images_path = 
+        
 
         self.calib_data = [R1_fp32, R2_fp32, M1_fp32, M2_fp32, M3_fp32, R_fp32, T_fp32, R_rgb_fp32, T_rgb_fp32, d1_coeff_fp32, d2_coeff_fp32, d3_coeff_fp32]
         
