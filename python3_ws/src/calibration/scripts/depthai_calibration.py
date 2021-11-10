@@ -135,17 +135,19 @@ class depthai_calibration_node:
         header = ['time', 'Mx_serial_id']
         for cam_id in self.board_config['cameras'].keys():
             cam_info = self.board_config['cameras'][cam_id]
-            header.append(cam_info.name + '-CCM')
-            header.append(cam_info.name + '-camera')
-            header.append(cam_info.name + '-focus-stdDev')
-            header.append(cam_info.name + '-Reprojection-Error')
-            self.auto_checkbox_names.append(cam_info.name  + '-Camera-Conencted')
-            self.auto_checkbox_names.append(cam_info.name  + '-Stream')
-            self.auto_focus_checkbox_names.append(cam_info.name  + '-Focus')
-            if cam_info.has_key('extrinsics'):
-                if cam_info.extrinsics.has_key('to_cam'):
-                    right_cam = self.board_config['cameras'][cam_info.extrinsics.to_cam].name    
-                    header.append('Epipolar-error-' + cam_info.name + '-' + right_cam)
+            header.append(cam_info['name'] + '-CCM')
+            header.append(cam_info['name'] + '-camera')
+            header.append(cam_info['name'] + '-focus-stdDev')
+            header.append(cam_info['name'] + '-Reprojection-Error')
+            self.auto_checkbox_names.append(cam_info['name']  + '-Camera-Conencted')
+            self.auto_checkbox_names.append(cam_info['name']  + '-Stream')
+            self.auto_focus_checkbox_names.append(cam_info['name']  + '-Focus')
+            print('---------------')
+            print(cam_id)
+            if 'extrinsics' in cam_info:
+                if 'to_cam' in cam_info['extrinsics']:
+                    right_cam = self.board_config['cameras'][cam_info['extrinsics']['to_cam']]['name']    
+                    header.append('Epipolar-error-' + cam_info['name'] + '-' + right_cam)
             
         # ['Mono-CCM', 'RGB-CCM',
         #           'left_camera', 'right_camera', 'rgb_camera', 
@@ -204,14 +206,14 @@ class depthai_calibration_node:
         self.dev_status_srv = rospy.Service(
             "device_status", Capture, self.device_status_handler)
         self.focus_setting_srv = rospy.Service(
-            "rgb_focus_adjuster", Capture, self.rgb_focus_adjuster)
+            "rgb_focus_adjuster", Capture, self.camera_focus_adjuster)
         # self.rgb_focus_srv = rospy.Service(
         #     "set_rgb_focus", Capture, self.rgb_focus_handler)
 
         self.args['cameraModel'] = 'perspective'
         self.imgPublishers = dict()
-        for cam_id in self.board_config.cameras:
-            name = self.board_config.cameras[cam_id].name
+        for cam_id in self.board_config['cameras']:
+            name = self.board_config['cameras'][cam_id]['name']
             self.imgPublishers[name] = rospy.Publisher(name, Image, queue_size=10)
 
         self.device = None
@@ -221,8 +223,8 @@ class depthai_calibration_node:
         pygame_render_text(self.screen, title, (70, 20), black, 40)
         space = "         "
         title = ""
-        for camera in self.board_config.cameras.keys():
-            title += self.board_config.cameras[camera].name + space
+        for camera in self.board_config['cameras'].keys():
+            title += self.board_config['cameras'][camera]['name'] + space
 
         pygame_render_text(self.screen, title, (200, 100), green, 25)
         ccm_names = ['Sunny', 'KingTop', 'ArduCam']
@@ -240,7 +242,7 @@ class depthai_calibration_node:
             ccm_names_dict[ccm_names[i]] = []
             offset = 150
             offset_increment = 1
-            for camera in self.board_config.cameras.keys():
+            for camera in self.board_config['cameras'].keys():
                 # ccm_names_dict[ccm_names[i]].append()
                 ccm_names_dict[ccm_names[i]].append(Checkbox(self.screen, x + (offset * offset_increment), y_axis-5, outline_color=green,
                                                                                 check_color=green, check=False, disable_pass = True))
@@ -265,9 +267,9 @@ class depthai_calibration_node:
         is_ccm_selected = []
         self.ccm_selected = {}
 
-        for camera in self.board_config.cameras.keys():
+        for camera in self.board_config['cameras'].keys():
             is_ccm_selected.append(False)
-            self.ccm_selected[self.board_config.cameras[camera].name] = None
+            self.ccm_selected[self.board_config['cameras'][camera]['name']] = None
         while not is_saved:
             self.disp.update()
             for event in pygame.event.get():
@@ -302,7 +304,7 @@ class depthai_calibration_node:
                 ccm1 = ccm_names_dict[ccm_names[0]]
                 ccm2 = ccm_names_dict[ccm_names[1]]
                 ccm3 = ccm_names_dict[ccm_names[2]]
-                for i in range(self.board_config.cameras.keys()):
+                for i in range(len(list(self.board_config['cameras']))):
                     ccm1[i].update_checkbox_rel(event, ccm2[i], ccm3[i])
                     ccm2[i].update_checkbox_rel(event, ccm1[i], ccm3[i])
                     ccm3[i].update_checkbox_rel(event, ccm1[i], ccm2[i]) 
@@ -312,14 +314,14 @@ class depthai_calibration_node:
                     if ccm1[i].is_checked() or ccm2[i].is_checked() or ccm3[i].is_checked():
                         is_ccm_selected[i] = True
 
-        camList = list(self.board_config.cameras)
+        camList = list(self.board_config['cameras'])
         print("selected CCMS:")
     
         for i in range(len(ccm_names)):
-            for j in range(self.board_config.cameras.keys()):
+            for j in range(len(camList)):
                 if ccm_names_dict[ccm_names[i]][j].is_checked():
-                    self.ccm_selected[self.board_config.cameras[camList[j]].name] = ccm_names[i]
-                    print(self.board_config.cameras[camList[j]].name, '=> ', ccm_names[i])
+                    self.ccm_selected[self.board_config['cameras'][camList[j]]['name']] = ccm_names[i]
+                    print(self.board_config['cameras'][camList[j]]['name'], '=> ', ccm_names[i])
         
         self.screen.fill(white)
         self.disp.update()
@@ -327,8 +329,8 @@ class depthai_calibration_node:
     def create_pipeline(self, camProperties):
         pipeline = dai.Pipeline()
 
-        for cam_id in self.board_config.cameras:
-            cam_info = self.board_config.cameras[cam_id]
+        for cam_id in self.board_config['cameras']:
+            cam_info = self.board_config['cameras'][cam_id]
             if cam_info.type == 'mono':
                 cam_node = pipeline.createMonoCamera()
                 xout = pipeline.createXLinkOut()
@@ -445,8 +447,8 @@ class depthai_calibration_node:
             self.disp.update()
 
             if not self.is_service_active and self.device is not None and not self.device.isClosed(): 
-                for config_cam in self.board_config.cameras:
-                    cam_info = self.board_config.cameras[config_cam]
+                for config_cam in self.board_config['cameras']:
+                    cam_info = self.board_config['cameras'][config_cam]
                     frame = self.camera_queue[cam_info.name].tryGet()
                     if frame is not None:
                         # currFrame = frame.getCvFrame()
@@ -610,20 +612,20 @@ class depthai_calibration_node:
 
                     lost_camera = False
                     for properties in cameraProperties:
-                        for in_cam in self.board_config.cameras:
-                            cam_info = self.board_config.cameras[in_cam]
+                        for in_cam in self.board_config['cameras'].keys():
+                            cam_info = self.board_config['cameras'][in_cam]
                             if properties.socket == stringToCam[in_cam]:
-                                self.board_config.cameras[in_cam].sensorName = properties.sensorName
-                                self.board_config.cameras[in_cam].hasAutofocus = properties.hasAutofocus
-                                self.auto_checkbox_dict[cam_info.name  + '-Camera-Conencted'].check()
+                                self.board_config['cameras'][in_cam].sensorName = properties.sensorName
+                                self.board_config['cameras'][in_cam].hasAutofocus = properties.hasAutofocus
+                                self.auto_checkbox_dict[cam_info['name']  + '-Camera-Conencted'].check()
                                 break
 
-                    for config_cam in self.board_config.cameras:
-                        cam_info = self.board_config.cameras[config_cam]
-                        if self.auto_checkbox_dict[cam_info.name  + '-Camera-Conencted'].isUnattended():
-                            self.auto_checkbox_dict[cam_info.name  + '-Camera-Conencted'].uncheck()
+                    for config_cam in self.board_config['cameras'].keys():
+                        cam_info = self.board_config['cameras'][config_cam]
+                        if self.auto_checkbox_dict[cam_info['name']  + '-Camera-Conencted'].isUnattended():
+                            self.auto_checkbox_dict[cam_info['name']  + '-Camera-Conencted'].uncheck()
                             lost_camera = True
-                        self.auto_checkbox_dict[cam_info.name  + '-Camera-Conencted'].render_checkbox()
+                        self.auto_checkbox_dict[cam_info['name']  + '-Camera-Conencted'].render_checkbox()
 
                     if self.args['usbMode']:
                         if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
@@ -638,11 +640,11 @@ class depthai_calibration_node:
                         self.device.startPipeline(pipeline)
                         self.camera_queue = {}
                         self.control_queue = {}
-                        for config_cam in self.board_config.cameras:
-                            cam = self.board_config.cameras[config_cam]
-                            self.camera_queue[cam.name] = self.device.getOutputQueue(cam.name, 5, False)
+                        for config_cam in self.board_config['cameras']:
+                            cam = self.board_config['cameras'][config_cam]
+                            self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 5, False)
                             if cam.hasAutofocus:
-                                self.control_queue[cam.name] = self.device.getOutputQueue(cam.name + '-control', 5, False)
+                                self.control_queue[cam['name']] = self.device.getOutputQueue(cam['name'] + '-control', 5, False)
                     else:
                         print("Closing Device...")
 
@@ -661,16 +663,16 @@ class depthai_calibration_node:
                         pygame.draw.rect(self.screen, white, fill_color_2)
 
             mipi = {}
-            for config_cam in self.board_config.cameras:
-                mipi[self.board_config.cameras[config_cam].name] = False
+            for config_cam in self.board_config['cameras']:
+                mipi[self.board_config['cameras'][config_cam]['name']] = False
 
-            left_mipi = False
-            right_mipi = False
-            rgb_mipi = False
+            # left_mipi = False
+            # right_mipi = False
+            # rgb_mipi = False
 
             for _ in range(120):
-                for config_cam in self.board_config.cameras:
-                    name = self.board_config.cameras[config_cam].name
+                for config_cam in self.board_config['cameras']:
+                    name = self.board_config['cameras'][config_cam]['name']
                     imageFrame = self.camera_queue[name].tryGet()
                     if imageFrame is not None:
                         mipi[name] = True
@@ -706,8 +708,8 @@ class depthai_calibration_node:
                     rgb_mipi = True """
 
                 isMipiReady = True
-                for config_cam in self.board_config.cameras:
-                    name = self.board_config.cameras[config_cam].name
+                for config_cam in self.board_config['cameras']:
+                    name = self.board_config['cameras'][config_cam]['name']
                     isMipiReady = isMipiReady and mipi[name] 
                 if isMipiReady:
                     break
@@ -755,41 +757,41 @@ class depthai_calibration_node:
         ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
         ctrl.setAutoFocusTrigger()
 
-        for config_cam in self.board_config.cameras:
-            cam_info = self.board_config.cameras[config_cam]
-            focusCount[cam_info.name] = 0
-            self.focusSigma[cam_info.name] = 0
-            self.lensPosition[cam_info.name] = 0;
-            isFocused[cam_info.name] = False
-            capturedFrames[cam_info.name] = None
+        for config_cam in self.board_config['cameras']:
+            cam_info = self.board_config['cameras'][config_cam]
+            focusCount[cam_info['name']] = 0
+            self.focusSigma[cam_info['name']] = 0
+            self.lensPosition[cam_info['name']] = 0;
+            isFocused[cam_info['name']] = False
+            capturedFrames[cam_info['name']] = None
 
             if cam_info.hasAutofocus:
-                trigCount[cam_info.name] = 0
-            self.control_queue[cam_info.name].send(ctrl)
+                trigCount[cam_info['name']] = 0
+            self.control_queue[cam_info['name']].send(ctrl)
 
         rospy.sleep(1)
         focusFailed  = False
         while True:
-            for config_cam in self.board_config.cameras:
-                cam_info = self.board_config.cameras[config_cam]
-                frame = self.camera_queue[cam_info.name].getAll()[-1]
+            for config_cam in self.board_config['cameras']:
+                cam_info = self.board_config['cameras'][config_cam]
+                frame = self.camera_queue[cam_info['name']].getAll()[-1]
                 currFrame = frame.getCvFrame()
-                capturedFrames[cam_info.name] = currFrame 
+                capturedFrames[cam_info['name']] = currFrame 
                 currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
-                self.imgPublishers[cam_info.name].publish(
+                self.imgPublishers[cam_info['name']].publish(
                             self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
 
                 if cam_info.hasAutofocus:
                     marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
                     if len(marker_corners) < 30:
                         print("Board not detected. Waiting...!!!")
-                        trigCount[cam_info.name] += 1
-                        focusCount[cam_info.name] += 1
-                        if trigCount[cam_info.name] > 31:
-                            trigCount[cam_info.name] = 0
-                            self.control_queue[cam_info.name].send(ctrl)
+                        trigCount[cam_info['name']] += 1
+                        focusCount[cam_info['name']] += 1
+                        if trigCount[cam_info['name']] > 31:
+                            trigCount[cam_info['name']] = 0
+                            self.control_queue[cam_info['name']].send(ctrl)
                             time.sleep(1)
-                        if focusCount[cam_info.name] > maxCountFocus:
+                        if focusCount[cam_info['name']] > maxCountFocus:
                             focusFailed = True
                             break
                         continue
@@ -798,18 +800,18 @@ class depthai_calibration_node:
                 mu, sigma = cv2.meanStdDev(dst_laplace)
 
                 if sigma > self.focusSigmaThreshold:
-                    isFocused[cam_info.name] = True
-                    self.focusSigma[cam_info.name] = sigma
+                    isFocused[cam_info['name']] = True
+                    self.focusSigma[cam_info['name']] = sigma
                     if cam_info.hasAutofocus:
-                        self.lensPosition[cam_info.name] = frame.getLensPosition()
+                        self.lensPosition[cam_info['name']] = frame.getLensPosition()
                 else:
                     if cam_info.hasAutofocus:
-                        trigCount[cam_info.name] += 1
-                        if trigCount[cam_info.name] > 31:
-                            trigCount[cam_info.name] = 0
-                            self.control_queue[cam_info.name].send(ctrl)
+                        trigCount[cam_info['name']] += 1
+                        if trigCount[cam_info['name']] > 31:
+                            trigCount[cam_info['name']] = 0
+                            self.control_queue[cam_info['name']].send(ctrl)
                             time.sleep(1)
-                focusCount[cam_info.name] += 1
+                focusCount[cam_info['name']] += 1
 
             if focusFailed:
                 break
@@ -832,7 +834,7 @@ class depthai_calibration_node:
         self.is_service_active = False
         for key in isFocused.keys():
             if isFocused[key]:
-                if self.board_config.cameras[key].hasAutofocus:
+                if self.board_config['cameras'][key].hasAutofocus:
                     ctrl = dai.CameraControl()
                     ctrl.setManualFocus(self.lensPosition[key])
                     print("Sending manual focus Control")
@@ -924,46 +926,46 @@ class depthai_calibration_node:
         vis_y = 180
         error_text = []
         calibration_handler = dai.CalibrationHandler()
-        for camera in result_config.cameras.keys():
-            cam_info = result_config.cameras[camera]
+        for camera in result_config['cameras'].keys():
+            cam_info = result_config['cameras'][camera]
             color = green
             
-            if cam_info.reprojection_error > 0.5:
+            if cam_info['reprojection_error'] > 0.5:
                 color = red
                 error_text.append("high Reprojection Error")
-            text = cam_info.name + ' Reprojection Error: ' + format(cam_info.reprojection_error, '.6f')
+            text = cam_info['name'] + ' Reprojection Error: ' + format(cam_info['reprojection_error'], '.6f')
             pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
             
-            calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info.dist_coeff)
-            calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info.intrinsics,  cam_info.size[1], cam_info.size[0])
-            calibration_handler.setFov(stringToCam[camera], cam_info.hfov)
+            calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info['dist_coeff'])
+            calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][1], cam_info['size'][0])
+            calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
             if cam_info.hasAutofocus:
-                calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info.name])
+                calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
             
-            log_list.append(self.focusSigma[cam_info.name])
-            log_list.append(cam_info.reprojection_error)
+            log_list.append(self.focusSigma[cam_info['name']])
+            log_list.append(cam_info['reprojection_error'])
             
             vis_y += 30
             color = green
-            if cam_info.has_key('extrinsics'):
-                if cam_info.extrinsics.has_key('to_cam'):
-                    right_cam = result_config.cameras[cam_info.extrinsics.to_cam].name
-                    left_cam = cam_info.name
+            if 'extrinsics' in cam_info:
+                if 'to_cam' in cam_info['extrinsics']:
+                    right_cam = result_config['cameras'][cam_info.extrinsics.to_cam].name
+                    left_cam = cam_info['name']
                     
-                    if cam_info.extrinsics.epipolar_error > 0.5:
+                    if cam_info['extrinsics']['epipolar_error'] > 0.5:
                         color = red
                         error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
                     
-                    log_list.append(cam_info.extrinsics.epipolar_error)
-                    text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info.extrinsics.epipolar_error, '.6f')
+                    log_list.append(cam_info['extrinsics']['epipolar_error'])
+                    text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info['extrinsics']['epipolar_error'], '.6f')
                     pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
                     vis_y += 30
 
-                    calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info.extrinsics.to_cam], cam_info.extrinsics.rotation_matrix, cam_info.extrinsics.translation, cam_info.extrinsics.specTranslation)
-                    if result_config.stereo_config.left_cam == left_cam and result_config.stereo_config.right_cam == right_cam:
-                        calibration_handler.setStereoLeft(stringToCam[camera], result_config.stereo_config.rectification_left)
-                        calibration_handler.setStereoRight(stringToCam[cam_info.extrinsics.to_cam], result_config.stereo_config.rectification_right)
+                    calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info['extrinsics']['to_cam']], cam_info['extrinsics']['rotation_matrix'], cam_info['extrinsics']['translation'], cam_info['extrinsics']['specTranslation'])
+                    if result_config['stereo_config']['left_cam'] == left_cam and result_config['stereo_config']['right_cam'] == right_cam:
+                        calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
+                        calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
             else:
                 log_list.append("N/A")
         
@@ -972,7 +974,7 @@ class depthai_calibration_node:
             # header =
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
-        calibration_handler.setBoardInfo(self.board_config['board_config']['name'], self.board_config['board_config']['revision'])
+        calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
         
         self.is_service_active = False
         self.close_device()

@@ -106,28 +106,28 @@ class StereoCalibration(object):
         # parameters = aruco.DetectorParameters_create()
         assert mrk_size != None,  "ERROR: marker size not set"
 
-        for camera in board_config.cameras.keys():
-            cam_info = board_config.cameras[camera]
-            images_path = filepath + '/' + cam_info.name
+        for camera in board_config['cameras'].keys():
+            cam_info = board_config['cameras'][camera]
+            images_path = filepath + '/' + cam_info['name']
             ret, intrinsics, dist_coeff, _, _, size = self.calibrate_intrinsics(images_path)
             cam_info['intrinsics'] = intrinsics
             cam_info['dist_coeff'] = dist_coeff
             cam_info['size'] = size
             cam_info['reprojection_error'] = ret
 
-        for camera in board_config.cameras.keys():
-            left_cam_info = board_config.cameras[camera]
-            if left_cam_info.has_key('extrinsics'):
-                if left_cam_info.extrinsics.has_key('to_cam'):
+        for camera in board_config['cameras'].keys():
+            left_cam_info = board_config['cameras'][camera]
+            if 'extrinsics' in left_cam_info:
+                if 'to_cam' in left_cam_info['extrinsics']:
                     left_cam = camera
-                    right_cam = left_cam_info.extrinsics.to_cam
-                    left_path = filepath + '/' + left_cam_info.name
+                    right_cam = left_cam_info['extrinsics']['to_cam']
+                    left_path = filepath + '/' + left_cam_info['name']
 
-                    right_cam_info = board_config.cameras[left_cam_info.extrinsics.to_cam]
-                    right_path = filepath + '/' + right_cam_info.name
+                    right_cam_info = board_config['cameras'][left_cam_info['extrinsics']['to_cam']]
+                    right_path = filepath + '/' + right_cam_info['name']
 
-                    specTranslation = left_cam_info.extrinsics.specTranslation
-                    rot = left_cam_info.extrinsics.rotation
+                    specTranslation = left_cam_info['extrinsics']['specTranslation']
+                    rot = left_cam_info['extrinsics']['rotation']
 
                     translation = [specTranslation.x, specTranslation.y, specTranslation.z]
                     rotation = R.from_euler('xyz', [rot.r, rot.p, rot.y], degrees=True)
@@ -136,14 +136,14 @@ class StereoCalibration(object):
                     if extrinsics[0] != -1:
                         return extrinsics
 
-                    if board_config.stereo_config.left_cam == left_cam and board_config.stereo_config.right_cam == right_cam:
-                        board_config.stereo_config.rectification_left = extrinsics[3]
-                        board_config.stereo_config.rectification_right = extrinsics[4]
+                    if board_config['stereo_config']['left_cam'] == left_cam and board_config['stereo_config']['right_cam'] == right_cam:
+                        board_config['stereo_config']['rectification_left'] = extrinsics[3]
+                        board_config['stereo_config']['rectification_right'] = extrinsics[4]
 
-                    left_cam_info.extrinsics.rotation_matrix = extrinsics[1]
-                    left_cam_info.extrinsics.translation = extrinsics[2]
-                    left_cam_info.extrinsics.stereo_error = extrinsics[0]
-                    left_cam_info.extrinsics.epipolar_error = self.test_epipolar_charuco(left_path, right_path, left_cam_info.intrinsics, left_cam_info.dist_coeff, right_cam_info.intrinsics, right_cam_info.dist_coeff, extrinsics[3], extrinsics[4])
+                    left_cam_info['extrinsics']['rotation_matrix'] = extrinsics[1]
+                    left_cam_info['extrinsics']['translation'] = extrinsics[2]
+                    left_cam_info['extrinsics']['stereo_error'] = extrinsics[0]
+                    left_cam_info['extrinsics']['epipolar_error'] = self.test_epipolar_charuco(left_path, right_path, left_cam_info['intrinsics'], left_cam_info['dist_coeff'], right_cam_info['intrinsics'], right_cam_info['dist_coeff'], extrinsics[3], extrinsics[4])
     
         return [1, board_config]
 
