@@ -351,7 +351,7 @@ class depthai_calibration_node:
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.isp.link(xout.input)
-
+                print('Pipeline config: Focus state of {} is {} and named {}:'.format(cam_info['name'], cam_info['hasAutofocus'], cam_info['name'] + '-control'))
                 if cam_info['hasAutofocus']:
                     controlIn = pipeline.createXLinkIn()
                     controlIn.setStreamName(cam_info['name'] + '-control')
@@ -651,7 +651,7 @@ class depthai_calibration_node:
                             print('Name ---->')
                             print('AF status: {}'.format(cam['hasAutofocus']))
                             if cam['hasAutofocus']:
-                                self.control_queue[cam['name']] = self.device.getOutputQueue(cam['name'] + '-control', 5, False)
+                                self.control_queue[cam['name']] = self.device.getInputQueue(cam['name'] + '-control', 5, False)
                     else:
                         print("Closing Device...")
 
@@ -755,7 +755,6 @@ class depthai_calibration_node:
         self.is_service_active = False
         return (finished, self.device.getMxId())
 
-
     def camera_focus_adjuster(self, req):
         self.is_service_active = True
         maxCountFocus   = 50
@@ -771,12 +770,12 @@ class depthai_calibration_node:
         ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
         ctrl.setAutoFocusTrigger()
 
-        for config_cam in self.board_config['cameras']:
+        for config_cam in self.board_config['cameras'].keys():
             cam_info = self.board_config['cameras'][config_cam]
             focusCount[cam_info['name']] = 0
             self.focusSigma[cam_info['name']] = 0
             self.lensPosition[cam_info['name']] = 0
-            isFocused[cam_info['name']] = False
+            isFocused[config_cam] = False
             capturedFrames[cam_info['name']] = None
 
             if cam_info['hasAutofocus']:
@@ -786,7 +785,7 @@ class depthai_calibration_node:
         rospy.sleep(1)
         focusFailed  = False
         while True:
-            for config_cam in self.board_config['cameras']:
+            for config_cam in self.board_config['cameras'].keys():
                 cam_info = self.board_config['cameras'][config_cam]
                 frame = self.camera_queue[cam_info['name']].getAll()[-1]
                 currFrame = frame.getCvFrame()
@@ -813,9 +812,9 @@ class depthai_calibration_node:
 
                 dst_laplace = cv2.Laplacian(currFrame, cv2.CV_64F)
                 mu, sigma = cv2.meanStdDev(dst_laplace)
-
+                print('Sigma of {} is {}'.format(cam_info['name'], sigma))
                 if sigma > self.focusSigmaThreshold:
-                    isFocused[cam_info['name']] = True
+                    isFocused[config_cam] = True
                     self.focusSigma[cam_info['name']] = sigma
                     if cam_info['hasAutofocus']:
                         self.lensPosition[cam_info['name']] = frame.getLensPosition()
@@ -844,26 +843,33 @@ class depthai_calibration_node:
             os.makedirs(backupFocusPath)
 
         for name, image in capturedFrames.items():
+            print('Backing up images {}'.format(name))
             cv2.imwrite(backupFocusPath + "/" + name + '.png', image)
 
         self.is_service_active = False
         for key in isFocused.keys():
+            cam_name = self.board_config['cameras'][key]['name']
+            print('Camera names {}'.format(cam_name))
+            print('Autofocus state -> {}'.format(self.board_config['cameras'][key]['hasAutofocus']))
             if isFocused[key]:
                 if self.board_config['cameras'][key]['hasAutofocus']:
                     ctrl = dai.CameraControl()
-                    ctrl.setManualFocus(self.lensPosition[key])
-                    print("Sending manual focus Control")
-                    self.control_queue[key].send(ctrl)
-                self.auto_focus_checkbox_dict[key + "-Focus"].check()
-                self.auto_focus_checkbox_dict[key + "-Focus"].render_checkbox()
+                    ctrl.setManualFocus(self.lensPosition[cam_name])
+                    print("Sending manual focus Control to {}".format(cam_name))
+                    self.control_queue[cam_name].send(ctrl)
+                self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
+                self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
             else:
-                self.auto_focus_checkbox_dict[key + "-Focus"].unckeck()
-                self.auto_focus_checkbox_dict[key + "-Focus"].render_checkbox()
+                self.auto_focus_checkbox_dict[cam_name + "-Focus"].uncheck()
+                self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
 
         for key in self.auto_focus_checkbox_dict.keys():
-            if not self.auto_focus_checkbox_dict[key].is_checked:
+            print(self.auto_focus_checkbox_dict[key].is_checked())
+            if not self.auto_focus_checkbox_dict[key].is_checked():
                 self.close_device()
                 return (False, key + " is out of Focus")
+            else:
+                print(key + " is in Focus")
         
         return (True, "RGB in Focus")
 

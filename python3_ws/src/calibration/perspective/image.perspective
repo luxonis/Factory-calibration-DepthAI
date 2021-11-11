@@ -45,7 +45,7 @@
                 },
                 "mouse_pub_topic": {
                   "type": "repr",
-                  "repr": "u'/color_mouse_left'"
+                  "repr": "u'/rgb_mouse_left'"
                 },
                 "num_gridlines": {
                   "type": "repr",
@@ -65,7 +65,7 @@
                 },
                 "topic": {
                   "type": "repr",
-                  "repr": "u'/color'"
+                  "repr": "u'/rgb'"
                 },
                 "publish_click_location": {
                   "type": "repr",
