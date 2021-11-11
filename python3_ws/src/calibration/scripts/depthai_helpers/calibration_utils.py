@@ -109,7 +109,7 @@ class StereoCalibration(object):
         for camera in board_config['cameras'].keys():
             cam_info = board_config['cameras'][camera]
             images_path = filepath + '/' + cam_info['name']
-            ret, intrinsics, dist_coeff, _, _, size = self.calibrate_intrinsics(images_path)
+            ret, intrinsics, dist_coeff, _, _, size = self.calibrate_intrinsics(images_path, cam_info['hfov'])
             cam_info['intrinsics'] = intrinsics
             cam_info['dist_coeff'] = dist_coeff
             cam_info['size'] = size
@@ -129,8 +129,11 @@ class StereoCalibration(object):
                     specTranslation = left_cam_info['extrinsics']['specTranslation']
                     rot = left_cam_info['extrinsics']['rotation']
 
-                    translation = [specTranslation.x, specTranslation.y, specTranslation.z]
-                    rotation = R.from_euler('xyz', [rot.r, rot.p, rot.y], degrees=True)
+                    translation = np.array([specTranslation['x'], specTranslation['y'], specTranslation['z']], dtype=np.float32)
+                    rotation = R.from_euler('xyz', [rot['r'], rot['p'], rot['y']], degrees=True).as_matrix().astype(np.float32)
+                    print("translation ->")
+                    print(translation)
+                    print(type(translation))
                     
                     extrinsics = self.calibrate_extrinsics(left_path, right_path, left_cam_info['intrinsics'], left_cam_info['dist_coeff'], right_cam_info['intrinsics'], right_cam_info['dist_coeff'], translation, rotation)
                     if extrinsics[0] != -1:
@@ -224,17 +227,19 @@ class StereoCalibration(object):
         imsize = gray.shape
         return allCorners, allIds, all_marker_corners, all_marker_ids, imsize, all_recovered
 
-    def calibrate_intrinsics(self, image_files):
+    def calibrate_intrinsics(self, image_files, hfov):
         image_files = glob.glob(image_files + "/*")
         image_files.sort()
         assert len(
             image_files) != 0, "ERROR: Images not read correctly, check directory"
 
         allCorners, allIds, _, _, imsize, _ = self.analyze_charuco(image_files)
-        if self.camera_model == 'perspective':
-            return self.calibrate_camera_charuco(allCorners, allIds, imsize[::-1]), imsize[::-1] # (Height, width)
+        if self.cameraModel == 'perspective':
+            ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors = self.calibrate_camera_charuco(allCorners, allIds, imsize[::-1], hfov)
+            return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors, imsize[::-1] # (Height, width)
         else:
-            return self.calibrate_fisheye(allCorners, allIds, imsize[::-1]), imsize[::-1] # (Height, width)
+            ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors = self.calibrate_fisheye(allCorners, allIds, imsize[::-1])
+            return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors, imsize[::-1] # (Height, width)
 
     def calibrate_extrinsics(self, images_left, images_right, M_l, d_l, M_r, d_r, guess_translation, guess_rotation):
         self.objpoints = []  # 3d point in real world space
@@ -251,6 +256,9 @@ class StereoCalibration(object):
             images_left) != 0, "ERROR: Images not found, check directory"
         assert len(
             images_right) != 0, "ERROR: Images not found, check directory"
+        print('Images from left and right')
+        print(images_left[0])
+        print(images_right[0])
 
         scale = None
         scale_req = False
@@ -273,7 +281,7 @@ class StereoCalibration(object):
             # if scaled_height <  smaller_res[0]:
             if diff < 0:
                 scaled_res = (scaled_height, scaled_res[1])
-
+        
         # scaled_res = (scaled_height, )
         M_lp = self.scale_intrinsics(M_l, frame_left_shape, scaled_res)
         M_rp = self.scale_intrinsics(M_r, frame_right_shape, scaled_res)
@@ -286,10 +294,14 @@ class StereoCalibration(object):
         allCorners_r, allIds_r, _, _, imsize_r, _ = self.analyze_charuco(
             images_right, scale_req, scaled_res)
 
-        assert imsize_r != imsize_l, "Left and right resolution scaling is wrong"
+        print(imsize_r)
+        print(imsize_l)
+        
+        assert imsize_r == imsize_l, "Left and right resolution scaling is wrong"
+        # assert imsize_r[1] == imsize_l[1], "Left and right resolution scaling is wrong"
 
         return self.calibrate_stereo(
-            allCorners_l, allIds_l, allCorners_r, allIds_r, imsize_r, M_lp, d_l, M_rp, d_r)
+            allCorners_l, allIds_l, allCorners_r, allIds_r, imsize_r, M_lp, d_l, M_rp, d_r, guess_translation, guess_rotation)
 
     def scale_intrinsics(self, intrinsics, originalShape, destShape):
         scale = destShape[1] / originalShape[1]
@@ -297,8 +309,8 @@ class StereoCalibration(object):
         scaled_intrinsics = np.matmul(scale_mat, intrinsics)
         print("Scaled height offset : {}".format((originalShape[0] * scale - destShape[0]) / 2))
         print("Scaled width offset : {}".format((originalShape[1] * scale - destShape[1]) / 2))
-        scaled_intrinsics[1][2] -= (originalShape[0] * scale - destShape[0]) / 2;
-        scaled_intrinsics[0][2] -= (originalShape[1] * scale - destShape[1]) / 2;
+        scaled_intrinsics[1][2] -= (originalShape[0] * scale - destShape[0]) / 2
+        scaled_intrinsics[0][2] -= (originalShape[1] * scale - destShape[1]) / 2
         return scaled_intrinsics
 
     def fisheye_undistort_visualizaation(self, img_list, K, D, img_size):
@@ -362,7 +374,7 @@ class StereoCalibration(object):
             distCoeffs=distCoeffsInit,
             flags=flags,
             criteria=(cv2.TERM_CRITERIA_EPS & cv2.TERM_CRITERIA_COUNT, 10000, 1e-9))
-
+        print(ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors)
         return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors
 
     def calibrate_fisheye(self, allCorners, allIds, imsize):
@@ -387,7 +399,7 @@ class StereoCalibration(object):
 
         return cv2.fisheye.calibrate(obj_points, allCorners, imsize, cameraMatrixInit, distCoeffsInit, flags=flags, criteria=term_criteria)
 
-    def calibrate_stereo(self, allCorners_l, allIds_l, allCorners_r, allIds_r, imsize, cameraMatrix_l, distCoeff_l, cameraMatrix_r, distCoeff_r, r_in, t_in):
+    def calibrate_stereo(self, allCorners_l, allIds_l, allCorners_r, allIds_r, imsize, cameraMatrix_l, distCoeff_l, cameraMatrix_r, distCoeff_r, t_in, r_in):
         left_corners_sampled = []
         right_corners_sampled = []
         obj_pts = []
@@ -427,20 +439,20 @@ class StereoCalibration(object):
         if self.cameraModel == 'perspective':
             flags = 0
             flags |= cv2.CALIB_FIX_INTRINSIC
-            flags |= cv2.CALIB_RATIONAL_MODEL
+            # flags |= cv2.CALIB_RATIONAL_MODEL
             flags |= cv2.CALIB_USE_EXTRINSIC_GUESS
-
-            ret, M1, d1, M2, d2, R, T, E, F = cv2.stereoCalibrate(
+            print(distCoeff_l)
+            ret, M1, d1, M2, d2, R, T, E, F, _ = cv2.stereoCalibrateExtended(
                 obj_pts, left_corners_sampled, right_corners_sampled,
                 cameraMatrix_l, distCoeff_l, cameraMatrix_r, distCoeff_r, imsize,
-                r_in, t_in, criteria=stereocalib_criteria, flags=flags)
+                R=r_in, T=t_in, criteria=stereocalib_criteria, flags=flags)
 
             R_l, R_r, P_l, P_r, Q, validPixROI1, validPixROI2 = cv2.stereoRectify(
                 cameraMatrix_l,
                 distCoeff_l,
                 cameraMatrix_r,
                 distCoeff_r,
-                imsize, R, T)
+                imsize, r_in, t_in)
             return [ret, R, T, R_l, R_r]
 
         elif self.cameraModel == 'fisheye':

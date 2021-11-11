@@ -81,6 +81,7 @@ camToRgbRes = {
                 'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P
                 }
 
+
 class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
@@ -791,6 +792,7 @@ class depthai_calibration_node:
                 currFrame = frame.getCvFrame()
                 if frame.getType() != dai.RawImgFrame.Type.RAW8:
                     currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
+                print('Resolution: {}'.format(currFrame.shape))
                 capturedFrames[cam_info['name']] = currFrame 
                 self.imgPublishers[cam_info['name']].publish(
                             self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
@@ -812,8 +814,13 @@ class depthai_calibration_node:
 
                 dst_laplace = cv2.Laplacian(currFrame, cv2.CV_64F)
                 mu, sigma = cv2.meanStdDev(dst_laplace)
+
                 print('Sigma of {} is {}'.format(cam_info['name'], sigma))
-                if sigma > self.focusSigmaThreshold:
+                localFocusThreshold = self.focusSigmaThreshold 
+                if dst_laplace.shape[1] > 2000:
+                    localFocusThreshold = localFocusThreshold / 2
+
+                if sigma > localFocusThreshold:
                     isFocused[config_cam] = True
                     self.focusSigma[cam_info['name']] = sigma
                     if cam_info['hasAutofocus']:
