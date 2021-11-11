@@ -765,9 +765,9 @@ class depthai_calibration_node:
             isFocused[cam_info['name']] = False
             capturedFrames[cam_info['name']] = None
 
-            if cam_info.hasAutofocus:
+            if cam_info['hasAutofocus']:
                 trigCount[cam_info['name']] = 0
-            self.control_queue[cam_info['name']].send(ctrl)
+                self.control_queue[cam_info['name']].send(ctrl)
 
         rospy.sleep(1)
         focusFailed  = False
@@ -781,7 +781,7 @@ class depthai_calibration_node:
                 self.imgPublishers[cam_info['name']].publish(
                             self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
 
-                if cam_info.hasAutofocus:
+                if cam_info['hasAutofocus']:
                     marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
                     if len(marker_corners) < 30:
                         print("Board not detected. Waiting...!!!")
@@ -802,10 +802,10 @@ class depthai_calibration_node:
                 if sigma > self.focusSigmaThreshold:
                     isFocused[cam_info['name']] = True
                     self.focusSigma[cam_info['name']] = sigma
-                    if cam_info.hasAutofocus:
+                    if cam_info['hasAutofocus']:
                         self.lensPosition[cam_info['name']] = frame.getLensPosition()
                 else:
-                    if cam_info.hasAutofocus:
+                    if cam_info['hasAutofocus']:
                         trigCount[cam_info['name']] += 1
                         if trigCount[cam_info['name']] > 31:
                             trigCount[cam_info['name']] = 0
@@ -834,7 +834,7 @@ class depthai_calibration_node:
         self.is_service_active = False
         for key in isFocused.keys():
             if isFocused[key]:
-                if self.board_config['cameras'][key].hasAutofocus:
+                if self.board_config['cameras'][key]['hasAutofocus']:
                     ctrl = dai.CameraControl()
                     ctrl.setManualFocus(self.lensPosition[key])
                     print("Sending manual focus Control")
@@ -940,7 +940,7 @@ class depthai_calibration_node:
             calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][1], cam_info['size'][0])
             calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
-            if cam_info.hasAutofocus:
+            if cam_info['hasAutofocus']:
                 calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
             
             log_list.append(self.focusSigma[cam_info['name']])
@@ -950,7 +950,7 @@ class depthai_calibration_node:
             color = green
             if 'extrinsics' in cam_info:
                 if 'to_cam' in cam_info['extrinsics']:
-                    right_cam = result_config['cameras'][cam_info.extrinsics.to_cam].name
+                    right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
                     
                     if cam_info['extrinsics']['epipolar_error'] > 0.5:
