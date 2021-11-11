@@ -781,7 +781,7 @@ class depthai_calibration_node:
 
             if cam_info['hasAutofocus']:
                 trigCount[cam_info['name']] = 0
-            self.control_queue[cam_info['name']].send(ctrl)
+                self.control_queue[cam_info['name']].send(ctrl)
 
         rospy.sleep(1)
         focusFailed  = False
@@ -849,7 +849,7 @@ class depthai_calibration_node:
         self.is_service_active = False
         for key in isFocused.keys():
             if isFocused[key]:
-                if self.board_config['cameras'][key].hasAutofocus:
+                if self.board_config['cameras'][key]['hasAutofocus']:
                     ctrl = dai.CameraControl()
                     ctrl.setManualFocus(self.lensPosition[key])
                     print("Sending manual focus Control")
