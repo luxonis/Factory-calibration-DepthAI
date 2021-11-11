@@ -331,30 +331,30 @@ class depthai_calibration_node:
 
         for cam_id in self.board_config['cameras']:
             cam_info = self.board_config['cameras'][cam_id]
-            if cam_info.type == 'mono':
+            if cam_info['type'] == 'mono':
                 cam_node = pipeline.createMonoCamera()
                 xout = pipeline.createXLinkOut()
 
                 cam_node.setBoardSocket(stringToCam[cam_id])
-                cam_node.setResolution(camToMonoRes[cam_info.sensorName])
+                cam_node.setResolution(camToMonoRes[cam_info['sensorName']])
                 cam_node.setFps(10)
 
-                xout.setStreamName(cam_info.name)
+                xout.setStreamName(cam_info['name'])
                 cam_node.out.link(xout.input)
             else:
                 cam_node = pipeline.createColorCamera()
                 xout = pipeline.createXLinkOut()
                 
                 cam_node.setBoardSocket(stringToCam[cam_id])
-                cam_node.setResolution(camToMonoRes[cam_info.sensorName])
+                cam_node.setResolution(camToRgbRes[cam_info['sensorName']])
                 cam_node.setFps(10)
 
-                xout.setStreamName(cam_info.name)
+                xout.setStreamName(cam_info['name'])
                 cam_node.isp.link(xout.input)
 
-                if cam_info.hasAutofocus:
+                if cam_info['hasAutofocus']:
                     controlIn = pipeline.createXLinkIn()
-                    controlIn.setStreamName(cam_info.name + '-control')
+                    controlIn.setStreamName(cam_info['name'] + '-control')
                     controlIn.out.link(cam_node.inputControl)
 
         """ if not self.args['disableLR']:
@@ -449,11 +449,14 @@ class depthai_calibration_node:
             if not self.is_service_active and self.device is not None and not self.device.isClosed(): 
                 for config_cam in self.board_config['cameras']:
                     cam_info = self.board_config['cameras'][config_cam]
-                    frame = self.camera_queue[cam_info.name].tryGet()
+                    frame = self.camera_queue[cam_info['name']].tryGet()
                     if frame is not None:
-                        # currFrame = frame.getCvFrame()
-                        currFrame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-                        self.imgPublishers[cam_info.name].publish(
+                        currFrame = None
+                        if frame.getType() == dai.RawImgFrame.Type.RAW8:
+                            currFrame = frame.getCvFrame()
+                        else:
+                            currFrame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                        self.imgPublishers[cam_info['name']].publish(
                                 self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
 
     def cvt_bgr(self, packet):
@@ -615,8 +618,9 @@ class depthai_calibration_node:
                         for in_cam in self.board_config['cameras'].keys():
                             cam_info = self.board_config['cameras'][in_cam]
                             if properties.socket == stringToCam[in_cam]:
-                                self.board_config['cameras'][in_cam].sensorName = properties.sensorName
-                                self.board_config['cameras'][in_cam].hasAutofocus = properties.hasAutofocus
+                                self.board_config['cameras'][in_cam]['sensorName'] = properties.sensorName
+                                print('Cam: {} and focus: {}'.format(cam_info['name'], properties.hasAutofocus))
+                                self.board_config['cameras'][in_cam]['hasAutofocus'] = properties.hasAutofocus
                                 self.auto_checkbox_dict[cam_info['name']  + '-Camera-Conencted'].check()
                                 break
 
@@ -643,7 +647,10 @@ class depthai_calibration_node:
                         for config_cam in self.board_config['cameras']:
                             cam = self.board_config['cameras'][config_cam]
                             self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 5, False)
-                            if cam.hasAutofocus:
+                            print(cam['name'])
+                            print('Name ---->')
+                            print('AF status: {}'.format(cam['hasAutofocus']))
+                            if cam['hasAutofocus']:
                                 self.control_queue[cam['name']] = self.device.getOutputQueue(cam['name'] + '-control', 5, False)
                     else:
                         print("Closing Device...")
@@ -674,9 +681,16 @@ class depthai_calibration_node:
                 for config_cam in self.board_config['cameras']:
                     name = self.board_config['cameras'][config_cam]['name']
                     imageFrame = self.camera_queue[name].tryGet()
+                   
                     if imageFrame is not None:
                         mipi[name] = True
-                        frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                        frame = None
+                        print(name)
+                        print('--------------------')
+                        if imageFrame.getType() == dai.RawImgFrame.Type.RAW8:
+                            frame = imageFrame.getCvFrame()
+                        else:
+                            frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY)
                         self.imgPublishers[name].publish(
                             self.bridge.cv2_to_imgmsg(frame, "passthrough"))
 
@@ -761,11 +775,11 @@ class depthai_calibration_node:
             cam_info = self.board_config['cameras'][config_cam]
             focusCount[cam_info['name']] = 0
             self.focusSigma[cam_info['name']] = 0
-            self.lensPosition[cam_info['name']] = 0;
+            self.lensPosition[cam_info['name']] = 0
             isFocused[cam_info['name']] = False
             capturedFrames[cam_info['name']] = None
 
-            if cam_info.hasAutofocus:
+            if cam_info['hasAutofocus']:
                 trigCount[cam_info['name']] = 0
             self.control_queue[cam_info['name']].send(ctrl)
 
@@ -776,12 +790,13 @@ class depthai_calibration_node:
                 cam_info = self.board_config['cameras'][config_cam]
                 frame = self.camera_queue[cam_info['name']].getAll()[-1]
                 currFrame = frame.getCvFrame()
+                if frame.getType() != dai.RawImgFrame.Type.RAW8:
+                    currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
                 capturedFrames[cam_info['name']] = currFrame 
-                currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
                 self.imgPublishers[cam_info['name']].publish(
                             self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
 
-                if cam_info.hasAutofocus:
+                if cam_info['hasAutofocus']:
                     marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
                     if len(marker_corners) < 30:
                         print("Board not detected. Waiting...!!!")
@@ -802,10 +817,10 @@ class depthai_calibration_node:
                 if sigma > self.focusSigmaThreshold:
                     isFocused[cam_info['name']] = True
                     self.focusSigma[cam_info['name']] = sigma
-                    if cam_info.hasAutofocus:
+                    if cam_info['hasAutofocus']:
                         self.lensPosition[cam_info['name']] = frame.getLensPosition()
                 else:
-                    if cam_info.hasAutofocus:
+                    if cam_info['hasAutofocus']:
                         trigCount[cam_info['name']] += 1
                         if trigCount[cam_info['name']] > 31:
                             trigCount[cam_info['name']] = 0
@@ -869,9 +884,13 @@ class depthai_calibration_node:
 
         for key in self.camera_queue.keys():
             frame = self.camera_queue[key].getAll()[-1]
-            gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+            gray_frame = None
+            if frame.getType() == dai.RawImgFrame.Type.RAW8:
+                gray_frame = frame.getCvFrame()
+            else:
+                gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
             self.imgPublishers[key].publish(
-                        self.bridge.cv2_to_imgmsg(gray_frame.getCvFrame(), "passthrough"))
+                        self.bridge.cv2_to_imgmsg(gray_frame, "passthrough"))
             
             is_board_found = self.is_markers_found(gray_frame)
             if is_board_found:
@@ -940,7 +959,7 @@ class depthai_calibration_node:
             calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][1], cam_info['size'][0])
             calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
-            if cam_info.hasAutofocus:
+            if cam_info['hasAutofocus']:
                 calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
             
             log_list.append(self.focusSigma[cam_info['name']])
@@ -950,7 +969,7 @@ class depthai_calibration_node:
             color = green
             if 'extrinsics' in cam_info:
                 if 'to_cam' in cam_info['extrinsics']:
-                    right_cam = result_config['cameras'][cam_info.extrinsics.to_cam].name
+                    right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
                     
                     if cam_info['extrinsics']['epipolar_error'] > 0.5:
