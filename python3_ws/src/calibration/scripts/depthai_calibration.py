@@ -741,6 +741,7 @@ class depthai_calibration_node:
 
             isAllPassed = True
             for key in self.auto_checkbox_dict.keys():
+                #FIXME(sachin): is_checked is a function not a variable
                 isAllPassed = isAllPassed and self.auto_checkbox_dict[key].is_checked
 
             if isAllPassed:
@@ -750,7 +751,7 @@ class depthai_calibration_node:
                 self.retest()
 
         dataset_path = Path(self.package_path + "/dataset")
-        if 1 and dataset_path.exists():
+        if 0 and dataset_path.exists():
             shutil.rmtree(str(dataset_path))
         # dev_info = self.device.getDeviceInfo()
         self.is_service_active = False
@@ -930,9 +931,9 @@ class depthai_calibration_node:
         # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
             self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
-        
+        print(self.package_path)
         stereo_calib = StereoCalibration()
-        stats, result_config = stereo_calib.calibrate(
+        status, result_config = stereo_calib.calibrate(
                                         self.board_config,
                                         self.package_path + "/dataset",
                                         self.args['square_size_cm'],
@@ -941,15 +942,15 @@ class depthai_calibration_node:
                                         self.args['squares_y'],
                                         self.args['cameraModel'],
                                         False) # Turn off enable disp rectify
- 
+         
         start_time = datetime.now()
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
         log_list = [time_stmp, mx_serial_id]
         for key in self.ccm_selected.keys():
             log_list.append(self.ccm_selected[key])
-        
-        if stats == -1:
+
+        if status == -1:
             self.is_service_active = False
             self.close_device()
             return result_config
