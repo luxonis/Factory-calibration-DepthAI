@@ -970,7 +970,8 @@ class depthai_calibration_node:
             pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
             
             calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info['dist_coeff'])
-            calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][1], cam_info['size'][0])
+            print(cam_info['size'])
+            calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
             calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
             if cam_info['hasAutofocus']:
@@ -981,7 +982,13 @@ class depthai_calibration_node:
             
             vis_y += 30
             color = green
+            print('Before extrinsics')
+            print(camera)
+                
             if 'extrinsics' in cam_info:
+                print('In extrinsics')
+                print(camera)
+                
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
@@ -994,9 +1001,13 @@ class depthai_calibration_node:
                     text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info['extrinsics']['epipolar_error'], '.6f')
                     pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
                     vis_y += 30
+                    specTranslation = np.array([cam_info['extrinsics']['specTranslation']['x'], cam_info['extrinsics']['specTranslation']['y'], cam_info['extrinsics']['specTranslation']['z']], dtype=np.float32)
 
-                    calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info['extrinsics']['to_cam']], cam_info['extrinsics']['rotation_matrix'], cam_info['extrinsics']['translation'], cam_info['extrinsics']['specTranslation'])
-                    if result_config['stereo_config']['left_cam'] == left_cam and result_config['stereo_config']['right_cam'] == right_cam:
+                    calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info['extrinsics']['to_cam']], cam_info['extrinsics']['rotation_matrix'], cam_info['extrinsics']['translation'], specTranslation)
+                    print('Left Cam: {} and right cam: {}'.format(left_cam, right_cam))
+                    print('Stereo Left Cam: {} and Stereo right cam: {}'.format(result_config['stereo_config']['left_cam'], result_config['stereo_config']['right_cam']))
+                    if result_config['stereo_config']['left_cam'] == camera and result_config['stereo_config']['right_cam'] == cam_info['extrinsics']['to_cam']:
+                        print('Inside IF condition')
                         calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
                         calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
             else:
@@ -1010,9 +1021,11 @@ class depthai_calibration_node:
         calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
         
         self.is_service_active = False
-        self.close_device()
         if len(error_text) == 0:
+            print('Flashing Calibration data')
+            print(calib_dest_path)
             calibration_handler.eepromToJsonFile(calib_dest_path)
+            print(calib_dest_path)
             try:
                 is_write_succesful = self.device.flashCalibration(calibration_handler)
             except:
@@ -1032,6 +1045,7 @@ class depthai_calibration_node:
             text = error_text[0]
             pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
             print(error_text)
+            self.close_device()
             return (False, error_text[0])
 
 

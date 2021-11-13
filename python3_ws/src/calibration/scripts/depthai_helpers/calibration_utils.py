@@ -115,6 +115,10 @@ class StereoCalibration(object):
             cam_info['dist_coeff'] = dist_coeff
             cam_info['size'] = size
             cam_info['reprojection_error'] = ret
+            print(ret)
+            print(intrinsics)
+            # print(ret)
+            
 
         for camera in board_config['cameras'].keys():
             left_cam_info = board_config['cameras'][camera]
@@ -703,10 +707,10 @@ class StereoCalibration(object):
                          (0, 255, 0), 1)
                 line_row += 30
 
-            cv2.imshow('Stereo Pair', img_concat)
-            k = cv2.waitKey(0)
-            if k == 27:  # Esc key to stop
-                break
+            # cv2.imshow('Stereo Pair', img_concat)
+            # k = cv2.waitKey(0)
+            # if k == 27:  # Esc key to stop
+            #     break
 
             if res2_l[1] is not None and res2_r[2] is not None and len(res2_l[1]) > 3 and len(res2_r[1]) > 3:
 
