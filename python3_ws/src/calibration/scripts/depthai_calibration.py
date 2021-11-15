@@ -963,7 +963,7 @@ class depthai_calibration_node:
             cam_info = result_config['cameras'][camera]
             color = green
             
-            if cam_info['reprojection_error'] > 0.5:
+            if cam_info['reprojection_error'] > 0.7:
                 color = red
                 error_text.append("high Reprojection Error")
             text = cam_info['name'] + ' Reprojection Error: ' + format(cam_info['reprojection_error'], '.6f')
@@ -1047,7 +1047,6 @@ class depthai_calibration_node:
             print(error_text)
             self.close_device()
             return (False, error_text[0])
-
 
 
 no_button = pygame.Rect(490, 500, 80, 45)
