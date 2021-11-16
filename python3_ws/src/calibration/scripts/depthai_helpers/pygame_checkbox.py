@@ -124,9 +124,7 @@ class Checkbox:
         self.unchecked = True
 
     def isUnattended(self):
-        self.Unattended = True
-        self.checked = False
-        self.unchecked = True
+        return self.Unattended
 
     def is_checked(self):
         return self.checked

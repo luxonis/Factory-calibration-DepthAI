@@ -443,8 +443,8 @@ class StereoCalibration(object):
                 right_corners_sampled.append(
                     np.array(right_sub_corners, dtype=np.float32))
             else:
-                return [-1, "Stereo Calib failed due to less common features"]
-        print('allIds_l2')
+                return -1, "Stereo Calib failed due to less common features"
+
         stereocalib_criteria = (cv2.TERM_CRITERIA_COUNT +
                                 cv2.TERM_CRITERIA_EPS, 100, 1e-5)
 
@@ -478,9 +478,7 @@ class StereoCalibration(object):
                 cameraMatrix_r,
                 distCoeff_r,
                 imsize, R, T)
-            print('Extrinsics')
-            print(R)
-            print(T)
+            
             return [ret, R, T, R_l, R_r]
 
         elif self.cameraModel == 'fisheye':
@@ -500,6 +498,8 @@ class StereoCalibration(object):
             #     print(len(left_corners_sampled[i]))
             #     print(len(right_corners_sampled[i]))
             flags = 0
+            flags |= cv2.CALIB_FIX_INTRINSIC
+            flags |= cv2.CALIB_RATIONAL_MODEL
             # flags |= cv2.fisheye.CALIB_RECOMPUTE_EXTRINSIC # TODO(SACHIN): Try without intrinsic guess
             ret, M1, d1, M2, d2, R, T, E, F = cv2.fisheye.stereoCalibrate(
                 obj_pts, left_corners_sampled, right_corners_sampled,
@@ -512,6 +512,7 @@ class StereoCalibration(object):
                 cameraMatrix_r,
                 distCoeff_r,
                 imsize, R, T)
+            
             return [ret, R, T, R_l, R_r]
 
     def display_rectification(self, image_data_pairs):

@@ -108,11 +108,9 @@ class depthai_calibration_node:
         self.init_time = time.time()
         if self.args['board']:
             board_path = Path(self.args['board'])
-            print(board_path)
             if not board_path.exists():
                 board_path = Path(consts.resource_paths.boards_dir_path) / \
                     Path(self.args['board'].upper()).with_suffix('.json')
-                print(board_path)
                 if not board_path.exists():
                     raise ValueError(
                         'Board config not found: {}'.format(board_path))
@@ -140,11 +138,9 @@ class depthai_calibration_node:
             header.append(cam_info['name'] + '-camera')
             header.append(cam_info['name'] + '-focus-stdDev')
             header.append(cam_info['name'] + '-Reprojection-Error')
-            self.auto_checkbox_names.append(cam_info['name']  + '-Camera-Conencted')
+            self.auto_checkbox_names.append(cam_info['name']  + '-Camera-connected')
             self.auto_checkbox_names.append(cam_info['name']  + '-Stream')
             self.auto_focus_checkbox_names.append(cam_info['name']  + '-Focus')
-            print('---------------')
-            print(cam_id)
             if 'extrinsics' in cam_info:
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = self.board_config['cameras'][cam_info['extrinsics']['to_cam']]['name']    
@@ -352,66 +348,13 @@ class depthai_calibration_node:
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.isp.link(xout.input)
-                print('Pipeline config: Focus state of {} is {} and named {}:'.format(cam_info['name'], cam_info['hasAutofocus'], cam_info['name'] + '-control'))
+
                 if cam_info['hasAutofocus']:
                     controlIn = pipeline.createXLinkIn()
                     controlIn.setStreamName(cam_info['name'] + '-control')
                     controlIn.out.link(cam_node.inputControl)
 
-        """ if not self.args['disableLR']:
-            cam_left = pipeline.createMonoCamera()
-            cam_right = pipeline.createMonoCamera()
-
-            xout_left = pipeline.createXLinkOut()
-            xout_right = pipeline.createXLinkOut()
-
-            if self.args['swapLR']:
-                cam_left.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-                cam_right.setBoardSocket(dai.CameraBoardSocket.LEFT)
-            else:
-                cam_left.setBoardSocket(dai.CameraBoardSocket.LEFT)
-                cam_right.setBoardSocket(dai.CameraBoardSocket.RIGHT)
-                    
-            cam_left.setResolution(
-                dai.MonoCameraProperties.SensorResolution.THE_480_P)
-
-            cam_right.setResolution(
-                dai.MonoCameraProperties.SensorResolution.THE_480_P)
-            cam_left.setFps(10)
-            cam_right.setFps(10)
-
-            xout_left.setStreamName("left")
-            cam_left.out.link(xout_left.input)
-
-            xout_right.setStreamName("right")
-            cam_right.out.link(xout_right.input)
-
-        if not self.args['disableRgb']:
-            rgb_cam = pipeline.createColorCamera()
-            controlIn = pipeline.createXLinkIn()
-            
-            rgb_cam.setResolution(
-                dai.ColorCameraProperties.SensorResolution.THE_4_K)
-            rgb_cam.setInterleaved(False)
-            rgb_cam.setBoardSocket(dai.CameraBoardSocket.RGB)
-            rgb_cam.setFps(10)
-            rgb_cam.setIspScale(1, 3)
-            # rgb_cam.initialControl.setManualFocus(self.defaultLensPosition)
-            # self.focus_value = self.defaultLensPosition
-            rgb_cam.initialControl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
-            rgb_cam.initialControl.setAutoFocusLensRange(77, 204)
-
-            controlIn.setStreamName('control')
-            controlIn.out.link(rgb_cam.inputControl)
-
-            xout_rgb_isp = pipeline.createXLinkOut()
-            xout_rgb_isp.setStreamName("rgb")
-            rgb_cam.isp.link(xout_rgb_isp.input)
-
-        return pipeline """
-
         return pipeline
-
 
     def capture_exit(self):
         is_clicked = False
@@ -464,7 +407,6 @@ class depthai_calibration_node:
         meta = packet.getMetadata()
         w = meta.getFrameWidth()
         h = meta.getFrameHeight()
-        # print((h, w))
         packetData = packet.getData()
         yuv420p = packetData.reshape((h * 3 // 2, w))
         return cv2.cvtColor(yuv420p, cv2.COLOR_YUV2BGR_IYUV)
@@ -478,7 +420,6 @@ class depthai_calibration_node:
         # filename = image_filename(stream_name, self.current_polygon, self.images_captured)
         print(self.package_path + "/dataset/{}/{}".format(stream_name, file_name))
         ds_path = self.package_path + "/dataset/{}".format(stream_name)
-        # print(ds_path)
         if not os.path.exists(ds_path):
             os.makedirs(ds_path)
 
@@ -622,15 +563,15 @@ class depthai_calibration_node:
                                 self.board_config['cameras'][in_cam]['sensorName'] = properties.sensorName
                                 print('Cam: {} and focus: {}'.format(cam_info['name'], properties.hasAutofocus))
                                 self.board_config['cameras'][in_cam]['hasAutofocus'] = properties.hasAutofocus
-                                self.auto_checkbox_dict[cam_info['name']  + '-Camera-Conencted'].check()
+                                self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].check()
                                 break
 
                     for config_cam in self.board_config['cameras'].keys():
                         cam_info = self.board_config['cameras'][config_cam]
-                        if self.auto_checkbox_dict[cam_info['name']  + '-Camera-Conencted'].isUnattended():
-                            self.auto_checkbox_dict[cam_info['name']  + '-Camera-Conencted'].uncheck()
+                        if self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].isUnattended():
+                            self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].uncheck()
                             lost_camera = True
-                        self.auto_checkbox_dict[cam_info['name']  + '-Camera-Conencted'].render_checkbox()
+                        self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].render_checkbox()
 
                     if self.args['usbMode']:
                         if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
@@ -648,9 +589,6 @@ class depthai_calibration_node:
                         for config_cam in self.board_config['cameras']:
                             cam = self.board_config['cameras'][config_cam]
                             self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 5, False)
-                            print(cam['name'])
-                            print('Name ---->')
-                            print('AF status: {}'.format(cam['hasAutofocus']))
                             if cam['hasAutofocus']:
                                 self.control_queue[cam['name']] = self.device.getInputQueue(cam['name'] + '-control', 5, False)
                     else:
@@ -686,8 +624,7 @@ class depthai_calibration_node:
                     if imageFrame is not None:
                         mipi[name] = True
                         frame = None
-                        print(name)
-                        print('--------------------')
+
                         if imageFrame.getType() == dai.RawImgFrame.Type.RAW8:
                             frame = imageFrame.getCvFrame()
                         else:
@@ -742,7 +679,7 @@ class depthai_calibration_node:
             isAllPassed = True
             for key in self.auto_checkbox_dict.keys():
                 #FIXME(sachin): is_checked is a function not a variable
-                isAllPassed = isAllPassed and self.auto_checkbox_dict[key].is_checked
+                isAllPassed = isAllPassed and self.auto_checkbox_dict[key].is_checked()
 
             if isAllPassed:
                 finished = True
@@ -857,8 +794,6 @@ class depthai_calibration_node:
         self.is_service_active = False
         for key in isFocused.keys():
             cam_name = self.board_config['cameras'][key]['name']
-            print('Camera names {}'.format(cam_name))
-            print('Autofocus state -> {}'.format(self.board_config['cameras'][key]['hasAutofocus']))
             if isFocused[key]:
                 if self.board_config['cameras'][key]['hasAutofocus']:
                     ctrl = dai.CameraControl()
@@ -872,22 +807,17 @@ class depthai_calibration_node:
                 self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
 
         for key in self.auto_focus_checkbox_dict.keys():
-            print(self.auto_focus_checkbox_dict[key].is_checked())
             if not self.auto_focus_checkbox_dict[key].is_checked():
                 self.close_device()
                 return (False, key + " is out of Focus")
-            else:
-                print(key + " is in Focus")
+            # else:
+            #     print(key + " is in Focus")
         
         return (True, "RGB in Focus")
 
 
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
-        """ recent_left = None
-        recent_right = None
-        recent_color = None
-        finished = False """
         self.is_service_active = True
         rospy.sleep(1)
 
@@ -931,7 +861,7 @@ class depthai_calibration_node:
         # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
             self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
-        print(self.package_path)
+        # print(self.package_path)
         stereo_calib = StereoCalibration()
         status, result_config = stereo_calib.calibrate(
                                         self.board_config,
@@ -970,7 +900,6 @@ class depthai_calibration_node:
             pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
             
             calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info['dist_coeff'])
-            print(cam_info['size'])
             calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
             calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
@@ -982,12 +911,8 @@ class depthai_calibration_node:
             
             vis_y += 30
             color = green
-            print('Before extrinsics')
-            print(camera)
                 
             if 'extrinsics' in cam_info:
-                print('In extrinsics')
-                print(camera)
                 
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
@@ -1004,10 +929,7 @@ class depthai_calibration_node:
                     specTranslation = np.array([cam_info['extrinsics']['specTranslation']['x'], cam_info['extrinsics']['specTranslation']['y'], cam_info['extrinsics']['specTranslation']['z']], dtype=np.float32)
 
                     calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info['extrinsics']['to_cam']], cam_info['extrinsics']['rotation_matrix'], cam_info['extrinsics']['translation'], specTranslation)
-                    print('Left Cam: {} and right cam: {}'.format(left_cam, right_cam))
-                    print('Stereo Left Cam: {} and Stereo right cam: {}'.format(result_config['stereo_config']['left_cam'], result_config['stereo_config']['right_cam']))
                     if result_config['stereo_config']['left_cam'] == camera and result_config['stereo_config']['right_cam'] == cam_info['extrinsics']['to_cam']:
-                        print('Inside IF condition')
                         calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
                         calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
             else:
@@ -1022,22 +944,19 @@ class depthai_calibration_node:
         
         self.is_service_active = False
         if len(error_text) == 0:
-            print('Flashing Calibration data')
+            print('Flashing Calibration data into ')
             print(calib_dest_path)
             calibration_handler.eepromToJsonFile(calib_dest_path)
-            print(calib_dest_path)
             try:
                 is_write_succesful = self.device.flashCalibration(calibration_handler)
             except:
                 print("Writing in except...")
                 is_write_succesful = self.device.flashCalibration(calibration_handler)
             if is_write_succesful:
-                # print_epipolar_error(green)
                 text = "EEPROM written succesfully"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
                 return (True, "EEPROM written succesfully")
             else:
-                # print_epipolar_error(red)
                 text = "EEPROM write Failed!!"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
                 return (False, "EEPROM write Failed!!")
