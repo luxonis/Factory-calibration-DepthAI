@@ -1,8 +1,8 @@
 {
     "board_config":
     {
-        "name": "OAK-D-POE",
-        "revision": "R1M0E0",
+        "name": "OAK-D-CM4",
+        "revision": "R2M0E2",
         "cameras":{
             "CAM_A": {
                 "name": "rgb",
@@ -16,7 +16,7 @@
                 "extrinsics": {
                     "to_cam": "CAM_C",
                     "specTranslation": {
-                        "x": -7.5,
+                        "x": -9.0,
                         "y": 0,
                         "z": 0
                     },
@@ -34,7 +34,7 @@
                 "extrinsics": {
                     "to_cam": "CAM_A",
                     "specTranslation": {
-                        "x": 3.75,
+                        "x": 7,
                         "y": 0,
                         "z": 0
                     },
@@ -52,4 +52,3 @@
         }
     }
 }
-

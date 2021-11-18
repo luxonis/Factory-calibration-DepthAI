@@ -1,7 +1,7 @@
 {
     "board_config":
     {
-        "name": "DM1098OAKD_WIFI",
+        "name": "OAK-D-IoT-75",
         "revision": "R0M0E0",
         "cameras":{
             "CAM_A": {
