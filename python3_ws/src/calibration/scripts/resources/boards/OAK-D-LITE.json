@@ -1,8 +1,8 @@
 {
     "board_config":
     {
-        "name": "OAK-D-POE",
-        "revision": "R1M0E0",
+        "name": "OAK-D-LITE",
+        "revision": "R1M1E1",
         "cameras":{
             "CAM_A": {
                 "name": "rgb",
@@ -11,7 +11,7 @@
             },
             "CAM_B": {
                 "name": "left",
-                "hfov": 71.86,
+                "hfov": 72.9,
                 "type": "mono",
                 "extrinsics": {
                     "to_cam": "CAM_C",
@@ -29,7 +29,7 @@
             },
             "CAM_C": {
                 "name": "right",
-                "hfov": 71.86,
+                "hfov": 72.9,
                 "type": "mono",
                 "extrinsics": {
                     "to_cam": "CAM_A",
@@ -52,4 +52,5 @@
         }
     }
 }
+
 

@@ -1,7 +1,13 @@
 #!/usr/bin/env python
 
+import os
 import sys
 import copy
+import pygame
+from pygame.locals import *
+import time
+import warnings
+
 import rospy
 import moveit_commander
 import moveit_msgs.msg
@@ -10,8 +16,22 @@ from math import pi
 from std_msgs.msg import String
 from moveit_commander.conversions import pose_to_list
 from calibration.srv import Capture
-import time
 ## END_SUB_TUTORIAL
+
+
+os.environ['SDL_VIDEO_WINDOW_POS'] = '1000,50'
+
+white  = [255, 255, 255]
+orange = [143, 122, 4]
+red    = [230, 9, 9]
+green  = [4, 143, 7]
+black  = [0, 0, 0]
+pygame.init()
+
+def pygame_render_text(surface, text, pose, color=(0,0,0), font_size = 30 ):
+    font = pygame.font.Font(None, font_size)
+    font_surf = font.render(text, True, color)
+    surface.blit(font_surf, pose)
 
 def all_close(goal, actual, tolerance):
   """
@@ -45,10 +65,10 @@ class MoveGroupPythonIntefaceTutorial(object):
     moveit_commander.roscpp_initialize(sys.argv)
     rospy.init_node('move_group_python_interface_tutorial',
                     anonymous=True)
-    # try:
-    #   self.capture_srv = rospy.ServiceProxy('/capture_checkerboard', Capture)  
-    # except rospy.ServiceException as e:
-    #   print("Service call failed: %s"%e)
+    try:
+      self.capture_srv = rospy.ServiceProxy('/capture_checkerboard', Capture)  
+    except rospy.ServiceException as e:
+      print("Service call failed: %s"%e)
 
     print("ininitalized service---------------------------------------->")
     ## Get the name of the robot - this will be used to properly define the end-effector link when adding a box
@@ -514,98 +534,115 @@ class MoveGroupPythonIntefaceTutorial(object):
     return self.wait_for_state_update(box_is_attached=False, box_is_known=False, timeout=timeout)
 
 
+def shutdown_handler():
+  
+  print("~~~~~~~~~~~~~~~Finishing up~~~~~~~~~~~~~~~~")
+  if arm_control is not None:
+    print("Moving to sleep pose -->")
+    arm_control.go_to_next_joint_state(sleep_pose)
+    rospy.sleep(2)
+
+
+def capture_exit():
+  is_clicked = False
+  no_active = False
+  for event in pygame.event.get():
+    if event.type == pygame.MOUSEMOTION:
+      x, y = event.pos
+      px, py, w, h = no_button
+      if px < x < px + w and py < y < py + h:
+          no_active = True
+          pygame.draw.rect(screen, orange, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+      else:
+          no_active = False
+          pygame.draw.rect(screen, red, no_button)
+          pygame_render_text(screen, 'Exit', (500, 505))
+  
+    if event.type == pygame.MOUSEBUTTONDOWN and no_active:
+        print("setting click")
+        click = True
+    if event.type == pygame.MOUSEBUTTONUP:
+        if no_active and click:
+          print("No clicked")
+          is_clicked = True
+          # is_device_ready = False
+          # if arm_control is not None:
+            # arm_control.go_to_next_joint_state(joints_goal_dict['sleep'])
+          break
+  # pygame.event.pump()
+  return is_clicked
+
+
 def main():
-  tutorial = MoveGroupPythonIntefaceTutorial()
+  global screen, disp, arm_control
+
+  rospy.on_shutdown(shutdown_handler)
+
+  disp = pygame.display
+  screen = disp.set_mode((800, 600))
+  screen.fill(white)
+  disp.set_caption("Focus ViewPoint ")
+  title = "focus test"
+
+  arm_control = MoveGroupPythonIntefaceTutorial()
+  pygame_render_text(screen, title, (350,20), orange, 50)
+  pygame.draw.rect(screen, orange, no_button)
+  pygame_render_text(screen, 'Exit', (500, 505))
   pose_goal = geometry_msgs.msg.Pose()
 
+  # swap_pose = rospy.get_param("~swap_pose")
+  # pref_swap_pose = ['right_start', 'left_start', 'right_swap', 'left_swap', 'center_swap']
+
+
+  # creating a dict of all the joints pose of the arm. Some are redundant here    
+  joints_goal_dict = {
+      'start'       : [0,0,0,0,0,0],
+      'left_1'      : [0.7730087577658563, 0.3276961983717477, 0.401425728, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618],
+      'left_2'      : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
+      'left_3'      : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
+      'left_4'      : [0.7685244083404541, 0.3276961983717477, 0.401425728, -1.4051264524459839, -1.4388740062713623, 1.68],
+      'top_1'       : [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784],
+      'top_2'       : [0.0076699042692780495, 0.45405831933021545, 1.4649516344070435, 0.02454369328916073, -1.3192235231399536, 0.0015339808305725455],
+      'top_3'       : [0.05842017661375378, -0.01091474055365706, 0.508682744553706, -0.018383082431995736, -1.1322537449334422, 0.022251283194952686],
+      'bottom_1'    : [0.13606868986112158, 0.5215120491717602, -0.6259154415618842, 0.13400943020992345, 1.8297667107528208, 0.02169278611695778],
+      'bottom_2'    : [0.13788992401193792, 0.674550873909903, -0.551118472069638, 0.13742538797703818, 1.8170618246483157, 0.021266569887058374],
+      'bottom_3'    : [0.14705021881303204, 0.8619704018470852, -0.41301399722681215, 0.1753433807927659, 1.830020125895237, 0.021073375261441003],
+      'right_1'     : [-0.725572943687439, 0.2914563715457916, 0.4080389142036438, -1.6275537014007568, 1.3299614191055298, 1.7824857234954834],
+      'right_2'     : [-0.725572943687439, 0.41264083981513977, 0.5936505794525146, -1.6275537014007568, 1.3284274339675903, 1.7824857234954834],
+      'right_3'     : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705],
+      'right_start' : [-1.56, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'left_start'  : [1.56, 0.0, 0.0, 0.0, 0.0, 0.0],
+      'right_swap'  : [-1.56, -0.78, -0.80, 0.0, 0.0, 0.0],
+      'left_swap'   : [1.56, -0.78, -0.80, -0.0, 0.0, 0.0],
+      'center_swap' : [0, -0.78, -0.80, 0.0, 0.0, 0.0],
+      'sleep'       : [0.05, -1.76, -1.55, 0.05, -0.8, 0.05]
+    }
+
   try:
-    print "============ Press `Enter` to begin the tutorial by setting up the moveit_commander (press ctrl-d to exit) ..."    
+    arm_control.go_to_next_joint_state(joints_goal_dict['start'])
+      # joints_goal = [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784]
+      # tutorial.go_to_next_joint_state(joints_goal)
+
+      # joints_goal = [-2.368507326065181, -1.7590461392706553, 0.32442732089777315, 1.743870642826355, -1.6225235540387866, 0.408189253406223]
+      # joints_goal = [0.7730087577658563, 0.3276961983717477, 0.3242623826514706, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618]
     # raw_input()
-
-
-    # joints_goal_dict = {
-    #   'start'    : [0,0,0,0,0,0],
-    #   'left_1'   : [0.7730087577658563, 0.3276961983717477, 0.401425728, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618],
-    #   'left_5'   : [0.7685244083404541, 0.3276961983717477, 0.401425728, -1.4051264524459839, -1.4388740062713623, 1.68],
-    #   'left_6'   : [0.7685244083404541, 0.3276961983717477, 0.401425728, -1.7051264524459839, -1.4388740062713623, 1.702718734741211],
-    #   'left_2'   : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
-    #   'left_3'   : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
-    #   'left_4'   : [0.7685244083404541, 0.4325825870037079, 0.3712233603000641, -1.4051264524459839, -1.4388740062713623, 1.702718734741211],
-
-    #   'top_1'    : [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784],
-    #   'top_2'    : [0.0076699042692780495, 0.45405831933021545, 1.4649516344070435, 0.02454369328916073, -1.3192235231399536, 0.0015339808305725455],
-    #   'top_3'    : [0.05842017661375378, -0.01091474055365706, 0.508682744553706, -0.018383082431995736, -1.1322537449334422, 0.022251283194952686],
-    #   'bottom_1' : [0.13606868986112158, 0.5215120491717602, -0.6259154415618842, 0.13400943020992345, 1.8297667107528208, 0.02169278611695778],
-    #   'bottom_2' : [0.13788992401193792, 0.674550873909903, -0.551118472069638, 0.13742538797703818, 1.8170618246483157, 0.021266569887058374],
-    #   'bottom_3' : [0.14705021881303204, 0.8619704018470852, -0.41301399722681215, 0.1753433807927659, 1.830020125895237, 0.021073375261441003],
-    #   'right_1'  : [-0.725572943687439, 0.2914563715457916, 0.4080389142036438, -1.6275537014007568, 1.3299614191055298, 1.7824857234954834],
-    #   'right_2'  : [-0.725572943687439, 0.41264083981513977, 0.5936505794525146, -1.6275537014007568, 1.3284274339675903, 1.7824857234954834],
-    #   'right_3'  : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705]
-    # }
-
-    # creating a dict of all the joints pose of the arm. Some are redundant here    
-    joints_goal_dict = {
-        'start'       : [0,0,0,0,0,0],
-        '2'           : [0,0,0,0,0,0],
-        'left_1'      : [0.7730087577658563, 0.3276961983717477, 0.401425728, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618],
-        'left_2'      : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
-        'left_3'      : [0.8651651740074158, 1.026233196258545, 1.607611894607544, -1.448077917098999, -1.5155730247497559, 1.0860583782196045],
-        'left_4'      : [0.7685244083404541, 0.3276961983717477, 0.401425728, -1.4051264524459839, -1.4388740062713623, 1.68],
-        'top_1'       : [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784],
-        'top_2'       : [0.0076699042692780495, 0.45405831933021545, 1.4649516344070435, 0.02454369328916073, -1.3192235231399536, 0.0015339808305725455],
-        'top_3'       : [0.05842017661375378, -0.01091474055365706, 0.508682744553706, -0.018383082431995736, -1.1322537449334422, 0.022251283194952686],
-        'bottom_1'    : [0.13606868986112158, 0.5215120491717602, -0.6259154415618842, 0.13400943020992345, 1.8297667107528208, 0.02169278611695778],
-        'bottom_2'    : [0.13788992401193792, 0.674550873909903, -0.551118472069638, 0.13742538797703818, 1.8170618246483157, 0.021266569887058374],
-        'bottom_3'    : [0.14705021881303204, 0.8619704018470852, -0.41301399722681215, 0.1753433807927659, 1.830020125895237, 0.021073375261441003],
-        'right_1'     : [-0.725572943687439, 0.2914563715457916, 0.4080389142036438, -1.6275537014007568, 1.3299614191055298, 1.7824857234954834],
-        'right_2'     : [-0.725572943687439, 0.41264083981513977, 0.5936505794525146, -1.6275537014007568, 1.3284274339675903, 1.7824857234954834],
-        'right_3'     : [-0.725572943687439, 0.7516506314277649, 1.0676506757736206, -1.6306216716766357, 1.3284274339675903, 1.9358837604522705],
-        'right_start' : [-1.56, 0.0, 0.0, 0.0, 0.0, 0.0],
-        '3'           : [-1.56, 0.0, 0.0, 0.0, 0.0, 0.0],
-        'left_start'  : [1.56, 0.0, 0.0, 0.0, 0.0, 0.0],
-        '1'           : [1.56, 0.0, 0.0, 0.0, 0.0, 0.0],
-        'right_swap'  : [-1.56, -0.78, -0.80, 0.0, 0.0, 0.0],
-        'left_swap'   : [1.56, -0.78, -0.80, -0.0, 0.0, 0.0],
-        'center_swap' : [0, -0.78, -0.80, 0.0, 0.0, 0.0],
-        'sleep'       : [0.05, -1.76, -1.55, 0.05, -0.8, 0.05]
-      }
-
-    tutorial.go_to_next_joint_state(joints_goal_dict['start'])
-    # joints_goal = [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784]
-    # tutorial.go_to_next_joint_state(joints_goal)
-
-    # joints_goal = [-2.368507326065181, -1.7590461392706553, 0.32442732089777315, 1.743870642826355, -1.6225235540387866, 0.408189253406223]
-    # joints_goal = [0.7730087577658563, 0.3276961983717477, 0.3242623826514706, 1.7006072182394685, 1.4454714320379867, -1.6844287949950618]
-    raw_input()
+    disp.update()
     time.sleep(1)
-    # pose_goal.position.x = 0.411591647559
-    # pose_goal.position.y = 0.246870561136
-    # pose_goal.position.z = 0.376044478546
-    # pose_goal.orientation.x = -0.0265851421897
-    # pose_goal.orientation.y = 0.0778909430231
-    # pose_goal.orientation.z = -0.325835364004
-    # pose_goal.orientation.w = 0.941837325006
-    
-    # raw_input()
-    actions = joints_goal_dict.keys()
-    actions.append('stop')
-    print("Choose one of the actions below:")
-    print(actions)
-    # tutorial.set_go_pose_goal(pose_goal)
-    key = raw_input()
-    while key != 'stop':
-      if key != 'current':
-        if key in joints_goal_dict:
-          tutorial.go_to_next_joint_state(joints_goal_dict[key])
-          time.sleep(1)
-        else:
-          print("Invalid key entered.")
-      else:
-        tutorial.get_curr_joint_state()
-      print("Choose one of the actions below:")
-      print(actions)
-      key = raw_input()
-    
+      # pose_goal.position.x = 0.411591647559
+      # pose_goal.position.y = 0.246870561136
+      # pose_goal.position.z = 0.376044478546
+      # pose_goal.orientation.x = -0.0265851421897
+      # pose_goal.orientation.y = 0.0778909430231
+      # pose_goal.orientation.z = -0.325835364004
+      # pose_goal.orientation.w = 0.941837325006
+      
+      # raw_input()
+    while True:
+      if capture_exit():
+        break
+      disp.update()
+
     pose_goal.position.x =  0.0811047406103
     pose_goal.position.y =  -1.34901728646e-05
     pose_goal.position.z =  0.128741153434
@@ -613,14 +650,35 @@ def main():
     pose_goal.orientation.y = 0.290732882379
     pose_goal.orientation.z = -6.39239167946e-05
     pose_goal.orientation.w = 0.956804257318
-    
-
-    tutorial.set_go_pose_goal(pose_goal)
-
+  except Exception as e :
+    print("Warining ----------------------------------------------->")
+    print(e)
+    warnings.warn(str(e))
+    print("~~~~~~~~~~~~~~~~~~EXIT~~~~~~~~~~~~~~~")
+  except rospy.ROSInterruptException:  
+    print("ROSInterruptException EERRRRROOORRR_----------------------------------------------")
   except KeyboardInterrupt:
+    print("KeyboardInterrupt EERRRRROOORRR_----------------------------------------------")
+    shutdown_handler()
 
-    print("EERRRRROOORRR_----------------------------------------------")
-    return
+  rospy.sleep(2)
 
+  print("moving yo sleep poose 1")
+  arm_control.set_go_pose_goal(pose_goal)
+  
+  print("moving yo sleep poose 12")
+  arm_control.go_to_next_joint_state(sleep_pose)
+  rospy.sleep(2)
+  print("finished Moving to sleep pose before finishinh----->")
+  
+  # raw_input()   
+  rospy.signal_shutdown("Finished calibration")
+  # arm_control.set_go_pose_goal(pose_goal)
+
+yes_button =  pygame.Rect(390, 400, 80, 45)
+no_button =  pygame.Rect(490, 500, 80, 45)
+sleep_pose = [0.05, -1.76, -1.55, 0.05, -0.8, 0.05]
+arm_control = None
+arg = {}
 if __name__ == '__main__':
   main()
