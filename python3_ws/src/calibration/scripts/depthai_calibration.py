@@ -137,7 +137,7 @@ class depthai_calibration_node:
         for cam_id in self.board_config['cameras'].keys():
             cam_info = self.board_config['cameras'][cam_id]
             header.append(cam_info['name'] + '-CCM')
-            header.append(cam_info['name'] + '-camera')
+            # header.append(cam_info['name'] + '-camera')
             header.append(cam_info['name'] + '-focus-stdDev')
             header.append(cam_info['name'] + '-Reprojection-Error')
             self.auto_checkbox_names.append(cam_info['name']  + '-Camera-connected')
