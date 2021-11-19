@@ -892,7 +892,11 @@ class depthai_calibration_node:
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]
             color = green
-            
+            reprojection_error_threshold = 0.7
+            if cam_info['size'][0] > 800:
+                reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][0] / 720
+
+            print('Reprojection error threshold -> {}'.format(reprojection_error_threshold))
             if cam_info['reprojection_error'] > 0.7:
                 color = red
                 error_text.append("high Reprojection Error")
@@ -911,14 +915,14 @@ class depthai_calibration_node:
             
             vis_y += 30
             color = green
-                
+            
             if 'extrinsics' in cam_info:
                 
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
                     
-                    if cam_info['extrinsics']['epipolar_error'] > 0.5:
+                    if cam_info['extrinsics']['epipolar_error'] > 0.6:
                         color = red
                         error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
                     elif cam_info['extrinsics']['epipolar_error'] == -1:
