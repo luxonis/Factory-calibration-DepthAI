@@ -401,6 +401,8 @@ class StereoCalibration(object):
             distCoeffs=distCoeffsInit,
             flags=flags,
             criteria=(cv2.TERM_CRITERIA_EPS & cv2.TERM_CRITERIA_COUNT, 50000, 1e-9))
+        print('Per View Errors...')
+        print(perViewErrors)
         return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors
 
     def calibrate_fisheye(self, allCorners, allIds, imsize):
@@ -466,11 +468,11 @@ class StereoCalibration(object):
         if self.cameraModel == 'perspective':
             flags = 0
             # flags |= cv2.CALIB_USE_EXTRINSIC_GUESS
-            print(flags)
+            # print(flags)
 
             flags |= cv2.CALIB_FIX_INTRINSIC
             flags |= cv2.CALIB_RATIONAL_MODEL
-            print(flags)
+            # print(flags)
             print('Printing Extrinsics guesses...')
             print(r_in)
             print(t_in)
@@ -584,7 +586,7 @@ class StereoCalibration(object):
 
     def scale_image(self, img, scaled_res):
         expected_height = img.shape[0]*(scaled_res[1]/img.shape[1])
-        print("Expected Height: {}".format(expected_height))
+        # print("Expected Height: {}".format(expected_height))
 
         if not (img.shape[0] == scaled_res[0] and img.shape[1] == scaled_res[1]):
             if int(expected_height) == scaled_res[0]:
@@ -670,7 +672,8 @@ class StereoCalibration(object):
 
             img_l = self.scale_image(img_l, scaled_res)
             img_r = self.scale_image(img_r, scaled_res)
-
+            # print(img_l.shape)
+            # print(img_r.shape)
 
             # warp right image
             # img_l = cv2.warpPerspective(img_l, self.H1, img_l.shape[::-1],
