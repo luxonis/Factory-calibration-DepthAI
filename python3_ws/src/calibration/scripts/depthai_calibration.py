@@ -921,7 +921,10 @@ class depthai_calibration_node:
                     if cam_info['extrinsics']['epipolar_error'] > 0.5:
                         color = red
                         error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
-                    
+                    elif cam_info['extrinsics']['epipolar_error'] == -1:
+                        color = red
+                        error_text.append("Epiploar validation failed between " + left_cam + " and " + right_cam)
+                   
                     log_list.append(cam_info['extrinsics']['epipolar_error'])
                     text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info['extrinsics']['epipolar_error'], '.6f')
                     pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)

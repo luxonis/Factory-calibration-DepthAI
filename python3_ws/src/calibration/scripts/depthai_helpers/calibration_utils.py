@@ -31,7 +31,8 @@ def setPolygonCoordinates(height, width):
         [[horizontal_shift*2-margin, 0], [horizontal_shift*2-margin, height], [width//2 +
                                                                                horizontal_shift*2-margin, height-slope], [width//2 + horizontal_shift*2-margin, slope]],
 
-        [[width-margin, 0], [width-margin, height], [width//2, height-slope], [width//2, slope]],
+        [[width-margin, 0], [width-margin, height],
+            [width//2, height-slope], [width//2, slope]],
         [[width-horizontal_shift, 0], [width-horizontal_shift, height], [width //
                                                                          2-horizontal_shift, height-slope], [width//2-horizontal_shift, slope]],
         [[width-horizontal_shift*2+margin, 0], [width-horizontal_shift*2+margin, height], [width //
@@ -93,24 +94,26 @@ class StereoCalibration(object):
         start_time = time.time()
         # init object data
         self.enable_rectification_disp = enable_disp_rectify
-        self.cameraModel  = camera_model
+        self.cameraModel = camera_model
         self.data_path = filepath
         self.aruco_dictionary = aruco.Dictionary_get(aruco.DICT_4X4_1000)
         self.board = aruco.CharucoBoard_create(
-                # 22, 16,
-                squaresX, squaresY,
-                square_size,
-                mrk_size,
-                self.aruco_dictionary)
-        
+            # 22, 16,
+            squaresX, squaresY,
+            square_size,
+            mrk_size,
+            self.aruco_dictionary)
+
         # parameters = aruco.DetectorParameters_create()
         assert mrk_size != None,  "ERROR: marker size not set"
 
         for camera in board_config['cameras'].keys():
             cam_info = board_config['cameras'][camera]
-            print('Calibrating........... {}'.format(cam_info['name']))
+            print(
+                '<------------Calibrating {} ------------>'.format(cam_info['name']))
             images_path = filepath + '/' + cam_info['name']
-            ret, intrinsics, dist_coeff, _, _, size = self.calibrate_intrinsics(images_path, cam_info['hfov'])
+            ret, intrinsics, dist_coeff, _, _, size = self.calibrate_intrinsics(
+                images_path, cam_info['hfov'])
             cam_info['intrinsics'] = intrinsics
             cam_info['dist_coeff'] = dist_coeff
             cam_info['size'] = size
@@ -118,7 +121,6 @@ class StereoCalibration(object):
             print(ret)
             print(intrinsics)
             # print(ret)
-            
 
         for camera in board_config['cameras'].keys():
             left_cam_info = board_config['cameras'][camera]
@@ -130,32 +132,35 @@ class StereoCalibration(object):
 
                     right_cam_info = board_config['cameras'][left_cam_info['extrinsics']['to_cam']]
                     right_path = filepath + '/' + right_cam_info['name']
-                    print('<-------------Extrinsics calibration of {} and {} ------------>'.format(left_cam_info['name'], right_cam_info['name']))
+                    print('<-------------Extrinsics calibration of {} and {} ------------>'.format(
+                        left_cam_info['name'], right_cam_info['name']))
 
                     specTranslation = left_cam_info['extrinsics']['specTranslation']
                     rot = left_cam_info['extrinsics']['rotation']
 
-                    translation = np.array([specTranslation['x'], specTranslation['y'], specTranslation['z']], dtype=np.float32)
-                    rotation = R.from_euler('xyz', [rot['r'], rot['p'], rot['y']], degrees=True).as_matrix().astype(np.float32)
-                    
-                    extrinsics = self.calibrate_extrinsics(left_path, right_path, left_cam_info['intrinsics'], left_cam_info['dist_coeff'], right_cam_info['intrinsics'], right_cam_info['dist_coeff'], translation, rotation)
-                    print('allIds_l2dsdddd')
-                    print(len(extrinsics))
+                    translation = np.array(
+                        [specTranslation['x'], specTranslation['y'], specTranslation['z']], dtype=np.float32)
+                    rotation = R.from_euler(
+                        'xyz', [rot['r'], rot['p'], rot['y']], degrees=True).as_matrix().astype(np.float32)
 
+                    extrinsics = self.calibrate_extrinsics(left_path, right_path, left_cam_info['intrinsics'], left_cam_info[
+                                                           'dist_coeff'], right_cam_info['intrinsics'], right_cam_info['dist_coeff'], translation, rotation)
                     if extrinsics[0] == -1:
                         return -1, extrinsics[1]
-                    print('allIds_l2222')
+
                     if board_config['stereo_config']['left_cam'] == left_cam and board_config['stereo_config']['right_cam'] == right_cam:
                         board_config['stereo_config']['rectification_left'] = extrinsics[3]
                         board_config['stereo_config']['rectification_right'] = extrinsics[4]
-                    print('allIds_l4442')
+
                     left_cam_info['extrinsics']['rotation_matrix'] = extrinsics[1]
                     left_cam_info['extrinsics']['translation'] = extrinsics[2]
                     left_cam_info['extrinsics']['stereo_error'] = extrinsics[0]
 
-                    print('<-------------Epipolar error of {} and {} ------------>'.format(left_cam_info['name'], right_cam_info['name']))
-                    left_cam_info['extrinsics']['epipolar_error'] = self.test_epipolar_charuco(left_path, right_path, left_cam_info['intrinsics'], left_cam_info['dist_coeff'], right_cam_info['intrinsics'], right_cam_info['dist_coeff'], extrinsics[3], extrinsics[4])
-    
+                    print('<-------------Epipolar error of {} and {} ------------>'.format(
+                        left_cam_info['name'], right_cam_info['name']))
+                    left_cam_info['extrinsics']['epipolar_error'] = self.test_epipolar_charuco(
+                        left_path, right_path, left_cam_info['intrinsics'], left_cam_info['dist_coeff'], right_cam_info['intrinsics'], right_cam_info['dist_coeff'], extrinsics[3], extrinsics[4])
+
         return 1, board_config
 
     def analyze_charuco(self, images, scale_req=False, req_resolution=(800, 1280)):
@@ -174,7 +179,7 @@ class StereoCalibration(object):
                     cv2.TERM_CRITERIA_MAX_ITER, 100, 0.00001)
         count = 0
         for im in images:
-            print("=> Processing image {0}".format(im))
+            # print("=> Processing image {0}".format(im))
             frame = cv2.imread(im)
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
             expected_height = gray.shape[0]*(req_resolution[1]/gray.shape[1])
@@ -206,7 +211,7 @@ class StereoCalibration(object):
                 gray, self.aruco_dictionary)
             marker_corners, ids, refusd, recoverd = cv2.aruco.refineDetectedMarkers(gray, self.board,
                                                                                     marker_corners, ids, rejectedCorners=rejectedImgPoints)
-            print('{0} number of Markers corners detected in the above image'.format(
+            print('{0} number of Markers corners detected in the image'.format(
                 len(marker_corners)))
             if len(marker_corners) > 0:
                 res2 = cv2.aruco.interpolateCornersCharuco(
@@ -225,10 +230,10 @@ class StereoCalibration(object):
                     all_marker_ids.append(ids)
                     all_recovered.append(recoverd)
                 else:
-                    print("in else")
+                    raise RuntimeError("Failed to detect markers in the image")
             else:
                 print(im + " Not found")
-            # decimator+=1
+                raise RuntimeError("Failed to detect markers in the image")
 
         imsize = gray.shape
         return allCorners, allIds, all_marker_corners, all_marker_ids, imsize, all_recovered
@@ -241,11 +246,15 @@ class StereoCalibration(object):
 
         allCorners, allIds, _, _, imsize, _ = self.analyze_charuco(image_files)
         if self.cameraModel == 'perspective':
-            ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors = self.calibrate_camera_charuco(allCorners, allIds, imsize[::-1], hfov)
-            return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors, imsize[::-1] # (Height, width)
+            ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors = self.calibrate_camera_charuco(
+                allCorners, allIds, imsize[::-1], hfov)
+            # (Height, width)
+            return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors, imsize[::-1]
         else:
-            ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors = self.calibrate_fisheye(allCorners, allIds, imsize[::-1])
-            return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors, imsize[::-1] # (Height, width)
+            ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors = self.calibrate_fisheye(
+                allCorners, allIds, imsize[::-1])
+            # (Height, width)
+            return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors, imsize[::-1]
 
     def calibrate_extrinsics(self, images_left, images_right, M_l, d_l, M_r, d_r, guess_translation, guess_rotation):
         self.objpoints = []  # 3d point in real world space
@@ -289,22 +298,24 @@ class StereoCalibration(object):
             if diff < 0:
                 scaled_res = (int(scaled_height), scaled_res[1])
 
+        print("Original res Left :{}".format(frame_left_shape))
+        print("Original res Right :{}".format(frame_right_shape))
         print("Scale res :{}".format(scaled_res))
         # scaled_res = (scaled_height, )
         M_lp = self.scale_intrinsics(M_l, frame_left_shape, scaled_res)
         M_rp = self.scale_intrinsics(M_r, frame_right_shape, scaled_res)
-        
-        print("~~~~~~~~~~~ POSE ESTIMATION LEFT CAMERA ~~~~~~~~~~~~~")
+
+        # print("~~~~~~~~~~~ POSE ESTIMATION LEFT CAMERA ~~~~~~~~~~~~~")
         allCorners_l, allIds_l, _, _, imsize_l, _ = self.analyze_charuco(
             images_left, scale_req, scaled_res)
 
-        print("~~~~~~~~~~~ POSE ESTIMATION RIGHT CAMERA ~~~~~~~~~~~~~")
+        # print("~~~~~~~~~~~ POSE ESTIMATION RIGHT CAMERA ~~~~~~~~~~~~~")
         allCorners_r, allIds_r, _, _, imsize_r, _ = self.analyze_charuco(
             images_right, scale_req, scaled_res)
 
         print(imsize_r)
         print(imsize_l)
-        
+
         assert imsize_r == imsize_l, "Left and right resolution scaling is wrong"
 
         return self.calibrate_stereo(
@@ -314,10 +325,14 @@ class StereoCalibration(object):
         scale = destShape[1] / originalShape[1]
         scale_mat = np.array([[scale, 0, 0], [0, scale, 0], [0, 0, 1]])
         scaled_intrinsics = np.matmul(scale_mat, intrinsics)
-        print("Scaled height offset : {}".format((originalShape[0] * scale - destShape[0]) / 2))
-        print("Scaled width offset : {}".format((originalShape[1] * scale - destShape[1]) / 2))
-        scaled_intrinsics[1][2] -= (originalShape[0] * scale - destShape[0]) / 2
-        scaled_intrinsics[0][2] -= (originalShape[1] * scale - destShape[1]) / 2
+        """ print("Scaled height offset : {}".format(
+            (originalShape[0] * scale - destShape[0]) / 2))
+        print("Scaled width offset : {}".format(
+            (originalShape[1] * scale - destShape[1]) / 2)) """
+        scaled_intrinsics[1][2] -= (originalShape[0]
+                                    * scale - destShape[0]) / 2
+        scaled_intrinsics[0][2] -= (originalShape[1]
+                                    * scale - destShape[1]) / 2
         print('original_intrinsics')
         print(intrinsics)
         print('scaled_intrinsics')
@@ -385,7 +400,7 @@ class StereoCalibration(object):
             cameraMatrix=cameraMatrixInit,
             distCoeffs=distCoeffsInit,
             flags=flags,
-            criteria=(cv2.TERM_CRITERIA_EPS & cv2.TERM_CRITERIA_COUNT, 10000, 1e-9))
+            criteria=(cv2.TERM_CRITERIA_EPS & cv2.TERM_CRITERIA_COUNT, 50000, 1e-9))
         return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors
 
     def calibrate_fisheye(self, allCorners, allIds, imsize):
@@ -452,7 +467,7 @@ class StereoCalibration(object):
             flags = 0
             # flags |= cv2.CALIB_USE_EXTRINSIC_GUESS
             print(flags)
-            
+
             flags |= cv2.CALIB_FIX_INTRINSIC
             flags |= cv2.CALIB_RATIONAL_MODEL
             print(flags)
@@ -471,14 +486,14 @@ class StereoCalibration(object):
             #     obj_pts, left_corners_sampled, right_corners_sampled,
             #     cameraMatrix_l, distCoeff_l, cameraMatrix_r, distCoeff_r, imsize,
             #     criteria=stereocalib_criteria, flags=flags)
-            
+
             R_l, R_r, P_l, P_r, Q, validPixROI1, validPixROI2 = cv2.stereoRectify(
                 cameraMatrix_l,
                 distCoeff_l,
                 cameraMatrix_r,
                 distCoeff_r,
                 imsize, R, T)
-            
+
             return [ret, R, T, R_l, R_r]
 
         elif self.cameraModel == 'fisheye':
@@ -512,7 +527,7 @@ class StereoCalibration(object):
                 cameraMatrix_r,
                 distCoeff_r,
                 imsize, R, T)
-            
+
             return [ret, R, T, R_l, R_r]
 
     def display_rectification(self, image_data_pairs):
@@ -576,7 +591,7 @@ class StereoCalibration(object):
                 # resizing to have both stereo and rgb to have same
                 # resolution to capture extrinsics of the rgb-right camera
                 img = cv2.resize(img, (scaled_res[1], scaled_res[0]),
-                                    interpolation=cv2.INTER_CUBIC)
+                                 interpolation=cv2.INTER_CUBIC)
                 return img
             else:
                 # resizing and cropping to have both stereo and rgb to have same resolution
@@ -626,7 +641,7 @@ class StereoCalibration(object):
             # if scaled_height <  smaller_res[0]:
             if diff < 0:
                 scaled_res = (int(scaled_height), scaled_res[1])
-        
+
         M_lp = self.scale_intrinsics(M_l, frame_left_shape, scaled_res)
         M_rp = self.scale_intrinsics(M_r, frame_right_shape, scaled_res)
 
@@ -643,23 +658,19 @@ class StereoCalibration(object):
 
         print('Scaled Res :{}'.format(scaled_res))
         mapx_l, mapy_l = cv2.initUndistortRectifyMap(
-                                    M_lp, d_l, r_l, M_rp, scaled_res[::-1], cv2.CV_32FC1)
+            M_lp, d_l, r_l, M_rp, scaled_res[::-1], cv2.CV_32FC1)
         mapx_r, mapy_r = cv2.initUndistortRectifyMap(
-                                    M_rp, d_r, r_r, M_rp, scaled_res[::-1], cv2.CV_32FC1)
-        print('Scaled Res :{}'.format(mapx_r.shape))
-        
+            M_rp, d_r, r_r, M_rp, scaled_res[::-1], cv2.CV_32FC1)
+
         image_data_pairs = []
         for image_left, image_right in zip(images_left, images_right):
             # read images
             img_l = cv2.imread(image_left, 0)
             img_r = cv2.imread(image_right, 0)
-            print('Original  Left Res :{}'.format(img_l.shape))
-            print('Original Right Res :{}'.format(img_r.shape))
 
             img_l = self.scale_image(img_l, scaled_res)
             img_r = self.scale_image(img_r, scaled_res)
-            print('scaled  Left Res :{}'.format(img_l.shape))
-            print('scaled Right Res :{}'.format(img_r.shape))
+
 
             # warp right image
             # img_l = cv2.warpPerspective(img_l, self.H1, img_l.shape[::-1],
@@ -698,7 +709,7 @@ class StereoCalibration(object):
                 marker_corners_l, ids_l, image_data_pair[0], self.board)
             res2_r = cv2.aruco.interpolateCornersCharuco(
                 marker_corners_r, ids_r, image_data_pair[1], self.board)
-            
+
             img_concat = cv2.hconcat([image_data_pair[0], image_data_pair[1]])
             img_concat = cv2.cvtColor(img_concat, cv2.COLOR_GRAY2RGB)
             line_row = 0
@@ -740,10 +751,11 @@ class StereoCalibration(object):
                 epi_error_sum = 0
                 for l_pt, r_pt in zip(corners_l, corners_r):
                     epi_error_sum += abs(l_pt[0][1] - r_pt[0][1])
-                
+
                 print("Average Epipolar Error per image on host in " + img_pth.name + " : " +
-                    str(epi_error_sum / len(corners_l)))
+                      str(epi_error_sum / len(corners_l)))
             else:
+                print('Numer of corners is in left -> {} and right -> {}'.format(len(marker_corners_l), len(marker_corners_r)))
                 return -1
 
         epi_error_sum = 0
