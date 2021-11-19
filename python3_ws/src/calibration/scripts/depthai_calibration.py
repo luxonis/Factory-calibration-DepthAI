@@ -96,7 +96,7 @@ class depthai_calibration_node:
 
         # self.focus_value = 0
         # self.defaultLensPosition = 135
-        self.focusSigmaThreshold = 30
+        self.focusSigmaThreshold = 25
         # if self.rgbCcm == 'Sunny':
         #     self.focus_value = 135
         # elif self.rgbCcm == 'KingTop':
@@ -888,8 +888,8 @@ class depthai_calibration_node:
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
         log_list = [time_stmp, mx_serial_id]
-        for key in self.ccm_selected.keys():
-            log_list.append(self.ccm_selected[key])
+        # for key in self.ccm_selected.keys():
+        #     log_list.append(self.ccm_selected[key])
 
         if status == -1:
             self.close_device()
@@ -902,6 +902,8 @@ class depthai_calibration_node:
         calibration_handler = dai.CalibrationHandler()
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]
+            log_list.append(self.ccm_selected[cam_info['name']])
+
             color = green
             reprojection_error_threshold = 0.7
             if cam_info['size'][1] > 720:
@@ -951,8 +953,8 @@ class depthai_calibration_node:
                     if result_config['stereo_config']['left_cam'] == camera and result_config['stereo_config']['right_cam'] == cam_info['extrinsics']['to_cam']:
                         calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
                         calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
-            else:
-                log_list.append("N/A")
+            # else:
+                # log_list.append("N/A")
         
         log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
         with open(log_file, mode='a') as log_fopen:
