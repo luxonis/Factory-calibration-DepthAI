@@ -5,8 +5,8 @@
   <arg name="disableLR"                 default="false"/>
   <arg name="field_of_view"             default="71.86"/>
   <arg name="baseline"                  default="7.5"/>
-  <arg name="square_size_cm"            default="2"/>
-  <arg name="marker_size_cm"            default="1.5"/>
+  <arg name="square_size_cm"            default="4"/>
+  <arg name="marker_size_cm"            default="3.1"/>
   <arg name="depthai_path"              default="/Desktop/depthai"/>
   <arg name="calib_path"                default="/Desktop/calib_files"/>
   <arg name="log_path"                  default="/Desktop/logs"/>
