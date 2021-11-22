@@ -5,8 +5,8 @@
   <arg name="disableLR"                 default="false"/>
   <arg name="field_of_view"             default="71.86"/>
   <arg name="baseline"                  default="7.5"/>
-  <arg name="square_size_cm"            default="2"/>
-  <arg name="marker_size_cm"            default="1.5"/>
+  <arg name="square_size_cm"            default="4"/>
+  <arg name="marker_size_cm"            default="3.1"/>
   <arg name="squares_x"                 default="22"/>
   <arg name="squares_y"                 default="16"/>
   <arg name="usbMode"                   default="true"/>

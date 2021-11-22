@@ -96,7 +96,7 @@ class depthai_calibration_node:
 
         # self.focus_value = 0
         # self.defaultLensPosition = 135
-        self.focusSigmaThreshold = 22
+        self.focusSigmaThreshold = 25
         # if self.rgbCcm == 'Sunny':
         #     self.focus_value = 135
         # elif self.rgbCcm == 'KingTop':
@@ -117,6 +117,8 @@ class depthai_calibration_node:
             with open(board_path) as fp:
                 self.board_config = json.load(fp)
                 self.board_config = self.board_config['board_config']
+                self.board_config_backup = self.board_config
+
 
         self.aruco_dictionary = cv2.aruco.Dictionary_get(
             cv2.aruco.DICT_4X4_1000)
@@ -135,7 +137,7 @@ class depthai_calibration_node:
         for cam_id in self.board_config['cameras'].keys():
             cam_info = self.board_config['cameras'][cam_id]
             header.append(cam_info['name'] + '-CCM')
-            header.append(cam_info['name'] + '-camera')
+            # header.append(cam_info['name'] + '-camera')
             header.append(cam_info['name'] + '-focus-stdDev')
             header.append(cam_info['name'] + '-Reprojection-Error')
             self.auto_checkbox_names.append(cam_info['name']  + '-Camera-connected')
@@ -478,6 +480,13 @@ class depthai_calibration_node:
                         rospy.signal_shutdown("Shutting down calibration")
                     if self.reset_active and self.click:
                         print("Reset clicked")
+                        for _, checkbox in self.auto_checkbox_dict.items():
+                            checkbox.setUnattended()
+                            checkbox.render_checkbox()
+
+                        for _, checkbox in self.auto_focus_checkbox_dict.items():
+                            checkbox.setUnattended()
+                            checkbox.render_checkbox()
                         return
 
     def backup_ds(self, stream_name, file_name, frame):
@@ -530,7 +539,7 @@ class depthai_calibration_node:
         if self.device is not None:
             if not self.device.isClosed():
                 self.device.close()
-
+        self.board_config = self.board_config_backup
         finished = False
         while not finished:
             if self.capture_exit():
@@ -791,7 +800,6 @@ class depthai_calibration_node:
             print('Backing up images {}'.format(name))
             cv2.imwrite(backupFocusPath + "/" + name + '.png', image)
 
-        self.is_service_active = False
         for key in isFocused.keys():
             cam_name = self.board_config['cameras'][key]['name']
             if isFocused[key]:
@@ -809,10 +817,12 @@ class depthai_calibration_node:
         for key in self.auto_focus_checkbox_dict.keys():
             if not self.auto_focus_checkbox_dict[key].is_checked():
                 self.close_device()
+                self.is_service_active = False
                 return (False, key + " is out of Focus")
             # else:
             #     print(key + " is in Focus")
         
+        self.is_service_active = False        
         return (True, "RGB in Focus")
 
 
@@ -844,11 +854,12 @@ class depthai_calibration_node:
                 detection_failed = True
         #TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
 
-        self.is_service_active = False
         if detection_failed:
             self.device.close()
+            self.is_service_active = False
             return (False, "Calibration board not found")
         else:
+            self.is_service_active = False
             return (True, "No Error")
 
     def calibration_servive_handler(self, req):
@@ -877,12 +888,12 @@ class depthai_calibration_node:
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
         log_list = [time_stmp, mx_serial_id]
-        for key in self.ccm_selected.keys():
-            log_list.append(self.ccm_selected[key])
+        # for key in self.ccm_selected.keys():
+        #     log_list.append(self.ccm_selected[key])
 
         if status == -1:
-            self.is_service_active = False
             self.close_device()
+            self.is_service_active = False
             return result_config
 
         vis_x = 400
@@ -891,9 +902,16 @@ class depthai_calibration_node:
         calibration_handler = dai.CalibrationHandler()
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]
+            log_list.append(self.ccm_selected[cam_info['name']])
+
             color = green
-            
-            if cam_info['reprojection_error'] > 0.7:
+            reprojection_error_threshold = 0.7
+            if cam_info['size'][1] > 720:
+                print(cam_info['size'][1])
+                reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
+
+            print('Reprojection error threshold -> {}'.format(reprojection_error_threshold))
+            if cam_info['reprojection_error'] > reprojection_error_threshold:
                 color = red
                 error_text.append("high Reprojection Error")
             text = cam_info['name'] + ' Reprojection Error: ' + format(cam_info['reprojection_error'], '.6f')
@@ -911,17 +929,20 @@ class depthai_calibration_node:
             
             vis_y += 30
             color = green
-                
+            
             if 'extrinsics' in cam_info:
                 
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
                     
-                    if cam_info['extrinsics']['epipolar_error'] > 0.5:
+                    if cam_info['extrinsics']['epipolar_error'] > 0.6:
                         color = red
                         error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
-                    
+                    elif cam_info['extrinsics']['epipolar_error'] == -1:
+                        color = red
+                        error_text.append("Epiploar validation failed between " + left_cam + " and " + right_cam)
+                   
                     log_list.append(cam_info['extrinsics']['epipolar_error'])
                     text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info['extrinsics']['epipolar_error'], '.6f')
                     pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
@@ -932,8 +953,8 @@ class depthai_calibration_node:
                     if result_config['stereo_config']['left_cam'] == camera and result_config['stereo_config']['right_cam'] == cam_info['extrinsics']['to_cam']:
                         calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
                         calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
-            else:
-                log_list.append("N/A")
+            # else:
+                # log_list.append("N/A")
         
         log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
         with open(log_file, mode='a') as log_fopen:
@@ -942,7 +963,6 @@ class depthai_calibration_node:
             log_csv_writer.writerow(log_list)
         calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
         
-        self.is_service_active = False
         if len(error_text) == 0:
             print('Flashing Calibration data into ')
             print(calib_dest_path)
@@ -952,6 +972,8 @@ class depthai_calibration_node:
             except:
                 print("Writing in except...")
                 is_write_succesful = self.device.flashCalibration(calibration_handler)
+            self.close_device()
+            self.is_service_active = False
             if is_write_succesful:
                 text = "EEPROM written succesfully"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
@@ -964,7 +986,9 @@ class depthai_calibration_node:
             text = error_text[0]
             pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
             print(error_text)
+
             self.close_device()
+            self.is_service_active = False
             return (False, error_text[0])
 
 

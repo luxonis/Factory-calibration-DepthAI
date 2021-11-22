@@ -1,8 +1,8 @@
 {
     "board_config":
     {
-        "name": "BW1098OBC",
-        "revision": "R0M0E0",
+        "name": "OAK-D",
+        "revision": "R1M0E1",
         "cameras":{
             "CAM_A": {
                 "name": "rgb",

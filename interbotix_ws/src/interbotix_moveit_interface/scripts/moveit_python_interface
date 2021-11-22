@@ -777,7 +777,7 @@ def main():
 
     
     # actions = ['start', 'left_1', 'left_2', 'left_3', 'start', 'top_1', 'top_2', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
-    actions = ['start', 'left_4', 'left_3', 'center_swap', 'top_1', 'bottom_1',  'right_1']
+    actions = ['start', 'left_4', 'left_3', 'center_swap', 'top_1', 'top_3' , 'bottom_1',  'right_1', 'right_3']
     
     device_status_srv = rospy.ServiceProxy('/device_status', Capture) 
     focus_setting_srv = rospy.ServiceProxy('/rgb_focus_adjuster', Capture) 
