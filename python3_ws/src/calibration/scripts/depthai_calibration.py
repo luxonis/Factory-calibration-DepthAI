@@ -13,7 +13,12 @@ import numpy as np
 import os
 from pathlib import Path
 import shutil
+import socket
+import netifaces as ni
+import pickle
+import struct
 from datetime import datetime, timedelta
+
 import rospy
 from std_msgs.msg import String
 from calibration.srv import Capture
@@ -81,6 +86,8 @@ camToRgbRes = {
                 'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P
                 }
 
+ip = ni.ifaddresses('enp6s0')[ni.AF_INET][0]['addr']
+PORT = 51264
 
 class depthai_calibration_node:
     def __init__(self, depthai_args):
@@ -92,8 +99,7 @@ class depthai_calibration_node:
         self.disp = pygame.display
         self.screen = self.disp.set_mode((800, 600))
         self.screen.fill(white)
-        self.disp.set_caption("Calibration - Device check ")
-
+        self.disp.set_caption("Calibration - Device check")
         # self.focus_value = 0
         # self.defaultLensPosition = 135
         self.focusSigmaThreshold = 25
@@ -124,15 +130,21 @@ class depthai_calibration_node:
             cv2.aruco.DICT_4X4_1000)
         
         self.ccm_selector()
-
+        
         # Connection checks ----------->
         title = "Device Status"
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
         self.auto_checkbox_names = []
         self.auto_focus_checkbox_names = []
 
-        if self.args['usbMode']:
+        if self.args['usbMode'] and not self.args["socket_mode"]:
             self.auto_checkbox_names.append("USB3")
+
+        if self.args['socket_mode']:
+            self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.sock.bind((ip, PORT))
+            self.sock.listen()
+
         header = ['time', 'Mx_serial_id']
         for cam_id in self.board_config['cameras'].keys():
             cam_info = self.board_config['cameras'][cam_id]
@@ -147,7 +159,7 @@ class depthai_calibration_node:
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = self.board_config['cameras'][cam_info['extrinsics']['to_cam']]['name']    
                     header.append('Epipolar-error-' + cam_info['name'] + '-' + right_cam)
-            
+        
         # ['Mono-CCM', 'RGB-CCM',
         #           'left_camera', 'right_camera', 'rgb_camera', 
         #           'left_focus_stdDev', 'right_focus_stdDev', 'rgb_focus_stdDev',
@@ -214,7 +226,8 @@ class depthai_calibration_node:
         for cam_id in self.board_config['cameras']:
             name = self.board_config['cameras'][cam_id]['name']
             self.imgPublishers[name] = rospy.Publisher(name, Image, queue_size=10)
-
+        
+        
         self.device = None
 
     def ccm_selector(self):
@@ -503,13 +516,10 @@ class depthai_calibration_node:
         return not (len(marker_corners) < 30)
 
     def close_device(self):
-        # if hasattr(self, 'left_camera_queue') and hasattr(self, 'right_camera_queue'):
-        #     delattr(self, 'left_camera_queue')
-        #     delattr(self, 'right_camera_queue')
-        # if hasattr(self, 'rgb_camera_queue') and hasattr(self, 'rgb_control_queue'):
-        #     delattr(self, 'rgb_camera_queue')
-        #     delattr(self, 'rgb_control_queue')
-        self.device.close()
+        if self.args['socket_mode']:
+            self.conn.close()
+        else:
+            self.device.close()
 
     def device_status_handler(self, req):
         self.is_service_active = True
@@ -539,143 +549,142 @@ class depthai_calibration_node:
         if self.device is not None:
             if not self.device.isClosed():
                 self.device.close()
+        
+        if self.args["socket_mode"]:
+            self.conn, addr = self.sock.accept()
+        
         self.board_config = self.board_config_backup
         finished = False
         while not finished:
             if self.capture_exit():
                 rospy.signal_shutdown("Stopping calibration")
-            while self.device is None or self.device.isClosed():
-                if self.capture_exit():
-                    rospy.signal_shutdown("Stopping calibration")
-                
-                searchTime = timedelta(seconds=80)
-                isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
-                if isFound:
-                    self.device = dai.Device() 
-                    # cameraList = self.device.getConnectedCameras()
-                    cameraProperties = self.device.getConnectedCameraProperties()
-                    fill_color_2 = pygame.Rect(390, 120, 500, 100)
-                    pygame.draw.rect(self.screen, white, fill_color_2)
-
-                    rospy.sleep(2)
-                    # dev_info = self.device.getDeviceInfo()
-                    text = "device Mx_id : " + self.device.getMxId()
-                    pygame_render_text(self.screen, text, (400, 120), black, 30)
-                    text = "Device Connected!!!"
-                    pygame_render_text(self.screen, text, (400, 150), green, 30)
-
-                    lost_camera = False
-                    for properties in cameraProperties:
-                        for in_cam in self.board_config['cameras'].keys():
-                            cam_info = self.board_config['cameras'][in_cam]
-                            if properties.socket == stringToCam[in_cam]:
-                                self.board_config['cameras'][in_cam]['sensorName'] = properties.sensorName
-                                print('Cam: {} and focus: {}'.format(cam_info['name'], properties.hasAutofocus))
-                                self.board_config['cameras'][in_cam]['hasAutofocus'] = properties.hasAutofocus
-                                self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].check()
-                                break
-
-                    for config_cam in self.board_config['cameras'].keys():
-                        cam_info = self.board_config['cameras'][config_cam]
-                        if self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].isUnattended():
-                            self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].uncheck()
-                            lost_camera = True
-                        self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].render_checkbox()
-
-                    if self.args['usbMode']:
-                        if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
-                            self.auto_checkbox_dict["USB3"].check()
-                        else:
-                            lost_camera = True
-                            self.auto_checkbox_dict["USB3"].uncheck()
-                        self.auto_checkbox_dict["USB3"].render_checkbox()
-
-                    if not lost_camera:
-                        pipeline = self.create_pipeline(cameraProperties)
-                        self.device.startPipeline(pipeline)
-                        self.camera_queue = {}
-                        self.control_queue = {}
-                        for config_cam in self.board_config['cameras']:
-                            cam = self.board_config['cameras'][config_cam]
-                            self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 5, False)
-                            if cam['hasAutofocus']:
-                                self.control_queue[cam['name']] = self.device.getInputQueue(cam['name'] + '-control', 5, False)
-                    else:
-                        print("Closing Device...")
-
-                        fill_color_2 = pygame.Rect(390, 150, 220, 35)
-                        pygame.draw.rect(self.screen, white, fill_color_2)
-                        text = "Device Disconnected!!!"
-                        pygame_render_text(self.screen, text, (400, 150), red, 30)
-                        text = "Click RETEST when device is ready!!!"
-                        pygame_render_text(self.screen, text, (400, 180), red, 30)
-
-                        self.close_device()
-                        self.retest()
-                        print("Restarting Device...")
-
-                        fill_color_2 = pygame.Rect(390, 430, 120, 35)
-                        pygame.draw.rect(self.screen, white, fill_color_2)
 
             mipi = {}
             for config_cam in self.board_config['cameras']:
                 mipi[self.board_config['cameras'][config_cam]['name']] = False
-
-            # left_mipi = False
-            # right_mipi = False
-            # rgb_mipi = False
-
-            for _ in range(120):
-                for config_cam in self.board_config['cameras']:
-                    name = self.board_config['cameras'][config_cam]['name']
-                    imageFrame = self.camera_queue[name].tryGet()
-                   
-                    if imageFrame is not None:
-                        mipi[name] = True
-                        frame = None
-
-                        if imageFrame.getType() == dai.RawImgFrame.Type.RAW8:
-                            frame = imageFrame.getCvFrame()
-                        else:
-                            frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-                        self.imgPublishers[name].publish(
-                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
-
-
-                """ if not self.args['disableLR']:
-                    left_frame = self.left_camera_queue.tryGet()
-                    if left_frame is not None:
-                        left_mipi = True                
-                        self.image_pub_left.publish(
-                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
-
-                    right_frame = self.right_camera_queue.tryGet()
-                    if right_frame is not None:
-                        right_mipi = True
-                        self.image_pub_right.publish(
-                            self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
-                else:
-                    left_mipi = True
-                    right_mipi = True
-
-                if not self.args['disableRgb']:
-                    rgb_frame = self.rgb_camera_queue.tryGet()
-                    if rgb_frame is not None:
-                        rgb_mipi = True
-                        frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
-                        self.image_pub_color.publish(
-                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
-                else:
-                    rgb_mipi = True """
-
-                isMipiReady = True
-                for config_cam in self.board_config['cameras']:
-                    name = self.board_config['cameras'][config_cam]['name']
-                    isMipiReady = isMipiReady and mipi[name] 
-                if isMipiReady:
-                    break
-                rospy.sleep(1)
             
+            if self.args["socket_mode"]:
+                self.conn.sendall(b'check_conn_rep')
+                recv_data = self.conn.recv(1024)
+                dev_status = pickle.loads(recv_data)
+                text = "device Mx_id : " + self.device.getMxId()
+                pygame_render_text(self.screen, text, (400, 120), black, 30)
+                text = "Device Connected!!!"
+                pygame_render_text(self.screen, text, (400, 150), green, 30)
+            else:
+                while self.device is None or self.device.isClosed():
+                    if self.capture_exit():
+                        rospy.signal_shutdown("Stopping calibration")
+                    
+                    searchTime = timedelta(seconds=80)
+                    isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
+                    if isFound:
+                        self.device = dai.Device() 
+                        # cameraList = self.device.getConnectedCameras()
+                        cameraProperties = self.device.getConnectedCameraProperties()
+                        fill_color_2 = pygame.Rect(390, 120, 500, 100)
+                        pygame.draw.rect(self.screen, white, fill_color_2)
+
+                        rospy.sleep(2)
+                        # dev_info = self.device.getDeviceInfo()
+                        text = "device Mx_id : " + self.device.getMxId()
+                        pygame_render_text(self.screen, text, (400, 120), black, 30)
+                        text = "Device Connected!!!"
+                        pygame_render_text(self.screen, text, (400, 150), green, 30)
+
+                        lost_camera = False
+                        for properties in cameraProperties:
+                            for in_cam in self.board_config['cameras'].keys():
+                                cam_info = self.board_config['cameras'][in_cam]
+                                if properties.socket == stringToCam[in_cam]:
+                                    self.board_config['cameras'][in_cam]['sensorName'] = properties.sensorName
+                                    print('Cam: {} and focus: {}'.format(cam_info['name'], properties.hasAutofocus))
+                                    self.board_config['cameras'][in_cam]['hasAutofocus'] = properties.hasAutofocus
+                                    self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].check()
+                                    break
+
+                        for config_cam in self.board_config['cameras'].keys():
+                            cam_info = self.board_config['cameras'][config_cam]
+                            if self.auto_checkbox_dict[cam_info['name'] + '-Camera-connected'].isUnattended():
+                                self.auto_checkbox_dict[cam_info['name'] + '-Camera-connected'].uncheck()
+                                lost_camera = True
+                            self.auto_checkbox_dict[cam_info['name'] + '-Camera-connected'].render_checkbox()
+
+                        if self.args['usbMode']:
+                            if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
+                                self.auto_checkbox_dict["USB3"].check()
+                            else:
+                                lost_camera = True
+                                self.auto_checkbox_dict["USB3"].uncheck()
+                            self.auto_checkbox_dict["USB3"].render_checkbox()
+
+                        if not lost_camera:
+                            pipeline = self.create_pipeline(cameraProperties)
+                            self.device.startPipeline(pipeline)
+                            self.camera_queue = {}
+                            self.control_queue = {}
+                            for config_cam in self.board_config['cameras']:
+                                cam = self.board_config['cameras'][config_cam]
+                                self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 5, False)
+                                if cam['hasAutofocus']:
+                                    self.control_queue[cam['name']] = self.device.getInputQueue(cam['name'] + '-control', 5, False)
+                        else:
+                            print("Closing Device...")
+
+                            fill_color_2 = pygame.Rect(390, 150, 220, 35)
+                            pygame.draw.rect(self.screen, white, fill_color_2)
+                            text = "Device Disconnected!!!"
+                            pygame_render_text(self.screen, text, (400, 150), red, 30)
+                            text = "Click RETEST when device is ready!!!"
+                            pygame_render_text(self.screen, text, (400, 180), red, 30)
+
+                            self.close_device()
+                            self.retest()
+                            print("Restarting Device...")
+
+                            fill_color_2 = pygame.Rect(390, 430, 120, 35)
+                            pygame.draw.rect(self.screen, white, fill_color_2)
+
+                
+
+                # left_mipi = False
+                # right_mipi = False
+                # rgb_mipi = False
+
+                for _ in range(120):
+                    for config_cam in self.board_config['cameras']:
+                        name = self.board_config['cameras'][config_cam]['name']
+                        imageFrame = self.camera_queue[name].tryGet()
+                    
+                        if imageFrame is not None:
+                            mipi[name] = True
+                            frame = None
+
+                            if imageFrame.getType() == dai.RawImgFrame.Type.RAW8:
+                                frame = imageFrame.getCvFrame()
+                            else:
+                                frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                            self.imgPublishers[name].publish(
+                                self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+
+                    isMipiReady = True
+                    for config_cam in self.board_config['cameras']:
+                        name = self.board_config['cameras'][config_cam]['name']
+                        isMipiReady = isMipiReady and mipi[name] 
+                    if isMipiReady:
+                        break
+                    rospy.sleep(1)
+                    
+            if self.args['socket_mode']:
+                mipi = dev_status['mipi']
+                for key in dev_status.keys():
+                    if key == 'mx_id' or key == 'mipi':
+                        continue
+                    if dev_status[key]:
+                        self.auto_checkbox_dict[key].check()
+                    else:
+                        self.auto_checkbox_dict[key].uncheck()
+
             for key in mipi.keys():
                 if not mipi[key]:
                     self.auto_checkbox_dict[key + "-Stream"].uncheck()
@@ -701,118 +710,132 @@ class depthai_calibration_node:
             shutil.rmtree(str(dataset_path))
         # dev_info = self.device.getDeviceInfo()
         self.is_service_active = False
-        return (finished, self.device.getMxId())
+        if self.args['socket_mode']:
+            return (finished, dev_status['mx_id'])
+        else:
+            return (finished, self.device.getMxId())
 
     def camera_focus_adjuster(self, req):
         self.is_service_active = True
-        maxCountFocus   = 50
-        focusCount = {}
-        isFocused = {}
-        trigCount = {}
-        capturedFrames = {}
-        
-        self.lensPosition = {}
-        self.focusSigma = {}
-        
-        ctrl = dai.CameraControl()
-        ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
-        ctrl.setAutoFocusTrigger()
+        if self.args['socket_mode']:
+            self.conn.sendall(b'check_focus_adjuster')
+            status = self.conn.recv(1024)
+            for key in status.keys():
+                if status[key]:
+                    self.auto_focus_checkbox_dict[key].check()
+                    self.auto_focus_checkbox_dict[key].render_checkbox()
+                else:
+                    self.auto_focus_checkbox_dict[key].uncheck()
+                    self.auto_focus_checkbox_dict[key].render_checkbox()
+        else:
+            maxCountFocus   = 50
+            focusCount = {}
+            isFocused = {}
+            trigCount = {}
+            capturedFrames = {}
+            
+            self.lensPosition = {}
+            self.focusSigma = {}
+            
+            ctrl = dai.CameraControl()
+            ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
+            ctrl.setAutoFocusTrigger()
 
-        for config_cam in self.board_config['cameras'].keys():
-            cam_info = self.board_config['cameras'][config_cam]
-            focusCount[cam_info['name']] = 0
-            self.focusSigma[cam_info['name']] = 0
-            self.lensPosition[cam_info['name']] = 0
-            isFocused[config_cam] = False
-            capturedFrames[cam_info['name']] = None
-
-            if cam_info['hasAutofocus']:
-                trigCount[cam_info['name']] = 0
-                self.control_queue[cam_info['name']].send(ctrl)
-
-        rospy.sleep(1)
-        focusFailed  = False
-        while True:
             for config_cam in self.board_config['cameras'].keys():
                 cam_info = self.board_config['cameras'][config_cam]
-                frame = self.camera_queue[cam_info['name']].getAll()[-1]
-                currFrame = frame.getCvFrame()
-                if frame.getType() != dai.RawImgFrame.Type.RAW8:
-                    currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
-                print('Resolution: {}'.format(currFrame.shape))
-                capturedFrames[cam_info['name']] = currFrame 
-                self.imgPublishers[cam_info['name']].publish(
-                            self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
+                focusCount[cam_info['name']] = 0
+                self.focusSigma[cam_info['name']] = 0
+                self.lensPosition[cam_info['name']] = 0
+                isFocused[config_cam] = False
+                capturedFrames[cam_info['name']] = None
 
                 if cam_info['hasAutofocus']:
-                    marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
-                    if len(marker_corners) < 30:
-                        print("Board not detected. Waiting...!!!")
-                        trigCount[cam_info['name']] += 1
-                        focusCount[cam_info['name']] += 1
-                        if trigCount[cam_info['name']] > 31:
-                            trigCount[cam_info['name']] = 0
-                            self.control_queue[cam_info['name']].send(ctrl)
-                            time.sleep(1)
-                        if focusCount[cam_info['name']] > maxCountFocus:
-                            focusFailed = True
-                            break
-                        continue
+                    trigCount[cam_info['name']] = 0
+                    self.control_queue[cam_info['name']].send(ctrl)
 
-                dst_laplace = cv2.Laplacian(currFrame, cv2.CV_64F)
-                mu, sigma = cv2.meanStdDev(dst_laplace)
+            rospy.sleep(1)
+            focusFailed  = False
+            while True:
+                for config_cam in self.board_config['cameras'].keys():
+                    cam_info = self.board_config['cameras'][config_cam]
+                    frame = self.camera_queue[cam_info['name']].getAll()[-1]
+                    currFrame = frame.getCvFrame()
+                    if frame.getType() != dai.RawImgFrame.Type.RAW8:
+                        currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
+                    print('Resolution: {}'.format(currFrame.shape))
+                    capturedFrames[cam_info['name']] = currFrame 
+                    self.imgPublishers[cam_info['name']].publish(
+                                self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
 
-                print('Sigma of {} is {}'.format(cam_info['name'], sigma))
-                localFocusThreshold = self.focusSigmaThreshold 
-                if dst_laplace.shape[1] > 2000:
-                    localFocusThreshold = localFocusThreshold / 2
-
-                if sigma > localFocusThreshold:
-                    isFocused[config_cam] = True
-                    self.focusSigma[cam_info['name']] = sigma
                     if cam_info['hasAutofocus']:
-                        self.lensPosition[cam_info['name']] = frame.getLensPosition()
-                else:
-                    if cam_info['hasAutofocus']:
-                        trigCount[cam_info['name']] += 1
-                        if trigCount[cam_info['name']] > 31:
-                            trigCount[cam_info['name']] = 0
-                            self.control_queue[cam_info['name']].send(ctrl)
-                            time.sleep(1)
-                focusCount[cam_info['name']] += 1
+                        marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
+                        if len(marker_corners) < 30:
+                            print("Board not detected. Waiting...!!!")
+                            trigCount[cam_info['name']] += 1
+                            focusCount[cam_info['name']] += 1
+                            if trigCount[cam_info['name']] > 31:
+                                trigCount[cam_info['name']] = 0
+                                self.control_queue[cam_info['name']].send(ctrl)
+                                time.sleep(1)
+                            if focusCount[cam_info['name']] > maxCountFocus:
+                                focusFailed = True
+                                break
+                            continue
 
-            if focusFailed:
-                break
-            
-            isCountFull = True 
-            for key in focusCount.keys():
-                if focusCount[key] < maxCountFocus:
-                    isCountFull = False
+                    dst_laplace = cv2.Laplacian(currFrame, cv2.CV_64F)
+                    mu, sigma = cv2.meanStdDev(dst_laplace)
+
+                    print('Sigma of {} is {}'.format(cam_info['name'], sigma))
+                    localFocusThreshold = self.focusSigmaThreshold 
+                    if dst_laplace.shape[1] > 2000:
+                        localFocusThreshold = localFocusThreshold / 2
+
+                    if sigma > localFocusThreshold:
+                        isFocused[config_cam] = True
+                        self.focusSigma[cam_info['name']] = sigma
+                        if cam_info['hasAutofocus']:
+                            self.lensPosition[cam_info['name']] = frame.getLensPosition()
+                    else:
+                        if cam_info['hasAutofocus']:
+                            trigCount[cam_info['name']] += 1
+                            if trigCount[cam_info['name']] > 31:
+                                trigCount[cam_info['name']] = 0
+                                self.control_queue[cam_info['name']].send(ctrl)
+                                time.sleep(1)
+                    focusCount[cam_info['name']] += 1
+
+                if focusFailed:
                     break
-            if isCountFull:
-                break
-        
-        backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
-        if not os.path.exists(backupFocusPath):
-            os.makedirs(backupFocusPath)
+                
+                isCountFull = True 
+                for key in focusCount.keys():
+                    if focusCount[key] < maxCountFocus:
+                        isCountFull = False
+                        break
+                if isCountFull:
+                    break
+            
+            backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
+            if not os.path.exists(backupFocusPath):
+                os.makedirs(backupFocusPath)
 
-        for name, image in capturedFrames.items():
-            print('Backing up images {}'.format(name))
-            cv2.imwrite(backupFocusPath + "/" + name + '.png', image)
+            for name, image in capturedFrames.items():
+                print('Backing up images {}'.format(name))
+                cv2.imwrite(backupFocusPath + "/" + name + '.png', image)
 
-        for key in isFocused.keys():
-            cam_name = self.board_config['cameras'][key]['name']
-            if isFocused[key]:
-                if self.board_config['cameras'][key]['hasAutofocus']:
-                    ctrl = dai.CameraControl()
-                    ctrl.setManualFocus(self.lensPosition[cam_name])
-                    print("Sending manual focus Control to {}".format(cam_name))
-                    self.control_queue[cam_name].send(ctrl)
-                self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
-                self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
-            else:
-                self.auto_focus_checkbox_dict[cam_name + "-Focus"].uncheck()
-                self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
+            for key in isFocused.keys():
+                cam_name = self.board_config['cameras'][key]['name']
+                if isFocused[key]:
+                    if self.board_config['cameras'][key]['hasAutofocus']:
+                        ctrl = dai.CameraControl()
+                        ctrl.setManualFocus(self.lensPosition[cam_name])
+                        print("Sending manual focus Control to {}".format(cam_name))
+                        self.control_queue[cam_name].send(ctrl)
+                    self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
+                    self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
+                else:
+                    self.auto_focus_checkbox_dict[cam_name + "-Focus"].uncheck()
+                    self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
 
         for key in self.auto_focus_checkbox_dict.keys():
             if not self.auto_focus_checkbox_dict[key].is_checked():
@@ -835,16 +858,27 @@ class depthai_calibration_node:
         frameCount = 0
         detection_failed = False
         # while not finished:
+        if self.args['socket_mode']:
+            payload_size = struct.calcsize(">L")
+            data = b""
+            self.conn.sendall(b'capture_req')
 
-        for key in self.camera_queue.keys():
-            frame = self.camera_queue[key].getAll()[-1]
-            gray_frame = None
-            if frame.getType() == dai.RawImgFrame.Type.RAW8:
-                gray_frame = frame.getCvFrame()
-            else:
-                gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-            self.imgPublishers[key].publish(
-                        self.bridge.cv2_to_imgmsg(gray_frame, "passthrough"))
+            # Getting message size
+            while len(data) < payload_size:
+                data += self.conn.recv(4096)
+            packed_msg_size = data[:payload_size]
+            data = data[payload_size:]
+            msg_size = struct.unpack(">L", packed_msg_size)[0]
+            
+            while len(data) < msg_size:
+                data += self.conn.recv(4096)
+            frame_data = data[:msg_size]
+            data = data[msg_size:]
+            image_dict = pickle.loads(
+                frame_data, fix_imports=True, encoding="bytes")
+
+            for key in image_dict.keys():
+                gray_frame = image_dict[key]
             
             is_board_found = self.is_markers_found(gray_frame)
             if is_board_found:
@@ -852,6 +886,24 @@ class depthai_calibration_node:
             else:
                 self.parse_frame(gray_frame, key + '_not', req.name)
                 detection_failed = True
+
+        else:
+            for key in self.camera_queue.keys():
+                frame = self.camera_queue[key].getAll()[-1]
+                gray_frame = None
+                if frame.getType() == dai.RawImgFrame.Type.RAW8:
+                    gray_frame = frame.getCvFrame()
+                else:
+                    gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                self.imgPublishers[key].publish(
+                            self.bridge.cv2_to_imgmsg(gray_frame, "passthrough"))
+                
+                is_board_found = self.is_markers_found(gray_frame)
+                if is_board_found:
+                    self.parse_frame(gray_frame, key, req.name)
+                else:
+                    self.parse_frame(gray_frame, key + '_not', req.name)
+                    detection_failed = True
         #TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
 
         if detection_failed:
@@ -1009,6 +1061,7 @@ if __name__ == "__main__":
     arg["squares_y"] = rospy.get_param('~squares_y')
 
     arg["board"] = rospy.get_param('~brd')
+    arg["socket_mode"] = rospy.get_param('~socketMode')
     arg["depthai_path"] = rospy.get_param(
         '~depthai_path')  # Path of depthai repo
     # local path to store calib files with using mx device id.

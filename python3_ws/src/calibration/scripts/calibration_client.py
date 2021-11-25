@@ -1,19 +1,94 @@
 # !/usr/bin/env python3
 
 import pickle
-import depthai
 import platform
 import cv2
-
-import consts.resource_paths
 from pathlib import Path
 import json
 from depthai_helpers import utils
 import socket
 import struct
 import os
+import time
+import depthai as dai
+import numpy as np
 
 # ip = '127.0.1.1'
+stringToCam = {
+                'RGB'   : dai.CameraBoardSocket.CAM_A,
+                'LEFT'  : dai.CameraBoardSocket.CAM_B,
+                'RIGHT' : dai.CameraBoardSocket.CAM_C,
+                'CAM_A' : dai.CameraBoardSocket.CAM_A,
+                'CAM_B' : dai.CameraBoardSocket.CAM_B,
+                'CAM_C' : dai.CameraBoardSocket.CAM_C,
+                'CAM_D' : dai.CameraBoardSocket.CAM_D,
+                'CAM_E' : dai.CameraBoardSocket.CAM_E,
+                'CAM_F' : dai.CameraBoardSocket.CAM_F,
+                'CAM_G' : dai.CameraBoardSocket.CAM_G,
+                'CAM_H' : dai.CameraBoardSocket.CAM_H
+                }
+
+CamToString = {
+                dai.CameraBoardSocket.CAM_A : 'RGB'  ,
+                dai.CameraBoardSocket.CAM_B : 'LEFT' ,
+                dai.CameraBoardSocket.CAM_C : 'RIGHT',
+                dai.CameraBoardSocket.CAM_A : 'CAM_A',
+                dai.CameraBoardSocket.CAM_B : 'CAM_B',
+                dai.CameraBoardSocket.CAM_C : 'CAM_C',
+                dai.CameraBoardSocket.CAM_D : 'CAM_D',
+                dai.CameraBoardSocket.CAM_E : 'CAM_E',
+                dai.CameraBoardSocket.CAM_F : 'CAM_F',
+                dai.CameraBoardSocket.CAM_G : 'CAM_G',
+                dai.CameraBoardSocket.CAM_H : 'CAM_H'
+                }
+
+camToMonoRes = {
+                'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
+                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P
+                }
+
+camToRgbRes = {
+                'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
+                'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
+                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P
+                }
+
+device = None
+focusSigmaThreshold = 25
+
+def create_pipeline(board_config):
+    pipeline = dai.Pipeline()
+
+    for cam_id in board_config['cameras']:
+        cam_info = board_config['cameras'][cam_id]
+        if cam_info['type'] == 'mono':
+            cam_node = pipeline.createMonoCamera()
+            xout = pipeline.createXLinkOut()
+
+            cam_node.setBoardSocket(stringToCam[cam_id])
+            cam_node.setResolution(camToMonoRes[cam_info['sensorName']])
+            cam_node.setFps(10)
+
+            xout.setStreamName(cam_info['name'])
+            cam_node.out.link(xout.input)
+        else:
+            cam_node = pipeline.createColorCamera()
+            xout = pipeline.createXLinkOut()
+            
+            cam_node.setBoardSocket(stringToCam[cam_id])
+            cam_node.setResolution(camToRgbRes[cam_info['sensorName']])
+            cam_node.setFps(10)
+
+            xout.setStreamName(cam_info['name'])
+            cam_node.isp.link(xout.input)
+
+            if cam_info['hasAutofocus']:
+                controlIn = pipeline.createXLinkIn()
+                controlIn.setStreamName(cam_info['name'] + '-control')
+                controlIn.out.link(cam_node.inputControl)
+
+    return pipeline
+
 
 def check_ping(ip_test):
     response = os.system("ping -c 1 " + ip_test)
@@ -34,81 +109,16 @@ print("host is set to {}".format(HOST))
 
 # HOST = ip  # The server's hostname or IP address
 PORT = 51264        # The port used by the server
+camera_queue = {}
+control_queue = {}
+aruco_dictionary = cv2.aruco.Dictionary_get(
+                                cv2.aruco.DICT_4X4_1000)
 
 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 s.connect((HOST, PORT))
 
-on_embedded = platform.machine().startswith(
-    'arm') or platform.machine().startswith('aarch64')
-board = 'bw1097'
-focus_value = 141
 
-config = {
-    'streams':
-    ['left', 'right', 'meta_d2h', 'color'] if not on_embedded else
-    [{'name': 'left', "max_fps": 30.0}, {'name': 'right', "max_fps": 30.0}, {
-        'name': 'meta_d2h', "max_fps": 30.0}, {'name': 'color', "max_fps": 30.0}],
-    'depth':
-    {
-        'calibration_file': consts.resource_paths.calib_fpath,
-        'padding_factor': 0.3
-    },
-    'ai':
-    {
-        'blob_file': consts.resource_paths.blob_fpath,
-        'blob_file_config': consts.resource_paths.blob_config_fpath,
-        'shaves': 7,
-        'cmx_slices': 7,
-        'NN_engines': 1,
-    },
-    'board_config':
-    {
-        'swap_left_and_right_cameras': True,
-        'left_fov_deg':  71.86,
-        'left_to_right_distance_cm': 9.0,
-        'override_eeprom': False,
-        'stereo_center_crop': True,
-    },
-    'camera':
-    {
-        'rgb':
-        {
-            'resolution_h': 1080,
-            'fps': 30.0,
-            'initial_focus': focus_value,
-            'enable_autofocus': False
-        },
-        'mono':
-        {
-            # 1280x720, 1280x800, 640x400 (binning enabled)
-            'resolution_h': 800,
-            'fps': 30.0,
-        },
-    },
-    'app':
-    {
-        'enable_imu': True
-    },
-}
-
-if board:
-    board_path = Path(board)
-    if not board_path.exists():
-        board_path = Path(consts.resource_paths.boards_dir_path) / \
-            Path(board.upper()).with_suffix('.json')
-        print(board_path)
-        if not board_path.exists():
-            raise ValueError(
-                'Board config not found: {}'.format(board_path))
-    with open(board_path) as fp:
-        board_config = json.load(fp)
-
-utils.merge(board_config, config)
-
-device = depthai.Device('', False)
-# device = depthai.Device('/home/nuc/Desktop/depthai/.fw_cache/depthai-6fc8c54e33b8aa6d16bf70ac5193d10090dcd0d8.cmd', '')
-pipeline = device.create_pipeline(config)
-
+device = dai.Device()
 
 def cvt_bgr(packet):
     meta = packet.getMetadata()
@@ -122,182 +132,269 @@ def cvt_bgr(packet):
 
 def capture_servive_handler():
     print("Capture image Service Started")
-    recent_left = None
-    recent_right = None
-    recent_color = None
-    finished = False
-    # now = rospy.get_rostime()
-    # pygame.draw.rect(screen, white, no_button)
-    # ts_color = None
-    # ts_color_dev = None
-    # current_focus = None
-    # current_color_pkt = None
-    rgb_check_count = 0
-    m_d2h_seq_focus = dict()
-    # color_pkt_queue = deque()
-    local_color_frame_count = 0
-    while not finished:
-        _, data_list = pipeline.get_available_nnet_and_data_packets(True)
-        # print(len(data_list))
+    # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
+    frameCount = 0
+    detection_failed = False
+    # while not finished:
+    image_dict = {}
 
-        for packet in data_list:
-            # print(packet.stream_name)
-            # print("packet time")
-            # print(packet.getMetadata().getTimestamp())
-            # print("ros time")
-            # print(now.secs)
-            if packet.stream_name == "left":
-                recent_left = packet.getData()
-            elif packet.stream_name == "right":
-                recent_right = packet.getData()
-            elif packet.stream_name == "color":
-                local_color_frame_count += 1
-                seq_no = packet.getMetadata().getSequenceNum()
-                if seq_no in m_d2h_seq_focus:
-                    curr_focus = m_d2h_seq_focus[seq_no]
-                    if 0:
-                        print('rgb_check_count -> {}'.format(rgb_check_count))
-                        print('seq_no -> {}'.format(seq_no))
-                        print('curr_focus -> {}'.format(curr_focus))
+    for key in camera_queue.keys():
+        frame = camera_queue[key].getAll()[-1]
+        gray_frame = None
+        if frame.getType() == dai.RawImgFrame.Type.RAW8:
+            gray_frame = frame.getCvFrame()
+        else:
+            gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
 
-                    if curr_focus < focus_value + 1 and curr_focus > focus_value - 1:
-                        rgb_check_count += 1
-                    else:
-                        # return False, 'RGB focus was set to {}'.format(curr_focus)
-                        # set_focus()
-                        rgb_check_count = -2
-                        # rospy.sleep(1)
-                    # color_pkt_queue.append(packet)
-                if rgb_check_count >= 5:
-                    recent_color = cv2.cvtColor(
-                        cvt_bgr(packet), cv2.COLOR_BGR2GRAY)
-                else:
-                    recent_color = None
-            elif packet.stream_name == "meta_d2h":
-                str_ = packet.getDataAsStr()
-                dict_ = json.loads(str_)
-                m_d2h_seq_focus[dict_['camera']['rgb']['frame_count']] = dict_[
-                    'camera']['rgb']['focus_pos']
+        image_dict[key] = gray_frame
 
-        # if local_color_frame_count > 100:
-        #     if rgb_check_count < 5:
-        #         return False, 'RGB camera focus was set to {}'.format(curr_focus)
-
-        if recent_left is not None and recent_right is not None and recent_color is not None:
-            finished = True
-
-    # is_board_found_l = is_markers_found(recent_left)
-    # is_board_found_r = is_markers_found(recent_right)
-    # is_board_found_rgb = is_markers_found(recent_color)
-    # if is_board_found_l and is_board_found_r and is_board_found_rgb:
-    #     print("Found------------------------->")
-    #     parse_frame(recent_left, "left", req.name)
-    #     parse_frame(recent_right, "right", req.name)
-    #     parse_frame(recent_color, "rgb", req.name)
-    # else:
-    #     print("Not found--------------------->")
-    #     is_service_active = False
-    #     parse_frame(recent_left, "left_not", req.name)
-    #     parse_frame(recent_right, "right_not", req.name)
-    #     parse_frame(recent_color, "rgb_not", req.name)
-    #     return (False, "Calibration board not found")
-    # # elif is_board_found_l and not is_board_found_r: ## TODO: Add errors after srv is built
-    # print("Service ending")
-    # is_service_active = False
-    # return (True, "No Error")
-    return recent_left, recent_right, recent_color
+    return image_dict
 
 
-def write_eeprom(calib_data):
-    is_write_succesful = False
+def write_eeprom(result_config):
+    calibration_handler = dai.CalibrationHandler()
+    for camera in result_config['cameras'].keys():
+        cam_info = result_config['cameras'][camera]
 
-    dev_config = {
-        'board': {},
-        '_board': {}
-    }
-    dev_config["board"]["clear-eeprom"] = False
-    dev_config["board"]["store-to-eeprom"] = True
-    dev_config["board"]["override-eeprom"] = False
-    dev_config["board"]["swap-left-and-right-cameras"] = board_config['board_config']['swap_left_and_right_cameras']
-    dev_config["board"]["left_fov_deg"] = board_config['board_config']['left_fov_deg']
-    dev_config["board"]["rgb_fov_deg"] = board_config['board_config']['rgb_fov_deg']
-    dev_config["board"]["left_to_right_distance_m"] = board_config['board_config']['left_to_right_distance_cm'] / 100
-    dev_config["board"]["left_to_rgb_distance_m"] = board_config['board_config']['left_to_rgb_distance_cm'] / 100
-    dev_config["board"]["name"] = board_config['board_config']['name']
-    dev_config["board"]["stereo_center_crop"] = True
-    dev_config["board"]["revision"] = board_config['board_config']['revision']
-    dev_config["_board"]['calib_data'] = list(calib_data)
-    dev_config["_board"]['mesh_right'] = [0.0]
-    dev_config["_board"]['mesh_left'] = [0.0]
+        calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info['dist_coeff'])
+        calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
+        calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
-    device.write_eeprom_data(dev_config)
-    run_thread = True
-    while run_thread:
-        _, data_packets = pipeline.get_available_nnet_and_data_packets(
-            blocking=True)
-        for packet in data_packets:
-            if packet.stream_name == 'meta_d2h':
-                str_ = packet.getDataAsStr()
-                dict_ = json.loads(str_)
-                if 'logs' in dict_:
-                    for log in dict_['logs']:
-                        print(log)
-                        if 'EEPROM' in log:
-                            if 'write OK' in log:
-                                is_write_succesful = True
-                                run_thread = False
-                            elif 'FAILED' in log:
-                                is_write_succesful = False
-                                run_thread = False
+        if cam_info['hasAutofocus']:
+            calibration_handler.setLensPosition(stringToCam[camera], lensPosition[cam_info['name']])
+        
+        if 'extrinsics' in cam_info:
+            
+            if 'to_cam' in cam_info['extrinsics']:
+                right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
+                left_cam = cam_info['name']
+                
+                """ if cam_info['extrinsics']['epipolar_error'] > 0.6:
+                    color = red
+                    error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
+                elif cam_info['extrinsics']['epipolar_error'] == -1:
+                    color = red
+                    error_text.append("Epiploar validation failed between " + left_cam + " and " + right_cam) """
+                
+                """ log_list.append(cam_info['extrinsics']['epipolar_error'])
+                text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info['extrinsics']['epipolar_error'], '.6f')
+                pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
+                vis_y += 30 """
+                specTranslation = np.array([cam_info['extrinsics']['specTranslation']['x'], cam_info['extrinsics']['specTranslation']['y'], cam_info['extrinsics']['specTranslation']['z']], dtype=np.float32)
+
+                calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info['extrinsics']['to_cam']], cam_info['extrinsics']['rotation_matrix'], cam_info['extrinsics']['translation'], specTranslation)
+                if result_config['stereo_config']['left_cam'] == camera and result_config['stereo_config']['right_cam'] == cam_info['extrinsics']['to_cam']:
+                    calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
+                    calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
+
+    calibration_handler.setBoardInfo(board_config['name'], board_config['revision'])
+    try:
+        is_write_succesful = device.flashCalibration(calibration_handler)
+    except:
+        print("Writing in except...")
+        is_write_succesful = device.flashCalibration(calibration_handler)
+    device.close()
     return is_write_succesful
 
+def camera_focus_adjuster():
+    maxCountFocus   = 50
+    focusCount = {}
+    isFocused = {}
+    trigCount = {}
+    capturedFrames = {}
+    status = {}
+    lensPosition = {}
+    focusSigma = {}
+    
+    ctrl = dai.CameraControl()
+    ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
+    ctrl.setAutoFocusTrigger()
 
-def device_status_handler():
-    # to remove previous date and stuff
-    while device.is_device_changed():
-        # print(device.is_device_changed())
-        # if capture_exit():
-        #     print("signaling...")
-        #     rospy.signal_shutdown("Finished calibration")
-        is_usb3 = False
-        left_mipi = False
-        right_mipi = False
-        rgb_mipi = False
+    for config_cam in board_config['cameras'].keys():
+        cam_info = board_config['cameras'][config_cam]
+        focusCount[cam_info['name']] = 0
+        focusSigma[cam_info['name']] = 0
+        lensPosition[cam_info['name']] = 0
+        isFocused[config_cam] = False
+        capturedFrames[cam_info['name']] = None
 
-        is_usb3 = device.is_usb3()
-        left_status = device.is_left_connected()
-        right_status = device.is_right_connected()
-        rgb_status = device.is_rgb_connected()
+        if cam_info['hasAutofocus']:
+            trigCount[cam_info['name']] = 0
+            control_queue[cam_info['name']].send(ctrl)
 
-        # else
-        if left_status and right_status:
-            # mipi check using 20 iterations
-            # ["USB3", "Left camera connected", "Right camera connected", "left Stream", "right Stream"]
-            for _ in range(120):
-                _, data_list = pipeline.get_available_nnet_and_data_packets(
-                    True)
-                # print(len(data_list))
-                for packet in data_list:
-                    # print("found packets:")
-                    # print(packet.stream_name)
-                    if packet.stream_name == "left":
-                        left_mipi = True
-                    elif packet.stream_name == "right":
-                        right_mipi = True
-                    elif packet.stream_name == "color":
-                        rgb_mipi = True
-                if left_mipi and right_mipi and is_usb3:
-                    # # setting manual focus to rgb camera
-                    # cam_c = depthai.CameraControl.CamId.RGB
-                    # cmd_set_focus = depthai.CameraControl.Command.MOVE_LENS
-                    # device.send_camera_control(cam_c, cmd_set_focus, '111')
-                    device.reset_device_changed()
-                    break
+    time.sleep(1)
+    focusFailed  = False
+    while True:
+        for config_cam in board_config['cameras'].keys():
+            cam_info = board_config['cameras'][config_cam]
+            frame = camera_queue[cam_info['name']].getAll()[-1]
+            currFrame = frame.getCvFrame()
+            if frame.getType() != dai.RawImgFrame.Type.RAW8:
+                currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
+            print('Resolution: {}'.format(currFrame.shape))
+            capturedFrames[cam_info['name']] = currFrame 
 
-        check_list = [device.get_mx_id(), is_usb3, left_status,
-                      right_status, rgb_status, left_mipi, right_mipi, rgb_mipi]
-        data = pickle.dumps(check_list)
-        s.sendall(data)
+            if cam_info['hasAutofocus']:
+                marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, aruco_dictionary)
+                if len(marker_corners) < 30:
+                    print("Board not detected. Waiting...!!!")
+                    trigCount[cam_info['name']] += 1
+                    focusCount[cam_info['name']] += 1
+                    if trigCount[cam_info['name']] > 31:
+                        trigCount[cam_info['name']] = 0
+                        control_queue[cam_info['name']].send(ctrl)
+                        time.sleep(1)
+                    if focusCount[cam_info['name']] > maxCountFocus:
+                        focusFailed = True
+                        break
+                    continue
+
+            dst_laplace = cv2.Laplacian(currFrame, cv2.CV_64F)
+            mu, sigma = cv2.meanStdDev(dst_laplace)
+
+            print('Sigma of {} is {}'.format(cam_info['name'], sigma))
+            localFocusThreshold = focusSigmaThreshold 
+            if dst_laplace.shape[1] > 2000:
+                localFocusThreshold = localFocusThreshold / 2
+
+            if sigma > localFocusThreshold:
+                isFocused[config_cam] = True
+                focusSigma[cam_info['name']] = sigma
+                if cam_info['hasAutofocus']:
+                    lensPosition[cam_info['name']] = frame.getLensPosition()
+            else:
+                if cam_info['hasAutofocus']:
+                    trigCount[cam_info['name']] += 1
+                    if trigCount[cam_info['name']] > 31:
+                        trigCount[cam_info['name']] = 0
+                        control_queue[cam_info['name']].send(ctrl)
+                        time.sleep(1)
+            focusCount[cam_info['name']] += 1
+
+        if focusFailed:
+            break
+        
+        isCountFull = True 
+        for key in focusCount.keys():
+            if focusCount[key] < maxCountFocus:
+                isCountFull = False
+                break
+        if isCountFull:
+            break
+
+    for key in isFocused.keys():
+        cam_name = board_config['cameras'][key]['name']
+        if isFocused[key]:
+            if board_config['cameras'][key]['hasAutofocus']:
+                ctrl = dai.CameraControl()
+                ctrl.setManualFocus(lensPosition[cam_name])
+                print("Sending manual focus Control to {}".format(cam_name))
+                control_queue[cam_name].send(ctrl)
+            status[cam_name + "-Focus"] = True
+            # self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
+            # self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
+        else:
+            status[cam_name + "-Focus"] = False
+
+    return status
+
+def device_status_handler(board_config):
+
+    if device is not None:
+        if not device.isClosed():
+            device.close()
+    
+    dev_status = {}
+    finished = False
+    # while not finished:
+
+    while device is None or device.isClosed():
+        device = dai.Device() 
+        # cameraList = self.device.getConnectedCameras()
+        cameraProperties = device.getConnectedCameraProperties()
+        time.sleep(2)
+        # dev_info = self.device.getDeviceInfo()
+        
+        dev_status['mx_id'] = device.getMxId()
+        lost_camera = False
+        for properties in cameraProperties:
+            for in_cam in board_config['cameras'].keys():
+                cam_info = board_config['cameras'][in_cam]
+                if properties.socket == stringToCam[in_cam]:
+                    board_config['cameras'][in_cam]['sensorName'] = properties.sensorName
+                    print('Cam: {} and focus: {}'.format(cam_info['name'], properties.hasAutofocus))
+                    board_config['cameras'][in_cam]['hasAutofocus'] = properties.hasAutofocus
+                    dev_status[cam_info['name']  + '-Camera-connected'] = True
+                # else:
+                #     lost_camera = True
+                #     dev_status[cam_info['name']  + '-Camera-connected'] = False
+                    
+        for config_cam in board_config['cameras'].keys():
+            cam_info = board_config['cameras'][config_cam]
+            id = cam_info['name'] + '-Camera-connected'
+            if not id in dev_status:
+                dev_status[cam_info['name']  + '-Camera-connected'] = False
+                lost_camera = True
+
+        if not lost_camera:
+            pipeline = create_pipeline(board_config)
+            device.startPipeline(pipeline)
+            camera_queue = {}
+            control_queue = {}
+            for config_cam in board_config['cameras']:
+                cam = board_config['cameras'][config_cam]
+                camera_queue[cam['name']] = device.getOutputQueue(cam['name'], 5, False)
+                if cam['hasAutofocus']:
+                    control_queue[cam['name']] = device.getInputQueue(cam['name'] + '-control', 5, False)
+        else:
+            print("Closing Device...")
+            return dev_status
+
+    mipi = {}
+    for config_cam in board_config['cameras']:
+        mipi[board_config['cameras'][config_cam]['name']] = False
+
+    # left_mipi = False
+    # right_mipi = False
+    # rgb_mipi = False
+
+    for _ in range(120):
+        for config_cam in board_config['cameras']:
+            name = board_config['cameras'][config_cam]['name']
+            imageFrame = camera_queue[name].tryGet()
+            
+            if imageFrame is not None:
+                mipi[name] = True
+                """ frame = None
+
+                if imageFrame.getType() == dai.RawImgFrame.Type.RAW8:
+                    frame = imageFrame.getCvFrame()
+                else:
+                    frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY) """
+                # self.imgPublishers[name].publish(
+                #     self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+
+        isMipiReady = True
+        for config_cam in board_config['cameras']:
+            name = board_config['cameras'][config_cam]['name']
+            isMipiReady = isMipiReady and mipi[name] 
+        if isMipiReady:
+            break
+        time.sleep(1)
+    
+    dev_status['mipi'] = mipi
+    # for key in mipi.keys():
+    #     dev_status[key + "-Stream"] = mipi[key]
+
+    return dev_status
+        
+        
+# dataset_path = Path(self.package_path + "/dataset")
+# if 0 and dataset_path.exists():
+#     shutil.rmtree(str(dataset_path))
+# # dev_info = self.device.getDeviceInfo()
+# self.is_service_active = False
+# return (finished, self.device.getMxId())
 
 
 while True:
@@ -306,25 +403,17 @@ while True:
 
     if req == 'check_conn':
         device_status_handler()
-    elif req == 'check_conn_rep':
+    elif req == 'focus_test':
         device_status_handler()
+
     elif req == 'capture_req':
-        rec_left, rec_right, rec_color = capture_servive_handler()
+        img_data = capture_servive_handler()
 
-        rec_left_bytes = pickle.dumps(rec_left, 0)
-        size = len(rec_left_bytes)
+        rec_img_data_bytes = pickle.dumps(img_data, 0)
+        size = len(rec_img_data_bytes)
         print(size)
-        s.sendall(struct.pack(">L", size) + rec_left_bytes)
+        s.sendall(struct.pack(">L", size) + rec_img_data_bytes)
 
-        rec_right_bytes = pickle.dumps(rec_right, 0)
-        size = len(rec_right_bytes)
-        print(size)
-        s.sendall(struct.pack(">L", size) + rec_right_bytes)
-
-        rec_color_bytes = pickle.dumps(rec_color, 0)
-        size = len(rec_color_bytes)
-        print(size)
-        s.sendall(struct.pack(">L", size) + rec_color_bytes)
 
     elif req == 'write_eeprom':
         recv_data = s.recv(1024)
