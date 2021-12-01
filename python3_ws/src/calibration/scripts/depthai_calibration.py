@@ -973,7 +973,7 @@ class depthai_calibration_node:
             calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
             calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
-            if cam_info['hasAutofocus']:
+            if not self.args['socket_mode'] and cam_info['hasAutofocus']:
                 calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
             
             log_list.append(self.focusSigma[cam_info['name']])
