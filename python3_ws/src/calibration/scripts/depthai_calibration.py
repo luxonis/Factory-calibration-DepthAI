@@ -848,6 +848,8 @@ class depthai_calibration_node:
         self.is_service_active = False        
         return (True, "RGB in Focus")
 
+    # def client_starter(self):
+
 
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
