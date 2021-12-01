@@ -161,15 +161,15 @@ def write_eeprom(result_config):
         calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
         if cam_info['hasAutofocus']:
-            calibration_handler.setLensPosition(stringToCam[camera], lensPosition[cam_info['name']])
+            calibration_handler.setLensPosition(stringToCam[camera], result_config['cameras'][camera]['lensPosition'])
         
         if 'extrinsics' in cam_info:
             
             if 'to_cam' in cam_info['extrinsics']:
-                right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
+                """right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                 left_cam = cam_info['name']
                 
-                """ if cam_info['extrinsics']['epipolar_error'] > 0.6:
+                 if cam_info['extrinsics']['epipolar_error'] > 0.6:
                     color = red
                     error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
                 elif cam_info['extrinsics']['epipolar_error'] == -1:
@@ -289,6 +289,7 @@ def camera_focus_adjuster():
                 ctrl = dai.CameraControl()
                 ctrl.setManualFocus(lensPosition[cam_name])
                 print("Sending manual focus Control to {}".format(cam_name))
+                board_config['cameras'][key]['lensPosition'] = lensPosition[cam_name]
                 control_queue[cam_name].send(ctrl)
             status[cam_name + "-Focus"] = True
             # self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
@@ -396,15 +397,18 @@ def device_status_handler(board_config):
 # self.is_service_active = False
 # return (finished, self.device.getMxId())
 
+board_config = None
 
 while True:
     data = s.recv(1024)
     req = repr(data)
-
+    if req == 'get_board_config':
+        data = s.recv(1024)
+        board_config = pickle.loads(recv_data)
     if req == 'check_conn':
-        device_status_handler()
+        device_status_handler(board_config)
     elif req == 'focus_test':
-        device_status_handler()
+        camera_focus_adjuster()
 
     elif req == 'capture_req':
         img_data = capture_servive_handler()
@@ -417,7 +421,12 @@ while True:
 
     elif req == 'write_eeprom':
         recv_data = s.recv(1024)
-        calib_data = pickle.loads(recv_data)
-        eeprom_status = write_eeprom(calib_data)
+        result_config = pickle.loads(recv_data)
+        
+        for camera in board_config['cameras'].keys():
+            if board_config['cameras'][camera]['hasAutofocus']:
+                result_config['cameras'][camera]['hasAutofocus'] = board_config['cameras'][camera]['hasAutofocus']
+                result_config['cameras'][camera]['lensPosition'] = board_config['cameras'][camera]['lensPosition']
+        eeprom_status = write_eeprom(result_config)
         data = pickle.dumps(eeprom_status)
         s.sendall(data)

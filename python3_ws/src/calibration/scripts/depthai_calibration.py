@@ -1020,10 +1020,20 @@ class depthai_calibration_node:
             print(calib_dest_path)
             calibration_handler.eepromToJsonFile(calib_dest_path)
             try:
-                is_write_succesful = self.device.flashCalibration(calibration_handler)
+                if self.args['socket_mode']:
+                    self.conn.sendall(b'write_eeprom')
+                    recv_data = self.conn.recv(1024)
+                    is_write_succesful = pickle.loads(recv_data)
+                else:
+                    is_write_succesful = self.device.flashCalibration(calibration_handler)
             except:
                 print("Writing in except...")
-                is_write_succesful = self.device.flashCalibration(calibration_handler)
+                if self.args['socket_mode']:
+                    self.conn.sendall(b'write_eeprom')
+                    recv_data = self.conn.recv(1024)
+                    is_write_succesful = pickle.loads(recv_data)
+                else:
+                    is_write_succesful = self.device.flashCalibration(calibration_handler)
             self.close_device()
             self.is_service_active = False
             if is_write_succesful:
