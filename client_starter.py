@@ -8,9 +8,7 @@ import argparse
 
 # response = os.system("nmap -sn  10.42.0.0/24 -oG - | awk '/Up$/{print $2}' ")
 parser = argparse.ArgumentParser()
-parser.add_argument("-fusb2", "--force_usb2", default=False, action="store_true",
-                            help="Force usb2 connection")
-parser.add_argument("-interface", help="display a square of a given number", default="enp6s0", type=str)
+parser.add_argument("-interface", help="display a square of a given number", default="eno1", type=str)
 
 args = parser.parse_args()
 
@@ -22,21 +20,21 @@ print(ip_val)
 
 net_msk = str()
 
-net_msk = ip_val[0] + '.' + ip_val[1] + '.' +ip_val[2] + '.0/24' 
+net_msk = ip_val[0] + '.' + ip_val[1] + '.' + ip_val[2] + '-250.0-200' 
 
 print(net_msk)
-localpath = '/home/sachin/Desktop/luxonis/depthai/calibration_client.py'
+localpath = '/home/nuc/Desktop/Factory-calibration-DepthAI/python3_ws/src/calibration/scripts/calibration_client.py'
 remotepath = '/home/pi/calibration_client.py'
 
 
-ps = subprocess.Popen(('nmap', '-sn', net_msk, '-oG', '-'), stdout=subprocess.PIPE)
+""" ps = subprocess.Popen(('nmap', '-sn', net_msk, '-oG', '-'), stdout=subprocess.PIPE)
 output = subprocess.Popen(('awk', '/Up$/{print $2}'), stdin=ps.stdout, stdout=subprocess.PIPE)
 ps.wait()
 
 print("Printing response")
 stdout,stderr = output.communicate()
 op_response = stdout.decode("utf-8").splitlines()
-print(op_response)
+print(op_response) 
 
 # rpi_ip = 'pi@' + op_response[1] 
 
@@ -46,11 +44,11 @@ print(op_response)
 ip = None
 for addr in op_response:
     if addr != host_ip:
-        ip = addr
+        ip = addr """
 
 print("prinitng selected address client ")
+ip = '169.254.57.161'
 print(ip)
-
 ssh = paramiko.SSHClient()
 # ssh.load_system_host_keys()
 ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())

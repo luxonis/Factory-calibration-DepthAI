@@ -5,7 +5,6 @@ import platform
 import cv2
 from pathlib import Path
 import json
-from depthai_helpers import utils
 import socket
 import struct
 import os
