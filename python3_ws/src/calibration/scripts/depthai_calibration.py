@@ -17,6 +17,7 @@ import socket
 import netifaces as ni
 import pickle
 import struct
+import paramiko
 from datetime import datetime, timedelta
 
 import rospy
@@ -564,10 +565,17 @@ class depthai_calibration_node:
                 mipi[self.board_config['cameras'][config_cam]['name']] = False
             
             if self.args["socket_mode"]:
-                self.conn.sendall(b'check_conn_rep')
+                # sending board config
+                self.conn.sendall(b'get_board_config')
+                board_config_bytes = pickle.dumps(self.board_config)
+                self.conn.sendall(board_config_bytes)
+
+                # Sending device status check
+                self.conn.sendall(b'status_handler')
                 recv_data = self.conn.recv(1024)
                 dev_status = pickle.loads(recv_data)
-                text = "device Mx_id : " + self.device.getMxId()
+
+                text = "device Mx_id : " + dev_status['mx_id']
                 pygame_render_text(self.screen, text, (400, 120), black, 30)
                 text = "Device Connected!!!"
                 pygame_render_text(self.screen, text, (400, 150), green, 30)
@@ -717,10 +725,18 @@ class depthai_calibration_node:
 
     def camera_focus_adjuster(self, req):
         self.is_service_active = True
+        self.focusSigma = {}
         if self.args['socket_mode']:
             self.conn.sendall(b'check_focus_adjuster')
             status = self.conn.recv(1024)
+            
+            self.focusSigma = status['focusSigma']
             for key in status.keys():
+                if key == 'lensPosition' or key == 'focusSigma':
+                    if key == 'lensPosition':
+                        self.lensPosition = status[key]
+                    continue
+
                 if status[key]:
                     self.auto_focus_checkbox_dict[key].check()
                     self.auto_focus_checkbox_dict[key].render_checkbox()
@@ -735,7 +751,6 @@ class depthai_calibration_node:
             capturedFrames = {}
             
             self.lensPosition = {}
-            self.focusSigma = {}
             
             ctrl = dai.CameraControl()
             ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
@@ -847,9 +862,6 @@ class depthai_calibration_node:
         
         self.is_service_active = False        
         return (True, "RGB in Focus")
-
-    # def client_starter(self):
-
 
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
@@ -975,7 +987,8 @@ class depthai_calibration_node:
             calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
             calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
-            if not self.args['socket_mode'] and cam_info['hasAutofocus']:
+            # if not self.args['socket_mode'] and cam_info['hasAutofocus']:
+            if cam_info['name'] in self.lensPosition:
                 calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
             
             log_list.append(self.focusSigma[cam_info['name']])
@@ -1024,6 +1037,9 @@ class depthai_calibration_node:
             try:
                 if self.args['socket_mode']:
                     self.conn.sendall(b'write_eeprom')
+                    result_config_bytes = pickle.dumps(result_config)
+                    self.conn.sendall(result_config_bytes)
+
                     recv_data = self.conn.recv(1024)
                     is_write_succesful = pickle.loads(recv_data)
                 else:
@@ -1032,6 +1048,9 @@ class depthai_calibration_node:
                 print("Writing in except...")
                 if self.args['socket_mode']:
                     self.conn.sendall(b'write_eeprom')
+                    result_config_bytes = pickle.dumps(result_config)
+                    self.conn.sendall(result_config_bytes)
+                    
                     recv_data = self.conn.recv(1024)
                     is_write_succesful = pickle.loads(recv_data)
                 else:

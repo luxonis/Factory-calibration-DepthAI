@@ -280,7 +280,7 @@ def camera_focus_adjuster():
                 break
         if isCountFull:
             break
-
+    status['focusSigma'] = focusSigma
     for key in isFocused.keys():
         cam_name = board_config['cameras'][key]['name']
         if isFocused[key]:
@@ -289,6 +289,7 @@ def camera_focus_adjuster():
                 ctrl.setManualFocus(lensPosition[cam_name])
                 print("Sending manual focus Control to {}".format(cam_name))
                 board_config['cameras'][key]['lensPosition'] = lensPosition[cam_name]
+                status['lensPosition'][cam_name] = lensPosition[cam_name]
                 control_queue[cam_name].send(ctrl)
             status[cam_name + "-Focus"] = True
             # self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
@@ -404,11 +405,14 @@ while True:
     if req == 'get_board_config':
         data = s.recv(1024)
         board_config = pickle.loads(recv_data)
-    if req == 'check_conn':
-        device_status_handler(board_config)
-    elif req == 'focus_test':
-        camera_focus_adjuster()
-
+    if req == 'status_handler':
+        dev_status = device_status_handler(board_config)
+        data = pickle.dumps(dev_status)
+        s.sendall(data)
+    elif req == 'check_focus_adjuster':
+        focus_status = camera_focus_adjuster()
+        data = pickle.dumps(focus_status)
+        s.sendall(data)
     elif req == 'capture_req':
         img_data = capture_servive_handler()
 
@@ -416,8 +420,7 @@ while True:
         size = len(rec_img_data_bytes)
         print(size)
         s.sendall(struct.pack(">L", size) + rec_img_data_bytes)
-
-
+        
     elif req == 'write_eeprom':
         recv_data = s.recv(1024)
         result_config = pickle.loads(recv_data)
