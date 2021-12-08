@@ -910,11 +910,12 @@ class depthai_calibration_node:
                 print(cam_info['size'][1])
                 reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
 
-            if cam_info['name'] == 'rgb':
-                reprojection_error_threshold = 6
+            # if cam_info['name'] == 'rgb':
+            #     reprojection_error_threshold = 6
             print('Reprojection error threshold -> {}'.format(reprojection_error_threshold))
-            if cam_info['reprojection_error'] > reprojection_error_threshold:
+            if cam_info['name'] != 'rgb' and cam_info['reprojection_error'] > reprojection_error_threshold:
                 color = red
+                # :
                 error_text.append("high Reprojection Error")
             text = cam_info['name'] + ' Reprojection Error: ' + format(cam_info['reprojection_error'], '.6f')
             pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
