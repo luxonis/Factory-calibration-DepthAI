@@ -96,7 +96,7 @@ class depthai_calibration_node:
 
         # self.focus_value = 0
         # self.defaultLensPosition = 135
-        self.focusSigmaThreshold = 42
+        self.focusSigmaThreshold = 35
         # if self.rgbCcm == 'Sunny':
         #     self.focus_value = 135
         # elif self.rgbCcm == 'KingTop':
@@ -905,11 +905,13 @@ class depthai_calibration_node:
             log_list.append(self.ccm_selected[cam_info['name']])
 
             color = green
-            reprojection_error_threshold = 0.7
+            reprojection_error_threshold = 0.7  # TODO: Remove this check later
             if cam_info['size'][1] > 720:
                 print(cam_info['size'][1])
                 reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
 
+            if cam_info['name'] == 'rgb':
+                reprojection_error_threshold = 6
             print('Reprojection error threshold -> {}'.format(reprojection_error_threshold))
             if cam_info['reprojection_error'] > reprojection_error_threshold:
                 color = red
@@ -935,8 +937,11 @@ class depthai_calibration_node:
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
-                    
-                    if cam_info['extrinsics']['epipolar_error'] > 0.6:
+                    epipolar_error_threshold = 0.6
+                    if cam_info['name'] == 'rgb' or right_cam == 'rgb': # TODO: Remove this check later
+                       epipolar_error_threshold = 1
+
+                    if cam_info['extrinsics']['epipolar_error'] > epipolar_error_threshold:
                         color = red
                         error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
                     elif cam_info['extrinsics']['epipolar_error'] == -1:
