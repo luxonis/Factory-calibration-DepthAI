@@ -755,6 +755,7 @@ class depthai_calibration_node:
                             self.control_queue[cam_info['name']].send(ctrl)
                             time.sleep(1)
                         if focusCount[cam_info['name']] > maxCountFocus:
+                            print("Failed to Focus...!!!")
                             focusFailed = True
                             break
                         continue
@@ -768,6 +769,7 @@ class depthai_calibration_node:
                     localFocusThreshold = localFocusThreshold / 2
 
                 if sigma > localFocusThreshold:
+                    print('Setting focus true for {}'.format(cam_info['name']))
                     isFocused[config_cam] = True
                     self.focusSigma[cam_info['name']] = sigma
                     if cam_info['hasAutofocus']:
@@ -806,7 +808,7 @@ class depthai_calibration_node:
                 if self.board_config['cameras'][key]['hasAutofocus']:
                     ctrl = dai.CameraControl()
                     ctrl.setManualFocus(self.lensPosition[cam_name])
-                    print("Sending manual focus Control to {}".format(cam_name))
+                    print("Sending manual focus Control to {} at position {}".format(cam_name, self.lensPosition[cam_name]))
                     self.control_queue[cam_name].send(ctrl)
                 self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
                 self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
@@ -910,12 +912,11 @@ class depthai_calibration_node:
                 print(cam_info['size'][1])
                 reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
 
-            # if cam_info['name'] == 'rgb':
-            #     reprojection_error_threshold = 6
+            if cam_info['name'] == 'rgb':
+                reprojection_error_threshold = 6
             print('Reprojection error threshold -> {}'.format(reprojection_error_threshold))
-            if cam_info['name'] != 'rgb' and cam_info['reprojection_error'] > reprojection_error_threshold:
+            if cam_info['reprojection_error'] > reprojection_error_threshold:
                 color = red
-                # :
                 error_text.append("high Reprojection Error")
             text = cam_info['name'] + ' Reprojection Error: ' + format(cam_info['reprojection_error'], '.6f')
             pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
