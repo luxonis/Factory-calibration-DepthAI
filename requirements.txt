@@ -8,4 +8,4 @@ rospkg==1.2.8
 access-dict-by-dot
 # depthai==0.3.0.0
 --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-python-snapshot-local/
-depthai==2.11.1.0.dev0+c51329206e59410f2bc2d2889f13145ec7442884
+depthai==2.14.1.0.dev+d988139818b97a8184ad2b1aa00551695cb8ca7c
