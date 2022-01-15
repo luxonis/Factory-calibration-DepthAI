@@ -2,7 +2,7 @@
     "board_config":
     {
         "name": "OAK-D-PRO",
-        "revision": "R1M0E1",
+        "revision": "R3M1E3",
         "cameras":{
             "CAM_A": {
                 "name": "rgb",
