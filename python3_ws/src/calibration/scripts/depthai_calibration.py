@@ -829,7 +829,10 @@ class depthai_calibration_node:
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
         self.is_service_active = True
-        rospy.sleep(1)
+        wait_time = 1
+        if "POE" in self.board_config['name']: 
+            wait_time = 2
+        rospy.sleep(wait_time)
 
         # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
         frameCount = 0
@@ -936,7 +939,12 @@ class depthai_calibration_node:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
                     
-                    if cam_info['extrinsics']['epipolar_error'] > 0.6:
+                    epipolar_threshold = 0.6
+                    #TODO(sachin):  Remove this higher threshold and reduce the speed of the arm robot to avoid wobbling
+                    # if "POE" in self.board_config['name']: 
+                    #     epipolar_threshold = 0.9
+
+                    if cam_info['extrinsics']['epipolar_error'] > epipolar_threshold:
                         color = red
                         error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
                     elif cam_info['extrinsics']['epipolar_error'] == -1:
