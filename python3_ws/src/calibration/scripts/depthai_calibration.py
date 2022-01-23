@@ -944,8 +944,8 @@ class depthai_calibration_node:
                     
                     epipolar_threshold = 0.6
                     #TODO(sachin):  Remove this higher threshold and reduce the speed of the arm robot to avoid wobbling
-                    # if "POE" in self.board_config['name']: 
-                    #     epipolar_threshold = 0.9
+                    if "POE" in self.board_config['name']: 
+                        epipolar_threshold = 0.8
 
                     if cam_info['extrinsics']['epipolar_error'] > epipolar_threshold:
                         color = red
