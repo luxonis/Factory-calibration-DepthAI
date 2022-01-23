@@ -328,6 +328,7 @@ class depthai_calibration_node:
     def create_pipeline(self, camProperties):
         pipeline = dai.Pipeline()
 
+        fps = 10
         for cam_id in self.board_config['cameras']:
             cam_info = self.board_config['cameras'][cam_id]
             if cam_info['type'] == 'mono':
@@ -336,7 +337,7 @@ class depthai_calibration_node:
 
                 cam_node.setBoardSocket(stringToCam[cam_id])
                 cam_node.setResolution(camToMonoRes[cam_info['sensorName']])
-                cam_node.setFps(10)
+                cam_node.setFps(fps)
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.out.link(xout.input)
@@ -346,7 +347,7 @@ class depthai_calibration_node:
                 
                 cam_node.setBoardSocket(stringToCam[cam_id])
                 cam_node.setResolution(camToRgbRes[cam_info['sensorName']])
-                cam_node.setFps(10)
+                cam_node.setFps(fps)
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.isp.link(xout.input)
@@ -355,6 +356,8 @@ class depthai_calibration_node:
                     controlIn = pipeline.createXLinkIn()
                     controlIn.setStreamName(cam_info['name'] + '-control')
                     controlIn.out.link(cam_node.inputControl)
+            xout.input.setBlocking(False)
+            xout.input.setQueueSize(1)
 
         return pipeline
 
@@ -597,7 +600,7 @@ class depthai_calibration_node:
                         self.control_queue = {}
                         for config_cam in self.board_config['cameras']:
                             cam = self.board_config['cameras'][config_cam]
-                            self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 5, False)
+                            self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 1, False)
                             if cam['hasAutofocus']:
                                 self.control_queue[cam['name']] = self.device.getInputQueue(cam['name'] + '-control', 5, False)
                     else:
