@@ -503,7 +503,7 @@ class depthai_calibration_node:
         marker_corners, _, _ = cv2.aruco.detectMarkers(
             frame, self.aruco_dictionary)
         print("Markers count ... {}".format(len(marker_corners)))
-        return not (len(marker_corners) < 30)
+        return not (len(marker_corners) < 25)
 
     def close_device(self):
         # if hasattr(self, 'left_camera_queue') and hasattr(self, 'right_camera_queue'):
