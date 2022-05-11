@@ -43,6 +43,13 @@ black = [0, 0, 0]
 pygame.init()
 
 stringToCam = {
+                # 'RGB': dai.CameraBoardSocket.RGB,
+                # 'LEFT': dai.CameraBoardSocket.LEFT,
+                # 'RIGHT': dai.CameraBoardSocket.RIGHT,
+                # 'AUTO': dai.CameraBoardSocket.AUTO,
+                # 'CAM_A' : dai.CameraBoardSocket.RGB,
+                # 'CAM_B' : dai.CameraBoardSocket.LEFT,
+                # 'CAM_C' : dai.CameraBoardSocket.CAM_C,
                 'RGB'   : dai.CameraBoardSocket.CAM_A,
                 'LEFT'  : dai.CameraBoardSocket.CAM_B,
                 'RIGHT' : dai.CameraBoardSocket.CAM_C,
@@ -57,6 +64,10 @@ stringToCam = {
                 }
 
 CamToString = {
+                # dai.CameraBoardSocket.RGB : 'RGB'  ,
+                # dai.CameraBoardSocket.LEFT : 'LEFT' ,
+                # dai.CameraBoardSocket.RIGHT : 'RIGHT',
+                # dai.CameraBoardSocket.AUTO : 'AUTO'
                 dai.CameraBoardSocket.CAM_A : 'RGB'  ,
                 dai.CameraBoardSocket.CAM_B : 'LEFT' ,
                 dai.CameraBoardSocket.CAM_C : 'RIGHT',
@@ -72,13 +83,15 @@ CamToString = {
 
 camToMonoRes = {
                 'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
-                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P
+                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
+                'NG9097' : dai.MonoCameraProperties.SensorResolution.THE_800_P
                 }
 
 camToRgbRes = {
-                'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
-                'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
-                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P
+                'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
+                'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
+                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
+                'NG9097' : dai.ColorCameraProperties.SensorResolution.THE_12_MP
                 }
 
 
@@ -901,7 +914,7 @@ class depthai_calibration_node:
         vis_x = 400
         vis_y = 180
         error_text = []
-        calibration_handler = dai.CalibrationHandler()
+        calibration_handler = dai.readCalibration2()
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]
             log_list.append(self.ccm_selected[cam_info['name']])
@@ -968,20 +981,29 @@ class depthai_calibration_node:
             # header =
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
-        calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
+        # calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
         
         if len(error_text) == 0:
             print('Flashing Calibration data into ')
             print(calib_dest_path)
             calibration_handler.eepromToJsonFile(calib_dest_path)
             try:
-                is_write_succesful = self.device.flashCalibration(calibration_handler)
-            except:
-                print("Writing in except...")
-                is_write_succesful = self.device.flashCalibration(calibration_handler)
+                self.device.flashCalibration2(calibration_handler)
+                is_write_succesful = True
+            except RuntimeError:
+                is_write_succesful = False
+                # print("Writing in except...")
+                # is_write_succesful = self.device.flashCalibration2(calibration_handler)
+
+            try:
+                self.device.flashFactoryCalibration(calib_data)
+                is_write_factory_sucessful = True
+            except RuntimeError:
+                is_write_factory_sucessful = False
+
             self.close_device()
             self.is_service_active = False
-            if is_write_succesful:
+            if is_write_succesful and is_write_factory_sucessful:
                 text = "EEPROM written succesfully"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
                 return (True, "EEPROM written succesfully")
