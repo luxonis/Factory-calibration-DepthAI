@@ -84,14 +84,12 @@ CamToString = {
 camToMonoRes = {
                 'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
                 'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
-                'NG9097' : dai.MonoCameraProperties.SensorResolution.THE_800_P
                 }
 
 camToRgbRes = {
                 'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
                 'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
                 'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
-                'NG9097' : dai.ColorCameraProperties.SensorResolution.THE_12_MP
                 }
 
 
@@ -996,7 +994,7 @@ class depthai_calibration_node:
                 # is_write_succesful = self.device.flashCalibration2(calibration_handler)
 
             try:
-                self.device.flashFactoryCalibration(calib_data)
+                self.device.flashFactoryCalibration(calibration_handler)
                 is_write_factory_sucessful = True
             except RuntimeError:
                 is_write_factory_sucessful = False
