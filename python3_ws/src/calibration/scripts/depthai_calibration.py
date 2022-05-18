@@ -29,6 +29,10 @@ import pygame
 from pygame.locals import *
 
 from depthai_helpers import utils
+
+import socket, pickle
+HOST = '192.168.1.6'
+PORT = 50007
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
 
 on_embedded = platform.machine().startswith(
@@ -41,56 +45,6 @@ red = [230, 9, 9]
 green = [4, 143, 7]
 black = [0, 0, 0]
 pygame.init()
-
-stringToCam = {
-                # 'RGB': dai.CameraBoardSocket.RGB,
-                # 'LEFT': dai.CameraBoardSocket.LEFT,
-                # 'RIGHT': dai.CameraBoardSocket.RIGHT,
-                # 'AUTO': dai.CameraBoardSocket.AUTO,
-                # 'CAM_A' : dai.CameraBoardSocket.RGB,
-                # 'CAM_B' : dai.CameraBoardSocket.LEFT,
-                # 'CAM_C' : dai.CameraBoardSocket.CAM_C,
-                'RGB'   : dai.CameraBoardSocket.CAM_A,
-                'LEFT'  : dai.CameraBoardSocket.CAM_B,
-                'RIGHT' : dai.CameraBoardSocket.CAM_C,
-                'CAM_A' : dai.CameraBoardSocket.CAM_A,
-                'CAM_B' : dai.CameraBoardSocket.CAM_B,
-                'CAM_C' : dai.CameraBoardSocket.CAM_C,
-                'CAM_D' : dai.CameraBoardSocket.CAM_D,
-                'CAM_E' : dai.CameraBoardSocket.CAM_E,
-                'CAM_F' : dai.CameraBoardSocket.CAM_F,
-                'CAM_G' : dai.CameraBoardSocket.CAM_G,
-                'CAM_H' : dai.CameraBoardSocket.CAM_H
-                }
-
-CamToString = {
-                # dai.CameraBoardSocket.RGB : 'RGB'  ,
-                # dai.CameraBoardSocket.LEFT : 'LEFT' ,
-                # dai.CameraBoardSocket.RIGHT : 'RIGHT',
-                # dai.CameraBoardSocket.AUTO : 'AUTO'
-                dai.CameraBoardSocket.CAM_A : 'RGB'  ,
-                dai.CameraBoardSocket.CAM_B : 'LEFT' ,
-                dai.CameraBoardSocket.CAM_C : 'RIGHT',
-                dai.CameraBoardSocket.CAM_A : 'CAM_A',
-                dai.CameraBoardSocket.CAM_B : 'CAM_B',
-                dai.CameraBoardSocket.CAM_C : 'CAM_C',
-                dai.CameraBoardSocket.CAM_D : 'CAM_D',
-                dai.CameraBoardSocket.CAM_E : 'CAM_E',
-                dai.CameraBoardSocket.CAM_F : 'CAM_F',
-                dai.CameraBoardSocket.CAM_G : 'CAM_G',
-                dai.CameraBoardSocket.CAM_H : 'CAM_H'
-                }
-
-camToMonoRes = {
-                'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
-                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
-                }
-
-camToRgbRes = {
-                'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
-                'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
-                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
-                }
 
 
 class depthai_calibration_node:
@@ -335,39 +289,6 @@ class depthai_calibration_node:
         
         self.screen.fill(white)
         self.disp.update()
-
-    def create_pipeline(self, camProperties):
-        pipeline = dai.Pipeline()
-
-        for cam_id in self.board_config['cameras']:
-            cam_info = self.board_config['cameras'][cam_id]
-            if cam_info['type'] == 'mono':
-                cam_node = pipeline.createMonoCamera()
-                xout = pipeline.createXLinkOut()
-
-                cam_node.setBoardSocket(stringToCam[cam_id])
-                cam_node.setResolution(camToMonoRes[cam_info['sensorName']])
-                cam_node.setFps(10)
-
-                xout.setStreamName(cam_info['name'])
-                cam_node.out.link(xout.input)
-            else:
-                cam_node = pipeline.createColorCamera()
-                xout = pipeline.createXLinkOut()
-                
-                cam_node.setBoardSocket(stringToCam[cam_id])
-                cam_node.setResolution(camToRgbRes[cam_info['sensorName']])
-                cam_node.setFps(10)
-
-                xout.setStreamName(cam_info['name'])
-                cam_node.isp.link(xout.input)
-
-                if cam_info['hasAutofocus']:
-                    controlIn = pipeline.createXLinkIn()
-                    controlIn.setStreamName(cam_info['name'] + '-control')
-                    controlIn.out.link(cam_node.inputControl)
-
-        return pipeline
 
     def capture_exit(self):
         is_clicked = False
