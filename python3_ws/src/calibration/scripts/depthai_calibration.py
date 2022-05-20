@@ -31,8 +31,7 @@ from pygame.locals import *
 from depthai_helpers import utils
 
 import socket, pickle
-HOST = '192.168.1.6'
-PORT = 50007
+
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
 
 on_embedded = platform.machine().startswith(
@@ -47,6 +46,44 @@ black = [0, 0, 0]
 pygame.init()
 
 
+class SocketWorker:
+    def __init__(self):
+        HOST = '192.168.1.6'
+        PORT = 50007
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((HOST, PORT))
+        CHOST = '192.168.1.3'
+        CPORT = 5008
+        cs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        cs.bind((CHOST, CPORT))
+        cs.listen()
+        conn, addr = cs.accept()
+        self.recv_conn, self.send_conn = conn, s
+
+    def __del__(self):
+        if hasattr(self, 'recv_conn'):
+            self.recv_conn.close()
+        if hasattr(self, 'send_conn'):
+            self.send_conn.close()
+
+    def send(self, msg):
+        data_string = pickle.dumps(msg)
+        self.send_conn.send(data_string)
+
+    def recv(self):
+        data = self.recv_conn.recv(4096)
+        msg = pickle.loads(data)
+        return msg
+
+    def join(self):
+        if not (self.recv() == 'ACK'):
+            raise RuntimeError('Socket network error')
+
+    def ack(self):
+        self.send('ACK')
+
+
+
 class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
@@ -59,17 +96,8 @@ class depthai_calibration_node:
         self.screen.fill(white)
         self.disp.set_caption("Calibration - Device check ")
 
-        # self.focus_value = 0
-        # self.defaultLensPosition = 135
         self.focusSigmaThreshold = 30
-        # if self.rgbCcm == 'Sunny':
-        #     self.focus_value = 135
-        # elif self.rgbCcm == 'KingTop':
-        #     self.focus_value = 135
-        # elif self.rgbCcm == 'ArduCam':
-        #     self.focus_value = 135
 
-        # self.frame_count = 0
         self.init_time = time.time()
         if self.args['board']:
             board_path = Path(self.args['board'])
@@ -161,26 +189,32 @@ class depthai_calibration_node:
         pygame_render_text(self.screen, 'Exit', (500, 505))
         self.no_active = False
         self.click = False
-        # self.disp.update()
-        # creating services and publishers at the end to avoid calls before initialization
-        self.capture_srv = rospy.Service(
-            self.args["capture_service_name"], Capture, self.capture_servive_handler)
-        self.calib_srv = rospy.Service(
-            self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
-        self.dev_status_srv = rospy.Service(
-            "device_status", Capture, self.device_status_handler)
-        self.focus_setting_srv = rospy.Service(
-            "rgb_focus_adjuster", Capture, self.camera_focus_adjuster)
-        # self.rgb_focus_srv = rospy.Service(
-        #     "set_rgb_focus", Capture, self.rgb_focus_handler)
+        # start connexion with server
+        try:
+            self.socket_worker = SocketWorker()
+        except:
+            print("Socket connexion error")
+            del self.socket_worker
+        else:
+            # creating services and publishers at the end to avoid calls before initialization
+            self.capture_srv = rospy.Service(
+                self.args["capture_service_name"], Capture, self.capture_servive_handler)
+            self.calib_srv = rospy.Service(
+                self.args["calibration_service_name"], Capture, self.calibration_servive_handler)
+            self.dev_status_srv = rospy.Service(
+                "device_status", Capture, self.device_status_handler)
+            self.focus_setting_srv = rospy.Service(
+                "rgb_focus_adjuster", Capture, self.camera_focus_adjuster)
+            # self.rgb_focus_srv = rospy.Service(
+            #     "set_rgb_focus", Capture, self.rgb_focus_handler)
 
-        self.args['cameraModel'] = 'perspective'
-        self.imgPublishers = dict()
-        for cam_id in self.board_config['cameras']:
-            name = self.board_config['cameras'][cam_id]['name']
-            self.imgPublishers[name] = rospy.Publisher(name, Image, queue_size=10)
+            self.args['cameraModel'] = 'perspective'
+            self.imgPublishers = dict()
+            for cam_id in self.board_config['cameras']:
+                name = self.board_config['cameras'][cam_id]['name']
+                self.imgPublishers[name] = rospy.Publisher(name, Image, queue_size=10)
 
-        self.device = None
+            self.device = None
 
     def ccm_selector(self):
         title = "Select the mono Camera and RGB camera vendor"
@@ -207,16 +241,11 @@ class depthai_calibration_node:
             offset = 150
             offset_increment = 1
             for camera in self.board_config['cameras'].keys():
-                # ccm_names_dict[ccm_names[i]].append()
                 ccm_names_dict[ccm_names[i]].append(Checkbox(self.screen, x + (offset * offset_increment), y_axis-5, outline_color=green,
                                                                                 check_color=green, check=False, disable_pass = True))
                 ccm_names_dict[ccm_names[i]][-1].render_checkbox()
                 offset_increment += 1
 
-            # ccm_names_dict[ccm_names[i]].append(Checkbox(self.screen, x + 420, y_axis-5, outline_color=green, 
-            #                                                                 check_color=green, check=False, disable_pass = True))
-            # ccm_names_dict[ccm_names[i]][0].render_checkbox()
-            # ccm_names_dict[ccm_names[i]][1].render_checkbox()
             fill_color = pygame.Rect(20, y_axis + 40, 750, 2)
             pygame.draw.rect(self.screen, black, fill_color)
         
@@ -445,7 +474,7 @@ class depthai_calibration_node:
 
     def device_status_handler(self, req):
         self.is_service_active = True
-        self.start_disp = True # TODO(sachin): Change code to Use this for display 
+        self.start_disp = True # TODO(sachin): Change code to Use this for display
 
         fill_color = pygame.Rect(280, 400, 450, 55)
         pygame.draw.rect(self.screen, white, fill_color)
@@ -468,42 +497,37 @@ class depthai_calibration_node:
             checkbox.setUnattended()
             checkbox.render_checkbox()
 
-        if self.device is not None:
-            if not self.device.isClosed():
-                self.device.close()
+        self.socket_worker.send('start_camera')
+        self.socket_worker.join()
+        self.socket_worker.send(self.board_config)
         self.board_config = self.board_config_backup
+        self.socket_worker.join()
         finished = False
         while not finished:
             if self.capture_exit():
                 rospy.signal_shutdown("Stopping calibration")
-            while self.device is None or self.device.isClosed():
+            while self.socket_worker.recv() != 'device_connected':
                 if self.capture_exit():
                     rospy.signal_shutdown("Stopping calibration")
-                
-                searchTime = timedelta(seconds=80)
-                isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
-                if isFound:
-                    self.device = dai.Device() 
+
+                if self.socket_worker.recv() == 'is_found':
                     # cameraList = self.device.getConnectedCameras()
-                    cameraProperties = self.device.getConnectedCameraProperties()
+                    # cameraProperties = self.device.getConnectedCameraProperties()
                     fill_color_2 = pygame.Rect(390, 120, 500, 100)
                     pygame.draw.rect(self.screen, white, fill_color_2)
 
                     rospy.sleep(2)
                     # dev_info = self.device.getDeviceInfo()
-                    text = "device Mx_id : " + self.device.getMxId()
+                    text = self.socket_worker.recv()
                     pygame_render_text(self.screen, text, (400, 120), black, 30)
                     text = "Device Connected!!!"
                     pygame_render_text(self.screen, text, (400, 150), green, 30)
 
                     lost_camera = False
-                    for properties in cameraProperties:
+                    while self.socket_worker.recv() != 'last_property':
                         for in_cam in self.board_config['cameras'].keys():
                             cam_info = self.board_config['cameras'][in_cam]
-                            if properties.socket == stringToCam[in_cam]:
-                                self.board_config['cameras'][in_cam]['sensorName'] = properties.sensorName
-                                print('Cam: {} and focus: {}'.format(cam_info['name'], properties.hasAutofocus))
-                                self.board_config['cameras'][in_cam]['hasAutofocus'] = properties.hasAutofocus
+                            if self.socket_worker.recv() == 'checked':
                                 self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].check()
                                 break
 
@@ -514,8 +538,11 @@ class depthai_calibration_node:
                             lost_camera = True
                         self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].render_checkbox()
 
+                    self.socket_worker.ack()
+
                     if self.args['usbMode']:
-                        if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
+                        self.socket_worker.send('usb_mode')
+                        if self.socket_worker.recv() == 'check':
                             self.auto_checkbox_dict["USB3"].check()
                         else:
                             lost_camera = True
@@ -523,16 +550,10 @@ class depthai_calibration_node:
                         self.auto_checkbox_dict["USB3"].render_checkbox()
 
                     if not lost_camera:
-                        pipeline = self.create_pipeline(cameraProperties)
-                        self.device.startPipeline(pipeline)
-                        self.camera_queue = {}
-                        self.control_queue = {}
-                        for config_cam in self.board_config['cameras']:
-                            cam = self.board_config['cameras'][config_cam]
-                            self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 5, False)
-                            if cam['hasAutofocus']:
-                                self.control_queue[cam['name']] = self.device.getInputQueue(cam['name'] + '-control', 5, False)
+                        self.socket_worker.send('workign_camera')
+                        self.socket_worker.join()
                     else:
+                        self.socket_worker.send('lost_camera')
                         print("Closing Device...")
 
                         fill_color_2 = pygame.Rect(390, 150, 220, 35)
@@ -542,77 +563,28 @@ class depthai_calibration_node:
                         text = "Click RETEST when device is ready!!!"
                         pygame_render_text(self.screen, text, (400, 180), red, 30)
 
-                        self.close_device()
+                        self.socket_worker.join()
                         self.retest()
                         print("Restarting Device...")
 
                         fill_color_2 = pygame.Rect(390, 430, 120, 35)
                         pygame.draw.rect(self.screen, white, fill_color_2)
 
-            mipi = {}
-            for config_cam in self.board_config['cameras']:
-                mipi[self.board_config['cameras'][config_cam]['name']] = False
-
-            # left_mipi = False
-            # right_mipi = False
-            # rgb_mipi = False
-
             for _ in range(120):
-                for config_cam in self.board_config['cameras']:
-                    name = self.board_config['cameras'][config_cam]['name']
-                    imageFrame = self.camera_queue[name].tryGet()
-                   
-                    if imageFrame is not None:
-                        mipi[name] = True
-                        frame = None
+                while self.socket_worker.recv() == 'next':
+                    if self.socket_worker.recv() == 'good_frame':
+                        frame = self.socket_worker.recv()
+                        self.imgPublishers[name].publish(self.bridge.cv2_to_imgmsg(frame, "passthrough"))
 
-                        if imageFrame.getType() == dai.RawImgFrame.Type.RAW8:
-                            frame = imageFrame.getCvFrame()
-                        else:
-                            frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-                        self.imgPublishers[name].publish(
-                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
-
-
-                """ if not self.args['disableLR']:
-                    left_frame = self.left_camera_queue.tryGet()
-                    if left_frame is not None:
-                        left_mipi = True                
-                        self.image_pub_left.publish(
-                            self.bridge.cv2_to_imgmsg(left_frame.getCvFrame(), "passthrough"))
-
-                    right_frame = self.right_camera_queue.tryGet()
-                    if right_frame is not None:
-                        right_mipi = True
-                        self.image_pub_right.publish(
-                            self.bridge.cv2_to_imgmsg(right_frame.getCvFrame(), "passthrough"))
-                else:
-                    left_mipi = True
-                    right_mipi = True
-
-                if not self.args['disableRgb']:
-                    rgb_frame = self.rgb_camera_queue.tryGet()
-                    if rgb_frame is not None:
-                        rgb_mipi = True
-                        frame = cv2.cvtColor(rgb_frame.getCvFrame(), cv2.COLOR_BGR2GRAY) 
-                        self.image_pub_color.publish(
-                            self.bridge.cv2_to_imgmsg(frame, "passthrough"))
-                else:
-                    rgb_mipi = True """
-
-                isMipiReady = True
-                for config_cam in self.board_config['cameras']:
-                    name = self.board_config['cameras'][config_cam]['name']
-                    isMipiReady = isMipiReady and mipi[name] 
-                if isMipiReady:
-                    break
+                self.socket_worker.join()
                 rospy.sleep(1)
-            
-            for key in mipi.keys():
-                if not mipi[key]:
-                    self.auto_checkbox_dict[key + "-Stream"].uncheck()
-                else:
+
+            while self.socket_worker.recv() != 'finish_mipi':
+                message = self.socket_worker.recv()
+                if message[1] == 'check':
                     self.auto_checkbox_dict[key + "-Stream"].check()
+                else:
+                    self.auto_checkbox_dict[message[0]].uncheck()
 
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
@@ -622,10 +594,14 @@ class depthai_calibration_node:
                 #FIXME(sachin): is_checked is a function not a variable
                 isAllPassed = isAllPassed and self.auto_checkbox_dict[key].is_checked()
 
+            self.socket_worker.ack()
             if isAllPassed:
+                self.socket_worker.send('finished')
+                self.socket_worker.join()
                 finished = True
             else:
-                self.close_device()
+                self.socket_worker.send('unfinished')
+                self.socket_worker.join()
                 self.retest()
 
         dataset_path = Path(self.package_path + "/dataset")
@@ -633,48 +609,57 @@ class depthai_calibration_node:
             shutil.rmtree(str(dataset_path))
         # dev_info = self.device.getDeviceInfo()
         self.is_service_active = False
-        return (finished, self.device.getMxId())
+        return finished, self.socket_worker.recv()
 
     def camera_focus_adjuster(self, req):
+        self.socket_worker.send('focus_adjuster')
         self.is_service_active = True
         maxCountFocus   = 50
         focusCount = {}
         isFocused = {}
         trigCount = {}
         capturedFrames = {}
-        
+
         self.lensPosition = {}
         self.focusSigma = {}
-        
-        ctrl = dai.CameraControl()
-        ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
-        ctrl.setAutoFocusTrigger()
 
-        for config_cam in self.board_config['cameras'].keys():
-            cam_info = self.board_config['cameras'][config_cam]
-            focusCount[cam_info['name']] = 0
-            self.focusSigma[cam_info['name']] = 0
-            self.lensPosition[cam_info['name']] = 0
-            isFocused[config_cam] = False
-            capturedFrames[cam_info['name']] = None
+        # ctrl = dai.CameraControl()
+        # ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
+        # ctrl.setAutoFocusTrigger()
+        self.socket_worker.join()
 
-            if cam_info['hasAutofocus']:
-                trigCount[cam_info['name']] = 0
-                self.control_queue[cam_info['name']].send(ctrl)
+        # for config_cam in self.board_config['cameras'].keys():
+        #     cam_info = self.board_config['cameras'][config_cam]
+        #     focusCount[cam_info['name']] = 0
+        #     self.focusSigma[cam_info['name']] = 0
+        #     self.lensPosition[cam_info['name']] = 0
+        #     isFocused[config_cam] = False
+        #     capturedFrames[cam_info['name']] = None
+        #
+        #     if cam_info['hasAutofocus']:
+        #         trigCount[cam_info['name']] = 0
+        #         self.control_queue[cam_info['name']].send(ctrl)
 
         rospy.sleep(1)
         focusFailed  = False
         while True:
-            for config_cam in self.board_config['cameras'].keys():
-                cam_info = self.board_config['cameras'][config_cam]
-                frame = self.camera_queue[cam_info['name']].getAll()[-1]
-                currFrame = frame.getCvFrame()
-                if frame.getType() != dai.RawImgFrame.Type.RAW8:
-                    currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
-                print('Resolution: {}'.format(currFrame.shape))
-                capturedFrames[cam_info['name']] = currFrame 
-                self.imgPublishers[cam_info['name']].publish(
-                            self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
+            # for config_cam in self.board_config['cameras'].keys():
+            #     cam_info = self.board_config['cameras'][config_cam]
+            #     frame = self.camera_queue[cam_info['name']].getAll()[-1]
+            #     currFrame = frame.getCvFrame()
+            #     if frame.getType() != dai.RawImgFrame.Type.RAW8:
+            #         currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
+            #     print('Resolution: {}'.format(currFrame.shape))
+            #     capturedFrames[cam_info['name']] = currFrame
+            message = self.socket_worker.recv()
+            while message == 'next_frame':
+                message = self.socket_worker.recv()
+                self.imgPublishers[message[0]].publish(self.bridge.cv2_to_imgmsg(message[1], "passthrough"))
+                message = self.socket_worker.recv()
+                if message == 'failed_focus':
+                    focusFailed = True
+                    break
+
 
                 if cam_info['hasAutofocus']:
                     marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
@@ -696,7 +681,7 @@ class depthai_calibration_node:
                 mu, sigma = cv2.meanStdDev(dst_laplace)
 
                 print('Sigma of {} is {}'.format(cam_info['name'], sigma))
-                localFocusThreshold = self.focusSigmaThreshold 
+                localFocusThreshold = self.focusSigmaThreshold
                 if dst_laplace.shape[1] > 2000:
                     localFocusThreshold = localFocusThreshold / 2
 
@@ -717,15 +702,15 @@ class depthai_calibration_node:
 
             if focusFailed:
                 break
-            
-            isCountFull = True 
+
+            isCountFull = True
             for key in focusCount.keys():
                 if focusCount[key] < maxCountFocus:
                     isCountFull = False
                     break
             if isCountFull:
                 break
-        
+
         backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
         if not os.path.exists(backupFocusPath):
             os.makedirs(backupFocusPath)
@@ -755,8 +740,8 @@ class depthai_calibration_node:
                 return (False, key + " is out of Focus")
             # else:
             #     print(key + " is in Focus")
-        
-        self.is_service_active = False        
+
+        self.is_service_active = False
         return (True, "RGB in Focus")
 
 
@@ -769,7 +754,7 @@ class depthai_calibration_node:
         frameCount = 0
         detection_failed = False
         # while not finished:
-
+        self.socket_worker.ack()
         for key in self.camera_queue.keys():
             frame = self.camera_queue[key].getAll()[-1]
             gray_frame = None
@@ -777,8 +762,7 @@ class depthai_calibration_node:
                 gray_frame = frame.getCvFrame()
             else:
                 gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-            self.imgPublishers[key].publish(
-                        self.bridge.cv2_to_imgmsg(gray_frame, "passthrough"))
+            self.imgPublishers[key].publish(self.bridge.cv2_to_imgmsg(self.socket_worker.recv(), "passthrough"))
             
             is_board_found = self.is_markers_found(gray_frame)
             if is_board_found:
@@ -787,21 +771,23 @@ class depthai_calibration_node:
                 self.parse_frame(gray_frame, key + '_not', req.name)
                 detection_failed = True
         #TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
-
+        self.socket_worker.ack()
         if detection_failed:
-            self.device.close()
+            self.socket_worker.send('close')
             self.is_service_active = False
             return (False, "Calibration board not found")
         else:
+            self.socket_worker.send('success')
             self.is_service_active = False
             return (True, "No Error")
 
     def calibration_servive_handler(self, req):
+        self.socket_worker.send('calibration_service')
         self.is_service_active = True
         print("calibration Service Started")
         # pygame.draw.rect(self.screen, white, no_button)
 
-        mx_serial_id = self.device.getMxId()
+        mx_serial_id = self.socket_worker.recv()
         # dev_info = self.device.getDeviceInfo()
         # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
@@ -825,15 +811,20 @@ class depthai_calibration_node:
         # for key in self.ccm_selected.keys():
         #     log_list.append(self.ccm_selected[key])
 
+        self.socket_worker.ack()
+
         if status == -1:
+            self.socket_worker.send('close')
             self.close_device()
             self.is_service_active = False
             return result_config
+        else:
+            self.socket_worker.send('pass')
 
         vis_x = 400
         vis_y = 180
         error_text = []
-        calibration_handler = dai.readCalibration2()
+        calibration_handler = self.socket_worker.recv()
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]
             log_list.append(self.ccm_selected[cam_info['name']])
@@ -901,24 +892,17 @@ class depthai_calibration_node:
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
         # calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
-        
+
+        self.socket_worker.ack()
         if len(error_text) == 0:
             print('Flashing Calibration data into ')
             print(calib_dest_path)
             calibration_handler.eepromToJsonFile(calib_dest_path)
-            try:
-                self.device.flashCalibration2(calibration_handler)
+            self.socket_worker.send(calibration_handler)
+            if self.socket_worker.recv() == 'flashed':
                 is_write_succesful = True
-            except RuntimeError:
+            else:
                 is_write_succesful = False
-                # print("Writing in except...")
-                # is_write_succesful = self.device.flashCalibration2(calibration_handler)
-
-            try:
-                self.device.flashFactoryCalibration(calibration_handler)
-                is_write_factory_sucessful = True
-            except RuntimeError:
-                is_write_factory_sucessful = False
 
             self.close_device()
             self.is_service_active = False
