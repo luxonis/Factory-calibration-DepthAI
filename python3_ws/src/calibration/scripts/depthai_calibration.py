@@ -593,13 +593,14 @@ class depthai_calibration_node:
                             lost_camera = True
                         self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].render_checkbox()
 
-                    if self.args['usbMode']:
-                        if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
-                            self.auto_checkbox_dict["USB3"].check()
-                        else:
-                            lost_camera = True
-                            self.auto_checkbox_dict["USB3"].uncheck()
-                        self.auto_checkbox_dict["USB3"].render_checkbox()
+                    # if self.args['usbMode']:
+                    #     if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
+                    #         self.auto_checkbox_dict["USB3"].check()
+                    #     else:
+                    #         lost_camera = True
+                    #         self.auto_checkbox_dict["USB3"].uncheck()
+                    #     self.auto_checkbox_dict["USB3"].render_checkbox()
+                    self.auto_checkbox_dict["USB3"].check()
 
                     if not lost_camera:
                         pipeline = self.create_pipeline(cameraProperties)
@@ -884,7 +885,7 @@ class depthai_calibration_node:
         # dev_info = self.device.getDeviceInfo()
         # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
-            self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
+            self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + 'backup.json')
         # print(self.package_path)
         stereo_calib = StereoCalibration()
         status, result_config = stereo_calib.calibrate(
@@ -912,7 +913,7 @@ class depthai_calibration_node:
         vis_x = 400
         vis_y = 180
         error_text = []
-        calibration_handler = dai.readCalibration2()
+        calibration_handler = self.device.readCalibration2()
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]
             log_list.append(self.ccm_selected[cam_info['name']])
@@ -931,22 +932,22 @@ class depthai_calibration_node:
                 error_text.append("high Reprojection Error")
             text = cam_info['name'] + ' Reprojection Error: ' + format(cam_info['reprojection_error'], '.6f')
             pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
-            
+
             calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info['dist_coeff'])
             calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
             calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
             if cam_info['hasAutofocus']:
                 calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
-            
+
             log_list.append(self.focusSigma[cam_info['name']])
             log_list.append(cam_info['reprojection_error'])
-            
+
             vis_y += 30
             color = green
-            
+
             if 'extrinsics' in cam_info:
-                
+
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
@@ -960,38 +961,42 @@ class depthai_calibration_node:
                     elif cam_info['extrinsics']['epipolar_error'] == -1:
                         color = red
                         error_text.append("Epiploar validation failed between " + left_cam + " and " + right_cam)
-                   
+
                     log_list.append(cam_info['extrinsics']['epipolar_error'])
                     text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info['extrinsics']['epipolar_error'], '.6f')
                     pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
                     vis_y += 30
                     specTranslation = np.array([cam_info['extrinsics']['specTranslation']['x'], cam_info['extrinsics']['specTranslation']['y'], cam_info['extrinsics']['specTranslation']['z']], dtype=np.float32)
-
+        #
                     calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info['extrinsics']['to_cam']], cam_info['extrinsics']['rotation_matrix'], cam_info['extrinsics']['translation'], specTranslation)
                     if result_config['stereo_config']['left_cam'] == camera and result_config['stereo_config']['right_cam'] == cam_info['extrinsics']['to_cam']:
                         calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
                         calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
             # else:
                 # log_list.append("N/A")
-        
+
         log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
         with open(log_file, mode='a') as log_fopen:
             # header =
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
         # calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
-        
+
+        # error_text = []
         if len(error_text) == 0:
             print('Flashing Calibration data into ')
             print(calib_dest_path)
+            # calibration_handler = self.device.readCalibration2()
             calibration_handler.eepromToJsonFile(calib_dest_path)
+            # self.device.flashFactoryCalibration(calibration_handler)
+            # self.device.flashCalibration2(calibration_handler)
             try:
                 self.device.flashCalibration2(calibration_handler)
                 is_write_succesful = True
             except RuntimeError:
                 is_write_succesful = False
-                # print("Writing in except...")
-                # is_write_succesful = self.device.flashCalibration2(calibration_handler)
+                print("Writing in except...")
+                is_write_succesful = self.device.flashCalibration2(calibration_handler)
 
             try:
                 self.device.flashFactoryCalibration(calibration_handler)
