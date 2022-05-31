@@ -593,13 +593,13 @@ class depthai_calibration_node:
                             lost_camera = True
                         self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].render_checkbox()
 
-                    # if self.args['usbMode']:
-                    #     if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
-                    #         self.auto_checkbox_dict["USB3"].check()
-                    #     else:
-                    #         lost_camera = True
-                    #         self.auto_checkbox_dict["USB3"].uncheck()
-                    #     self.auto_checkbox_dict["USB3"].render_checkbox()
+                    if self.args['usbMode']:
+                        if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
+                            self.auto_checkbox_dict["USB3"].check()
+                        else:
+                            lost_camera = True
+                            self.auto_checkbox_dict["USB3"].uncheck()
+                        self.auto_checkbox_dict["USB3"].render_checkbox()
                     self.auto_checkbox_dict["USB3"].check()
 
                     if not lost_camera:
@@ -885,7 +885,7 @@ class depthai_calibration_node:
         # dev_info = self.device.getDeviceInfo()
         # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
-            self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + 'backup.json')
+            self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
         # print(self.package_path)
         stereo_calib = StereoCalibration()
         status, result_config = stereo_calib.calibrate(
@@ -967,7 +967,7 @@ class depthai_calibration_node:
                     pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
                     vis_y += 30
                     specTranslation = np.array([cam_info['extrinsics']['specTranslation']['x'], cam_info['extrinsics']['specTranslation']['y'], cam_info['extrinsics']['specTranslation']['z']], dtype=np.float32)
-        #
+
                     calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info['extrinsics']['to_cam']], cam_info['extrinsics']['rotation_matrix'], cam_info['extrinsics']['translation'], specTranslation)
                     if result_config['stereo_config']['left_cam'] == camera and result_config['stereo_config']['right_cam'] == cam_info['extrinsics']['to_cam']:
                         calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
