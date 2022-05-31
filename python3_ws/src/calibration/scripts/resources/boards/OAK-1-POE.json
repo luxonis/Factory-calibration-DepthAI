@@ -2,7 +2,7 @@
     "board_config":
     {
         "name": "OAK-1-POE",
-        "revision": "R1M1E1",
+        "revision": "R2M1E2",
         "cameras":{
             "CAM_A": {
                 "name": "rgb",

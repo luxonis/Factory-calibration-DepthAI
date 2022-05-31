@@ -339,6 +339,7 @@ class depthai_calibration_node:
     def create_pipeline(self, camProperties):
         pipeline = dai.Pipeline()
 
+        fps = 10
         for cam_id in self.board_config['cameras']:
             cam_info = self.board_config['cameras'][cam_id]
             if cam_info['type'] == 'mono':
@@ -347,7 +348,7 @@ class depthai_calibration_node:
 
                 cam_node.setBoardSocket(stringToCam[cam_id])
                 cam_node.setResolution(camToMonoRes[cam_info['sensorName']])
-                cam_node.setFps(10)
+                cam_node.setFps(fps)
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.out.link(xout.input)
@@ -357,7 +358,7 @@ class depthai_calibration_node:
                 
                 cam_node.setBoardSocket(stringToCam[cam_id])
                 cam_node.setResolution(camToRgbRes[cam_info['sensorName']])
-                cam_node.setFps(10)
+                cam_node.setFps(fps)
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.isp.link(xout.input)
@@ -366,6 +367,8 @@ class depthai_calibration_node:
                     controlIn = pipeline.createXLinkIn()
                     controlIn.setStreamName(cam_info['name'] + '-control')
                     controlIn.out.link(cam_node.inputControl)
+            xout.input.setBlocking(False)
+            xout.input.setQueueSize(1)
 
         return pipeline
 
@@ -511,7 +514,7 @@ class depthai_calibration_node:
         marker_corners, _, _ = cv2.aruco.detectMarkers(
             frame, self.aruco_dictionary)
         print("Markers count ... {}".format(len(marker_corners)))
-        return not (len(marker_corners) < 30)
+        return not (len(marker_corners) < 25)
 
     def close_device(self):
         # if hasattr(self, 'left_camera_queue') and hasattr(self, 'right_camera_queue'):
@@ -609,7 +612,7 @@ class depthai_calibration_node:
                         self.control_queue = {}
                         for config_cam in self.board_config['cameras']:
                             cam = self.board_config['cameras'][config_cam]
-                            self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 5, False)
+                            self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 1, False)
                             if cam['hasAutofocus']:
                                 self.control_queue[cam['name']] = self.device.getInputQueue(cam['name'] + '-control', 5, False)
                     else:
@@ -843,7 +846,10 @@ class depthai_calibration_node:
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
         self.is_service_active = True
-        rospy.sleep(1)
+        wait_time = 1
+        if "POE" in self.board_config['name']: 
+            wait_time = 2
+        rospy.sleep(wait_time)
 
         # TODO(Sachin): Add time synchronization here and get the most recent frame instead.
         frameCount = 0
@@ -919,7 +925,7 @@ class depthai_calibration_node:
             log_list.append(self.ccm_selected[cam_info['name']])
 
             color = green
-            reprojection_error_threshold = 0.7  # TODO: Remove this check later
+            reprojection_error_threshold = 1.0
             if cam_info['size'][1] > 720:
                 print(cam_info['size'][1])
                 reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
@@ -951,11 +957,10 @@ class depthai_calibration_node:
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
-                    epipolar_error_threshold = 0.6
-                    if cam_info['name'] == 'rgb' or right_cam == 'rgb': # TODO: Remove this check later
-                       epipolar_error_threshold = 1
+                    
+                    epipolar_threshold = 0.6
 
-                    if cam_info['extrinsics']['epipolar_error'] > epipolar_error_threshold:
+                    if cam_info['extrinsics']['epipolar_error'] > epipolar_threshold:
                         color = red
                         error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
                     elif cam_info['extrinsics']['epipolar_error'] == -1:

@@ -2,18 +2,16 @@
 
   <arg name="swap_lr"                   default="false"/>
   <arg name="disableRgb"                default="false"/>
-  <arg name="disableLR"                 default="false"/>
-  <arg name="field_of_view"             default="71.86"/>
-  <arg name="baseline"                  default="7.5"/>
+  <arg name="disableLR"                 default="true"/>
   <arg name="square_size_cm"            default="4"/>
   <arg name="marker_size_cm"            default="3.1"/>
-  <arg name="squares_x"                    default="22"/>
-  <arg name="squares_y"                    default="16"/>
-  <arg name="usbMode"                      default="true"/>
+  <arg name="squares_x"                 default="22"/>
+  <arg name="squares_y"                 default="16"/>
+  <arg name="usbMode"                   default="true"/>
   <arg name="depthai_path"              default="/Desktop/depthai"/>
   <arg name="calib_path"                default="/Desktop/calib_files"/>
   <arg name="log_path"                  default="/Desktop/logs"/>
-  <arg name="brd"                       default="dm1098OAKD_wifi"/>
+  <arg name="brd"                       default="oak-1-lite"/>
   <arg name="enable_IMU_test"           default="false"/>
   <arg name="capture_service_name"      default="capture_checkerboard"/>
   <arg name="calibration_service_name"  default="calibrate_stereo"/>
@@ -30,8 +28,6 @@
     <param name="swap_lr"                  value="$(arg swap_lr)"/>
     <param name="disableRgb"               value="$(arg disableRgb)"/>
     <param name="disableLR"                value="$(arg disableLR)"/>
-    <param name="field_of_view"            value="$(arg field_of_view)"/>
-    <param name="baseline"                 value="$(arg baseline)"/>
     <param name="square_size_cm"           value="$(arg square_size_cm)"/>
     <param name="marker_size_cm"           value="$(arg marker_size_cm)"/>
     <param name="squares_x"                value="$(arg squares_x)"/>
@@ -44,9 +40,8 @@
     <param name="enable_IMU_test"          value="$(arg enable_IMU_test)"/>
     <param name="capture_service_name"     value="$(arg capture_service_name)"/>
     <param name="calibration_service_name" value="$(arg calibration_service_name)"/>
-    
   </node>
+  
+  <node name="color_image_view" pkg="rqt_image_view" type="rqt_image_view" args="/color"/>
 
-  <node name="image_viewer" pkg="rqt_gui" type="rqt_gui" args="--perspective-file $(find calibration)/perspective/image.perspective"/>
-
-</launch>
+</launch> 
