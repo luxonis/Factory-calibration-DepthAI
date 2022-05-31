@@ -64,9 +64,9 @@
     <arg name="publish_monitored_planning_scene" value="true" />
   </include>
 
-  <include file="$(find interbotix_moveit)/launch/moveit_rviz.launch" ns="$(arg robot_name)">
+  <!-- <include file="$(find interbotix_moveit)/launch/moveit_rviz.launch" ns="$(arg robot_name)">
     <arg name="rviz_frame"                       value="$(arg rviz_frame)"/>
     <arg name="config"                           value="true"/>
-  </include>
+  </include> -->
 
 </launch>
