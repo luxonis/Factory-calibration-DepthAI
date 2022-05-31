@@ -700,7 +700,7 @@ def main():
   rospy.on_shutdown(shutdown_handler)
   # signal.signal(signal.SIGINT, shutdown_handler)
   is_device_ready = True
-  delay = 1
+  delay = 5
   recalibrate = False
   disp = pygame.display
   screen = disp.set_mode((800, 600))

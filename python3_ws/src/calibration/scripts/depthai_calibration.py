@@ -43,6 +43,13 @@ black = [0, 0, 0]
 pygame.init()
 
 stringToCam = {
+                # 'RGB': dai.CameraBoardSocket.RGB,
+                # 'LEFT': dai.CameraBoardSocket.LEFT,
+                # 'RIGHT': dai.CameraBoardSocket.RIGHT,
+                # 'AUTO': dai.CameraBoardSocket.AUTO,
+                # 'CAM_A' : dai.CameraBoardSocket.RGB,
+                # 'CAM_B' : dai.CameraBoardSocket.LEFT,
+                # 'CAM_C' : dai.CameraBoardSocket.CAM_C,
                 'RGB'   : dai.CameraBoardSocket.CAM_A,
                 'LEFT'  : dai.CameraBoardSocket.CAM_B,
                 'RIGHT' : dai.CameraBoardSocket.CAM_C,
@@ -57,6 +64,10 @@ stringToCam = {
                 }
 
 CamToString = {
+                # dai.CameraBoardSocket.RGB : 'RGB'  ,
+                # dai.CameraBoardSocket.LEFT : 'LEFT' ,
+                # dai.CameraBoardSocket.RIGHT : 'RIGHT',
+                # dai.CameraBoardSocket.AUTO : 'AUTO'
                 dai.CameraBoardSocket.CAM_A : 'RGB'  ,
                 dai.CameraBoardSocket.CAM_B : 'LEFT' ,
                 dai.CameraBoardSocket.CAM_C : 'RIGHT',
@@ -72,13 +83,13 @@ CamToString = {
 
 camToMonoRes = {
                 'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
-                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P
+                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
                 }
 
 camToRgbRes = {
-                'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
-                'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
-                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P
+                'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
+                'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
+                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
                 }
 
 
@@ -96,7 +107,7 @@ class depthai_calibration_node:
 
         # self.focus_value = 0
         # self.defaultLensPosition = 135
-        self.focusSigmaThreshold = 25
+        self.focusSigmaThreshold = 30
         # if self.rgbCcm == 'Sunny':
         #     self.focus_value = 135
         # elif self.rgbCcm == 'KingTop':
@@ -592,6 +603,7 @@ class depthai_calibration_node:
                             lost_camera = True
                             self.auto_checkbox_dict["USB3"].uncheck()
                         self.auto_checkbox_dict["USB3"].render_checkbox()
+                    self.auto_checkbox_dict["USB3"].check()
 
                     if not lost_camera:
                         pipeline = self.create_pipeline(cameraProperties)
@@ -758,6 +770,7 @@ class depthai_calibration_node:
                             self.control_queue[cam_info['name']].send(ctrl)
                             time.sleep(1)
                         if focusCount[cam_info['name']] > maxCountFocus:
+                            print("Failed to Focus...!!!")
                             focusFailed = True
                             break
                         continue
@@ -771,6 +784,7 @@ class depthai_calibration_node:
                     localFocusThreshold = localFocusThreshold / 2
 
                 if sigma > localFocusThreshold:
+                    print('Setting focus true for {}'.format(cam_info['name']))
                     isFocused[config_cam] = True
                     self.focusSigma[cam_info['name']] = sigma
                     if cam_info['hasAutofocus']:
@@ -809,7 +823,7 @@ class depthai_calibration_node:
                 if self.board_config['cameras'][key]['hasAutofocus']:
                     ctrl = dai.CameraControl()
                     ctrl.setManualFocus(self.lensPosition[cam_name])
-                    print("Sending manual focus Control to {}".format(cam_name))
+                    print("Sending manual focus Control to {} at position {}".format(cam_name, self.lensPosition[cam_name]))
                     self.control_queue[cam_name].send(ctrl)
                 self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
                 self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
@@ -905,7 +919,7 @@ class depthai_calibration_node:
         vis_x = 400
         vis_y = 180
         error_text = []
-        calibration_handler = dai.CalibrationHandler()
+        calibration_handler = self.device.readCalibration2()
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]
             log_list.append(self.ccm_selected[cam_info['name']])
@@ -916,36 +930,35 @@ class depthai_calibration_node:
                 print(cam_info['size'][1])
                 reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
 
+            if cam_info['name'] == 'rgb':
+                reprojection_error_threshold = 6
             print('Reprojection error threshold -> {}'.format(reprojection_error_threshold))
             if cam_info['reprojection_error'] > reprojection_error_threshold:
                 color = red
                 error_text.append("high Reprojection Error")
             text = cam_info['name'] + ' Reprojection Error: ' + format(cam_info['reprojection_error'], '.6f')
             pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
-            
+
             calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info['dist_coeff'])
             calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
             calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
             if cam_info['hasAutofocus']:
                 calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
-            
+
             log_list.append(self.focusSigma[cam_info['name']])
             log_list.append(cam_info['reprojection_error'])
-            
+
             vis_y += 30
             color = green
-            
+
             if 'extrinsics' in cam_info:
-                
+
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
                     
                     epipolar_threshold = 0.6
-                    #TODO(sachin):  Remove this higher threshold and reduce the speed of the arm robot to avoid wobbling
-                    if "POE" in self.board_config['name']: 
-                        epipolar_threshold = 0.8
 
                     if cam_info['extrinsics']['epipolar_error'] > epipolar_threshold:
                         color = red
@@ -953,7 +966,7 @@ class depthai_calibration_node:
                     elif cam_info['extrinsics']['epipolar_error'] == -1:
                         color = red
                         error_text.append("Epiploar validation failed between " + left_cam + " and " + right_cam)
-                   
+
                     log_list.append(cam_info['extrinsics']['epipolar_error'])
                     text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info['extrinsics']['epipolar_error'], '.6f')
                     pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
@@ -966,26 +979,39 @@ class depthai_calibration_node:
                         calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
             # else:
                 # log_list.append("N/A")
-        
+
         log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
         with open(log_file, mode='a') as log_fopen:
             # header =
             log_csv_writer = csv.writer(log_fopen, delimiter=',')
             log_csv_writer.writerow(log_list)
-        calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
-        
+        # calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
+
+        # error_text = []
         if len(error_text) == 0:
             print('Flashing Calibration data into ')
             print(calib_dest_path)
+            # calibration_handler = self.device.readCalibration2()
             calibration_handler.eepromToJsonFile(calib_dest_path)
+            # self.device.flashFactoryCalibration(calibration_handler)
+            # self.device.flashCalibration2(calibration_handler)
             try:
-                is_write_succesful = self.device.flashCalibration(calibration_handler)
-            except:
+                self.device.flashCalibration2(calibration_handler)
+                is_write_succesful = True
+            except RuntimeError:
+                is_write_succesful = False
                 print("Writing in except...")
-                is_write_succesful = self.device.flashCalibration(calibration_handler)
+                is_write_succesful = self.device.flashCalibration2(calibration_handler)
+
+            try:
+                self.device.flashFactoryCalibration(calibration_handler)
+                is_write_factory_sucessful = True
+            except RuntimeError:
+                is_write_factory_sucessful = False
+
             self.close_device()
             self.is_service_active = False
-            if is_write_succesful:
+            if is_write_succesful and is_write_factory_sucessful:
                 text = "EEPROM written succesfully"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
                 return (True, "EEPROM written succesfully")

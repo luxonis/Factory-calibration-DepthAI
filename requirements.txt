@@ -5,7 +5,8 @@ requests==2.24.0
 argcomplete==1.12.1
 pygame==2.0.0
 rospkg==1.2.8
+scipy
 access-dict-by-dot
 # depthai==0.3.0.0
 --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-python-snapshot-local/
-depthai==2.14.1.0.dev+d988139818b97a8184ad2b1aa00551695cb8ca7c
+depthai==2.15.3.0.dev0+d59448575b2171a67ea66e073dc84826cf32cc11
