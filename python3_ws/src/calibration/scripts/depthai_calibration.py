@@ -603,7 +603,7 @@ class depthai_calibration_node:
                             lost_camera = True
                             self.auto_checkbox_dict["USB3"].uncheck()
                         self.auto_checkbox_dict["USB3"].render_checkbox()
-                    self.auto_checkbox_dict["USB3"].check()
+                        self.auto_checkbox_dict["USB3"].check()
 
                     if not lost_camera:
                         pipeline = self.create_pipeline(cameraProperties)
