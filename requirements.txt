@@ -1,6 +1,6 @@
 
-opencv-python==4.4.0.46
-opencv-contrib-python==4.4.0.46
+opencv-python==4.5.4.58
+opencv-contrib-python==4.5.4.58
 requests==2.24.0
 argcomplete==1.12.1
 pygame==2.0.0
