@@ -48,12 +48,12 @@ pygame.init()
 
 class SocketWorker:
     def __init__(self):
-        HOST = '192.168.1.6'
-        PORT = 50007
+        HOST = '192.168.1.5'
+        PORT = 5015
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOST, PORT))
         CHOST = '192.168.1.3'
-        CPORT = 5008
+        CPORT = 5016
         cs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         cs.bind((CHOST, CPORT))
         cs.listen()
@@ -71,8 +71,13 @@ class SocketWorker:
         self.send_conn.send(data_string)
 
     def recv(self):
-        data = self.recv_conn.recv(4096)
-        msg = pickle.loads(data)
+        data = []
+        while True:
+            packet = self.recv_conn.recv(4096)
+            if not packet:
+                break
+            data.append(packet)
+        msg = pickle.loads(b"".join(data))
         return msg
 
     def join(self):
@@ -524,11 +529,12 @@ class depthai_calibration_node:
                     pygame_render_text(self.screen, text, (400, 150), green, 30)
 
                     lost_camera = False
+                    self.socket_worker.ack()
                     while self.socket_worker.recv() != 'last_property':
                         for in_cam in self.board_config['cameras'].keys():
                             cam_info = self.board_config['cameras'][in_cam]
                             if self.socket_worker.recv() == 'checked':
-                                self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].check()
+                                self.auto_checkbox_dict[cam_info['name'] + '-Camera-connected'].check()
                                 break
 
                     for config_cam in self.board_config['cameras'].keys():
@@ -537,9 +543,8 @@ class depthai_calibration_node:
                             self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].uncheck()
                             lost_camera = True
                         self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].render_checkbox()
-
                     self.socket_worker.ack()
-
+                    self.socket_worker.join()
                     if self.args['usbMode']:
                         self.socket_worker.send('usb_mode')
                         if self.socket_worker.recv() == 'check':
@@ -548,11 +553,14 @@ class depthai_calibration_node:
                             lost_camera = True
                             self.auto_checkbox_dict["USB3"].uncheck()
                         self.auto_checkbox_dict["USB3"].render_checkbox()
+                    else:
+                        self.socket_worker.send('no_usb_mode')
 
                     if not lost_camera:
                         self.socket_worker.send('workign_camera')
                         self.socket_worker.join()
                     else:
+                        print(12)
                         self.socket_worker.send('lost_camera')
                         print("Closing Device...")
 
@@ -563,24 +571,41 @@ class depthai_calibration_node:
                         text = "Click RETEST when device is ready!!!"
                         pygame_render_text(self.screen, text, (400, 180), red, 30)
 
+                        print(13)
                         self.socket_worker.join()
                         self.retest()
                         print("Restarting Device...")
 
                         fill_color_2 = pygame.Rect(390, 430, 120, 35)
                         pygame.draw.rect(self.screen, white, fill_color_2)
-
+            print(flush=True)
             for _ in range(120):
+                print(14)
+                print(flush=True)
                 while self.socket_worker.recv() == 'next':
+                    print(15)
+                    print(flush=True)
                     if self.socket_worker.recv() == 'good_frame':
+                        print(16)
+                        print(flush=True)
                         frame = self.socket_worker.recv()
+                        print(17)
+                        print(flush=True)
                         self.imgPublishers[name].publish(self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+                print(18)
+                print(flush=True)
 
                 self.socket_worker.join()
+                print(19)
+                print(flush=True)
                 rospy.sleep(1)
 
             while self.socket_worker.recv() != 'finish_mipi':
+                print(20)
+                print(flush=True)
                 message = self.socket_worker.recv()
+                print(21)
+                print(flush=True)
                 if message[1] == 'check':
                     self.auto_checkbox_dict[key + "-Stream"].check()
                 else:
@@ -593,15 +618,26 @@ class depthai_calibration_node:
             for key in self.auto_checkbox_dict.keys():
                 #FIXME(sachin): is_checked is a function not a variable
                 isAllPassed = isAllPassed and self.auto_checkbox_dict[key].is_checked()
-
+            print(22)
+            print(flush=True)
             self.socket_worker.ack()
             if isAllPassed:
+                print(23)
+                print(flush=True)
                 self.socket_worker.send('finished')
+                print(24)
+                print(flush=True)
                 self.socket_worker.join()
                 finished = True
             else:
+                print(25)
+                print(flush=True)
                 self.socket_worker.send('unfinished')
+                print(26)
+                print(flush=True)
                 self.socket_worker.join()
+                print(27)
+                print(flush=True)
                 self.retest()
 
         dataset_path = Path(self.package_path + "/dataset")
@@ -609,6 +645,8 @@ class depthai_calibration_node:
             shutil.rmtree(str(dataset_path))
         # dev_info = self.device.getDeviceInfo()
         self.is_service_active = False
+        print(28)
+        print(flush=True)
         return finished, self.socket_worker.recv()
 
     def camera_focus_adjuster(self, req):
