@@ -362,6 +362,10 @@ class depthai_calibration_node:
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.isp.link(xout.input)
+                if cam_info['sensorName'] == "OV9*82":
+                    cam_node.initialControl.setSharpness(0)
+                    cam_node.initialControl.setLumaDenoise(0)
+                    cam_node.initialControl.setChromaDenoise(4)
 
                 if cam_info['hasAutofocus']:
                     controlIn = pipeline.createXLinkIn()
@@ -608,6 +612,7 @@ class depthai_calibration_node:
                     if not lost_camera:
                         pipeline = self.create_pipeline(cameraProperties)
                         self.device.startPipeline(pipeline)
+                        print('Pieline started.............')
                         self.camera_queue = {}
                         self.control_queue = {}
                         for config_cam in self.board_config['cameras']:
@@ -888,6 +893,7 @@ class depthai_calibration_node:
         # pygame.draw.rect(self.screen, white, no_button)
 
         mx_serial_id = self.device.getMxId()
+        # mx_serial_id = "Test-device"
         # dev_info = self.device.getDeviceInfo()
         # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
