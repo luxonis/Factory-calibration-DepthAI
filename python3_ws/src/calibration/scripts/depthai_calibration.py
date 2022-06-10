@@ -717,7 +717,7 @@ class depthai_calibration_node:
                 self.retest()
 
         dataset_path = Path(self.package_path + "/dataset")
-        if 0 and dataset_path.exists():
+        if 1 and dataset_path.exists():
             shutil.rmtree(str(dataset_path))
         # dev_info = self.device.getDeviceInfo()
         self.is_service_active = False
@@ -892,8 +892,8 @@ class depthai_calibration_node:
         print("calibration Service Started")
         # pygame.draw.rect(self.screen, white, no_button)
 
-        mx_serial_id = self.device.getMxId()
-        # mx_serial_id = "Test-device"
+        # mx_serial_id = self.device.getMxId()
+        mx_serial_id = "Test-device"
         # dev_info = self.device.getDeviceInfo()
         # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
