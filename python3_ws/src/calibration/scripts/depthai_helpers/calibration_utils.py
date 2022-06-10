@@ -558,32 +558,6 @@ class StereoCalibration(object):
 
         cv2.destroyWindow('Stereo Pair')
 
-    def display_rectification(self, image_data_pairs):
-        print(
-            "Displaying Stereo Pair for visual inspection. Press the [ESC] key to exit.")
-        for image_data_pair in image_data_pairs:
-            img_concat = cv2.hconcat([image_data_pair[0], image_data_pair[1]])
-            img_concat = cv2.cvtColor(img_concat, cv2.COLOR_GRAY2RGB)
-
-            # draw epipolar lines for debug purposes
-            line_row = 0
-            while line_row < img_concat.shape[0]:
-                cv2.line(img_concat,
-                         (0, line_row), (img_concat.shape[1], line_row),
-                         (0, 255, 0), 1)
-                line_row += 30
-
-            # show image
-            cv2.imshow('Stereo Pair', img_concat)
-            k = cv2.waitKey(0)
-            if k == 27:  # Esc key to stop
-                break
-
-                # os._exit(0)
-                # raise SystemExit()
-
-        cv2.destroyWindow('Stereo Pair')
-
     def scale_image(self, img, scaled_res):
         expected_height = img.shape[0]*(scaled_res[1]/img.shape[1])
         # print("Expected Height: {}".format(expected_height))
