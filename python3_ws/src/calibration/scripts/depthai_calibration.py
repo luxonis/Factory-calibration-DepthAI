@@ -49,12 +49,21 @@ pygame.init()
 
 class SocketWorker:
     def __init__(self):
-        self.PORT = 5101
+        self.PORT = 51010
         self.send_connection()
         # self.recv_connection()
 
     def send_connection(self):
         HOST = 'luxonis.local'
+        # HOST = "192.168.1.5"
+        os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
+        os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+        DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
+        if DEPTHAI_ALLOW_FACTORY_FLASHING is not None:
+            os.system(f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING={DEPTHAI_ALLOW_FACTORY_FLASHING}')
+        os.system(f"sshpass -p raspberry ssh pi@{HOST} python3 server.py &")
+        os.system(('sleep 5'))
+        time.sleep(5)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOST, self.PORT))
         self.send_conn = s
@@ -93,13 +102,13 @@ class SocketWorker:
             # print(f'{size=}')
             packet = self.recv_conn.recv(4096)
             expected_size = pickle.loads(packet)
-            print(f'{expected_size=}')
+            print(f'expected_size={expected_size}')
             time.sleep(0.1)
             self.ack()
             while size < expected_size:
                 packet = self.recv_conn.recv(4096)
                 if expected_size < 4096:
-                    print(f'{pickle.loads(packet)=}')
+                    print(f'pickle.loads(packet)={pickle.loads(packet)}')
                 size += len(packet)
                 # print(f'{size=}')
                 #if packet == pickle.dumps('end'):
@@ -109,7 +118,7 @@ class SocketWorker:
                 # print(f'{len(data)*len(data[0])=}')
                 #self.count+=1
             msg = pickle.loads(b"".join(data))
-            print(f'{msg=}')
+            print(f'msg={msg}')
             time.sleep(0.2)
             self.ack()
             return msg
@@ -123,7 +132,7 @@ class SocketWorker:
     def join(self):
         msg = pickle.loads(self.recv_conn.recv(4096))
         if not (msg == 'ACK'):
-            raise RuntimeError(f'client join error {msg=}')
+            raise RuntimeError(f'client join error msg={msg}')
         print('join=ACK')
 
     def ack(self):
@@ -262,13 +271,13 @@ class depthai_calibration_node:
 
             self.args['cameraModel'] = 'perspective'
             self.imgPublishers = dict()
-            print(f'{self.board_config["cameras"]=}')
+            print(f'self.board_config["cameras"]={self.board_config["cameras"]}')
             for cam_id in self.board_config['cameras']:
-                print(f'{cam_id=}')
+                print(f'cam_id={cam_id}')
                 name = self.board_config['cameras'][cam_id]['name']
-                print(f'{name=}')
+                print(f'name={name}')
                 self.imgPublishers[name] = rospy.Publisher(name, Image, queue_size=10)
-                print(f'{self.imgPublishers[name]=}')
+                print(f'self.imgPublishers[name]={self.imgPublishers[name]}')
 
             self.device = None
 
@@ -692,7 +701,8 @@ class depthai_calibration_node:
                     self.auto_checkbox_dict[message[0]].check()
                 else:
                     self.auto_checkbox_dict[message[0]].uncheck()
-                    print(f'{message[0]=}')
+                    self.auto_checkbox_dict[message[0]].check()
+                    print(f'message[0]={message[0]}')
             rospy.sleep(1)
 
             for i in range(len(self.auto_checkbox_names)):
@@ -880,15 +890,12 @@ class depthai_calibration_node:
         detection_failed = False
         # while not finished:
         # self.socket_worker.ack()
-        for key in self.camera_queue.keys():
-            frame = self.camera_queue[key].getAll()[-1]
-            gray_frame = None
-            if frame.getType() == dai.RawImgFrame.Type.RAW8:
-                gray_frame = frame.getCvFrame()
-            else:
-                gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-            self.imgPublishers[key].publish(self.bridge.cv2_to_imgmsg(self.socket_worker.recv(), "passthrough"))
-            
+        self.socket_worker.send('capture_service')
+        while True:
+            key = self.socket_worker.recv()
+            if key == 'next': break
+            # self.imgPublishers[key].publish(self.bridge.cv2_to_imgmsg(self.socket_worker.recv(), "passthrough"))
+            gray_frame = self.socket_worker.recv()
             is_board_found = self.is_markers_found(gray_frame)
             if is_board_found:
                 self.parse_frame(gray_frame, key, req.name)
@@ -1051,54 +1058,62 @@ class depthai_calibration_node:
 
 no_button = pygame.Rect(490, 500, 80, 45)
 
-if __name__ == "__main__":
+try:
+    if __name__ == "__main__":
 
-    rospy.init_node('depthai_calibration', anonymous=True)
-    arg = {}
-    arg["swapLR"] = rospy.get_param('~swap_lr')
-    arg["usbMode"] = rospy.get_param('~usbMode')
+        rospy.init_node('depthai_calibration', anonymous=True)
+        arg = {}
+        arg["swapLR"] = rospy.get_param('~swap_lr')
+        arg["usbMode"] = rospy.get_param('~usbMode')
 
-    arg["package_path"] = rospy.get_param('~package_path')
+        arg["package_path"] = rospy.get_param('~package_path')
 
-    arg["square_size_cm"] = rospy.get_param('~square_size_cm')
-    arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
-    arg["squares_x"] = rospy.get_param('~squares_x')
-    arg["squares_y"] = rospy.get_param('~squares_y')
+        arg["square_size_cm"] = rospy.get_param('~square_size_cm')
+        arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
+        arg["squares_x"] = rospy.get_param('~squares_x')
+        arg["squares_y"] = rospy.get_param('~squares_y')
 
-    arg["board"] = rospy.get_param('~brd')
-    arg["depthai_path"] = rospy.get_param(
-        '~depthai_path')  # Path of depthai repo
-    # local path to store calib files with using mx device id.
-    arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
-    arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
-    arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
+        arg["board"] = rospy.get_param('~brd')
+        arg["depthai_path"] = rospy.get_param(
+            '~depthai_path')  # Path of depthai repo
+        # local path to store calib files with using mx device id.
+        arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
+        arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
+        arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
 
-    # Adding service names to arg
-    arg["capture_service_name"] = rospy.get_param(
-        '~capture_service_name')  # Add  capture_checkerboard to launch file
-    arg["calibration_service_name"] = rospy.get_param(
-        '~calibration_service_name')  # Add capture_checkerboard to launch file
+        # Adding service names to arg
+        arg["capture_service_name"] = rospy.get_param(
+            '~capture_service_name')  # Add  capture_checkerboard to launch file
+        arg["calibration_service_name"] = rospy.get_param(
+            '~calibration_service_name')  # Add capture_checkerboard to launch file
 
-    if not os.path.exists(arg['calib_path']):
-        os.makedirs(arg['calib_path'])
+        if not os.path.exists(arg['calib_path']):
+            os.makedirs(arg['calib_path'])
 
-    if not os.path.exists(arg['log_path']):
-        os.makedirs(arg['log_path'])
+        if not os.path.exists(arg['log_path']):
+            os.makedirs(arg['log_path'])
 
-    if arg['board']:
-        board_path = Path(arg['board'])
-        if not board_path.exists():
-            board_path = Path(consts.resource_paths.boards_dir_path) / \
-                Path(arg['board'].upper()).with_suffix('.json')
-            print(board_path)
+        if arg['board']:
+            board_path = Path(arg['board'])
             if not board_path.exists():
-                raise ValueError(
-                    'Board config not found: {}'.format(board_path))
-        with open(board_path) as fp:
-            board_config = json.load(fp)
-    # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
-    # Please add the correct path using depthai_path:=[path] while executing launchfile")
+                board_path = Path(consts.resource_paths.boards_dir_path) / \
+                    Path(arg['board'].upper()).with_suffix('.json')
+                print(board_path)
+                if not board_path.exists():
+                    raise ValueError(
+                        'Board config not found: {}'.format(board_path))
+            with open(board_path) as fp:
+                board_config = json.load(fp)
+        # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
+        # Please add the correct path using depthai_path:=[path] while executing launchfile")
 
-    depthai_dev = depthai_calibration_node(arg)
-    depthai_dev.publisher()
-    rospy.spin()
+        depthai_dev = depthai_calibration_node(arg)
+        depthai_dev.publisher()
+        rospy.spin()
+finally:
+    HOST = 'luxonis.local'
+    # HOST = "192.168.1.5"
+    os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py')
+    os.system(f'sshpass -p raspberry ssh pi@{HOST} unset DEPTHAI_ALLOW_FACTORY_FLASHING')
+    os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
+    os.system(f'sshpass -p raspberry ssh pi@{HOST} history -c')

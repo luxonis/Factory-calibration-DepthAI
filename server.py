@@ -33,12 +33,13 @@ camToMonoRes = {
 class SocketWorker:
     def __init__(self):
         # self.once = True
-        self.port = 5101
+        self.port = 51010
         self.recv_connection()
         # self.send_connection()
 
     def recv_connection(self):
         HOST = "luxonis.local"
+        # HOST = "192.168.1.5"
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         # if self.once:
         #     s.allow_reuse_address = True
@@ -233,25 +234,26 @@ class DepthaiCamera:
             for config_cam in self.board_config['cameras']:
                 # self.socket_worker.send('next')
                 name = self.board_config['cameras'][config_cam]['name']
-                imageFrame = self.camera_queue[name].tryGet()
+                imageFrame = self.camera_queue[name].tryGetAll()
                 if name == 'rgb':
                     print(imageFrame)
 
                 if imageFrame is not None:
-                    # self.socket_worker.send('good_frame')
-                    # self.socket_worker.join()
-                    mipi[name] = True
-                    frame = None
+                    if len(imageFrame) > 0:
+                        # self.socket_worker.send('good_frame')
+                        # self.socket_worker.join()
+                        mipi[name] = True
+                        frame = None
 
-                    if imageFrame.getType() == dai.RawImgFrame.Type.RAW8:
-                        frame = imageFrame.getCvFrame()
-                    else:
-                        frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-                    # self.socket_worker.send(frame)
-                    # self.socket_worker.join()
-                    # self.socket_worker.send(name)
-                #else:
-                    #self.socket_worker.send('bad_frame')
+                        if imageFrame[0].getType()== dai.RawImgFrame.Type.RAW8:
+                            frame = imageFrame[0].getCvFrame()
+                        else:
+                            frame = cv2.cvtColor(imageFrame[0].getCvFrame(), cv2.COLOR_BGR2GRAY)
+                        # self.socket_worker.send(frame)
+                        # self.socket_worker.join()
+                        # self.socket_worker.send(name)
+                    #else:
+                        #self.socket_worker.send('bad_frame')
             #self.socket_worker.send('fin')
 
             # for m in mipi:
@@ -275,25 +277,24 @@ class DepthaiCamera:
         # self.socket_worker.join()
         if self.socket_worker.recv() != 'finished':
             self.device.close()
+        self.socket_worker.send(self.device.getMxId())
         print('EEEND')
 
 
     def capture_servive_handler(self):
-        # self.socket_worker.join()
-
         for key in self.camera_queue.keys():
+            self.socket_worker.send(key)
             frame = self.camera_queue[key].getAll()[-1]
             if frame.getType() == dai.RawImgFrame.Type.RAW8:
                 gray_frame = frame.getCvFrame()
             else:
                 gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
             self.socket_worker.send(gray_frame)
-
-        # self.socket_worker.join()
+        self.socket_worker.send('next')
 
         # TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
 
-        if self.socket_worker.recv('close'):
+        if self.socket_worker.recv() == 'close':
             self.device.close()
 
     def calibration_servive_handler(self):
