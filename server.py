@@ -2,64 +2,114 @@ import socket, pickle
 import depthai as dai
 import cv2
 from datetime import timedelta
+import time
 
 stringToCam = {
-                'RGB'   : dai.CameraBoardSocket.CAM_A,
-                'LEFT'  : dai.CameraBoardSocket.CAM_B,
-                'RIGHT' : dai.CameraBoardSocket.CAM_C,
-                'CAM_A' : dai.CameraBoardSocket.CAM_A,
-                'CAM_B' : dai.CameraBoardSocket.CAM_B,
-                'CAM_C' : dai.CameraBoardSocket.CAM_C,
-                'CAM_D' : dai.CameraBoardSocket.CAM_D,
-                'CAM_E' : dai.CameraBoardSocket.CAM_E,
-                'CAM_F' : dai.CameraBoardSocket.CAM_F,
-                'CAM_G' : dai.CameraBoardSocket.CAM_G,
-                'CAM_H' : dai.CameraBoardSocket.CAM_H
+                'RGB'   : dai.CameraBoardSocket.RGB,
+                'LEFT'  : dai.CameraBoardSocket.LEFT,
+                'RIGHT' : dai.CameraBoardSocket.RIGHT,
+                'CAM_A' : dai.CameraBoardSocket.RGB,
+                'CAM_B' : dai.CameraBoardSocket.LEFT,
+                'CAM_C' : dai.CameraBoardSocket.RIGHT,
+                # 'CAM_D' : dai.CameraBoardSocket.CAM_D,
+                # 'CAM_E' : dai.CameraBoardSocket.CAM_E,
+                # 'CAM_F' : dai.CameraBoardSocket.CAM_F,
+                # 'CAM_G' : dai.CameraBoardSocket.CAM_G,
+                # 'CAM_H' : dai.CameraBoardSocket.CAM_H
 }
 
 camToRgbRes = {
-                'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
-                'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
-                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
+                'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
+                'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
+                'OV9282' : dai.ColorCameraProperties.SensorResolution.THE_1080_P,
+                }
+
+camToMonoRes = {
+                'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
+                'OV9282' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
                 }
 
 
 class SocketWorker:
     def __init__(self):
-        HOST = "192.168.1.6"
-        PORT = 50007
+        # self.once = True
+        self.port = 5101
+        self.recv_connection()
+        # self.send_connection()
+
+    def recv_connection(self):
+        HOST = "luxonis.local"
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind((HOST, PORT))
+        # if self.once:
+        #     s.allow_reuse_address = True
+        #     s.bind()
+        # else:
+        s.bind((HOST, self.port))
+        self.port+= 1
+        print(f'self.PORT={self.port}')
         s.listen()
         conn, addr = s.accept()
+        self.recv_conn = conn
+        self.send_conn = self.recv_conn
         print(f'Connected by {addr}')
-        CHOST = '192.168.1.3'
-        CPORT = 5008
-        cs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        cs.connect((CHOST, CPORT))
-        self.recv_conn, self.send_conn = conn, cs
+        # self.once = False
 
+    # def send_connection(self):
+        # CHOST = '192.168.1.3'
+        # CPORT = 5101
+        # cs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # cs.connect((CHOST, CPORT))
+        # self.send_conn = self.recv_conn
+
+    def send(self, msg):
+        try:
+            data_string = pickle.dumps(msg)
+            size = len(data_string)
+            print(f'size={size}')
+            self.send_conn.send(pickle.dumps(size))
+            time.sleep(0.055)
+            self.join()
+            self.send_conn.sendall(data_string)
+            print(f'send_msg={msg}')
+            self.join()
+        except Exception as e:
+            print(e)
+            
+            # self.send_conn.shutdown(1)
+            self.send_conn.close()
+            self.recv_connection()
+            self.send(msg)
+
+    def recv(self):
+        try:
+            data = self.recv_conn.recv(4096)
+            msg = pickle.loads(data)
+            time.sleep(0.1)
+            self.ack()
+            print(f'msg={msg}')
+            return msg
+        except Exception as e:
+            print(e)
+            # self.recv_conn.shutdown()
+            self.recv_conn.close()
+            self.recv_connection()
+            self.recv()
+
+    def join(self):
+        msg = pickle.loads(self.recv_conn.recv(4096))
+        if not (msg == 'ACK'):
+            raise RuntimeError(f'ACK error msg={msg}')
+
+    def ack(self):
+        msg = pickle.dumps('ACK')
+        # self.send_conn.send(len(msg))
+        self.send_conn.send(msg)
+    
     def __del__(self):
         if hasattr(self, 'recv_conn'):
             self.recv_conn.close()
         if hasattr(self, 'send_conn'):
             self.send_conn.close()
-
-    def send(self, msg):
-        data_string = pickle.dumps(msg)
-        self.send_conn.send(data_string)
-
-    def recv(self):
-        data = self.recv_conn.recv(4096)
-        msg = pickle.loads(data)
-        return msg
-
-    def join(self):
-        if not (self.recv() == 'ACK'):
-            raise RuntimeError('Socket network error')
-
-    def ack(self):
-        self.send('ACK')
 
 
 def create_pipeline(board_config):
@@ -88,10 +138,10 @@ def create_pipeline(board_config):
             xout.setStreamName(cam_info['name'])
             cam_node.isp.link(xout.input)
 
-            if cam_info['hasAutofocus']:
-                controlIn = pipeline.createXLinkIn()
-                controlIn.setStreamName(cam_info['name'] + '-control')
-                controlIn.out.link(cam_node.inputControl)
+        if cam_info['hasAutofocus']:
+            controlIn = pipeline.createXLinkIn()
+            controlIn.setStreamName(cam_info['name'] + '-control')
+            controlIn.out.link(cam_node.inputControl)
 
     return pipeline
 
@@ -107,52 +157,55 @@ class DepthaiCamera:
         if self.device is not None:
             if not self.device.isClosed():
                 self.device.close()
-        self.socket_worker.ack()
+        # self.socket_worker.ack()
 
         while self.device is None or self.device.isClosed():
+            self.socket_worker.send('not_connected')
             searchTime = timedelta(seconds=80)
             isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
-            if isFound:
+            if not isFound:
+                self.socket_worker.send('not_found')
+            else:
                 self.socket_worker.send('is_found')
                 self.device = dai.Device()
-                cameraProperties = self.device.getConnectedCameraProperties()
-
-                # fill_color_2 = pygame.Rect(390, 120, 500, 100)
-                # pygame.draw.rect(self.screen, white, fill_color_2)
+                cameraProperties = self.device.getCameraSensorNames()
 
                 # rospy.sleep(2)
                 text = "device Mx_id : " + self.device.getMxId()
                 self.socket_worker.send(text)
-                self.socket_worker.join()
+                # self.socket_worker.join()
 
-                # pygame_render_text(self.screen, text, (400, 120), black, 30)
                 # text = "Device Connected!!!"
-                # pygame_render_text(self.screen, text, (400, 150), green, 30)
-
                 lost_camera = False
                 for properties in cameraProperties:
                     self.socket_worker.send('new_property')
                     for in_cam in self.board_config['cameras'].keys():
                         cam_info = self.board_config['cameras'][in_cam]
-                        if properties.socket == stringToCam[in_cam]:
-                            self.board_config['cameras'][in_cam]['sensorName'] = properties.sensorName
-                            print('Cam: {} and focus: {}'.format(cam_info['name'], properties.hasAutofocus))
-                            self.board_config['cameras'][in_cam]['hasAutofocus'] = properties.hasAutofocus
+                        print(f'stringToCam[in_cam]={stringToCam[in_cam]}')
+                        if properties == stringToCam[in_cam]:
+                            self.board_config['cameras'][in_cam]['sensorName'] = cameraProperties[properties]
+                            # focus = False
+                            # if in_cam == 'RGB':
+                            #     focus = True
+                            focus = True
+                            print('Cam: {} and focus: {}'.format(cam_info['name'], focus))
+                            self.board_config['cameras'][in_cam]['hasAutofocus'] = focus
                             self.socket_worker.send('checked')
                             # self.auto_checkbox_dict[cam_info['name'] + '-Camera-connected'].check()
                             break
                         self.socket_worker.send('uncheked')
                 self.socket_worker.send('last_property')
 
-                self.socket_worker.join()
+                # self.socket_worker.join()
+                # self.socket_worker.ack()
                 if self.socket_worker.recv() == 'usb_mode':
                     if self.device.getUsbSpeed() == dai.UsbSpeed.SUPER:
                         self.socket_worker.send('check')
                     else:
                         self.socket_worker.send('uncheck')
-
-                if not self.socket_worker.recv == 'lost_camera':
-                    pipeline = self.create_pipeline(self.board_config)
+                
+                if not self.socket_worker.recv() == 'lost_camera':
+                    pipeline = create_pipeline(self.board_config)
                     self.device.startPipeline(pipeline)
                     self.camera_queue = {}
                     self.control_queue = {}
@@ -161,58 +214,72 @@ class DepthaiCamera:
                         self.camera_queue[cam['name']] = self.device.getOutputQueue(cam['name'], 5, False)
                         if cam['hasAutofocus']:
                             self.control_queue[cam['name']] = self.device.getInputQueue(cam['name'] + '-control', 5, False)
-                    self.socket_worker.ack()
+                    # self.socket_worker.ack()
                 else:
                     print("Closing Device...")
 
                     self.close_device()
                     print("Restarting Device...")
-                    self.socket_worker.ack()
-                mipi = {}
-                for config_cam in self.board_config['cameras']:
-                    mipi[self.board_config['cameras'][config_cam]['name']] = False
+                    # self.socket_worker.ack()
+            self.socket_worker.send('device_connected')
+        mipi = {}
+        for config_cam in self.board_config['cameras']:
+            mipi[self.board_config['cameras'][config_cam]['name']] = False
 
-                for _ in range(120):
-                    for config_cam in self.board_config['cameras']:
-                        self.socket_worker.send('next')
-                        name = self.board_config['cameras'][config_cam]['name']
-                        imageFrame = self.camera_queue[name].tryGet()
+        for _ in range(120):
+            # self.socket_worker.join()
+            # self.socket_worker.ack()
+            print((config_cam in self.board_config['cameras']))
+            for config_cam in self.board_config['cameras']:
+                # self.socket_worker.send('next')
+                name = self.board_config['cameras'][config_cam]['name']
+                imageFrame = self.camera_queue[name].tryGet()
+                if name == 'rgb':
+                    print(imageFrame)
 
-                        if imageFrame is not None:
-                            mipi[name] = True
-                            frame = None
+                if imageFrame is not None:
+                    # self.socket_worker.send('good_frame')
+                    # self.socket_worker.join()
+                    mipi[name] = True
+                    frame = None
 
-                            if imageFrame.getType() == dai.RawImgFrame.Type.RAW8:
-                                frame = imageFrame.getCvFrame()
-                            else:
-                                frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-                            self.socket_worker.send('good_frame')
-                            self.socket_worker.send(frame)
-                        else:
-                            self.socket_worker.send('bad_frame')
-
-                    isMipiReady = True
-                    for config_cam in self.board_config['cameras']:
-                        name = self.board_config['cameras'][config_cam]['name']
-                        isMipiReady = isMipiReady and mipi[name]
-                    if isMipiReady:
-                        break
-                    self.socket_worker.ack()
-                for key in mipi.keys():
-                    self.socket_worker.send('next_mipi')
-                    if not mipi[key]:
-                        self.socket_worker.send((key + "-Stream", 'uncheck'))
+                    if imageFrame.getType() == dai.RawImgFrame.Type.RAW8:
+                        frame = imageFrame.getCvFrame()
                     else:
-                        self.socket_worker.send((key + "-Stream", 'check'))
-                self.socket_worker.send('finish_mipi')
-                self.socket_worker.join()
-                if self.socket_worker.recv != 'finished':
-                    self.device.close()
-                self.socket_worker.ack()
-                self.socket_worker.send(self.device.getMxId())
+                        frame = cv2.cvtColor(imageFrame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                    # self.socket_worker.send(frame)
+                    # self.socket_worker.join()
+                    # self.socket_worker.send(name)
+                #else:
+                    #self.socket_worker.send('bad_frame')
+            #self.socket_worker.send('fin')
+
+            # for m in mipi:
+            #     print(f'{mipi[m]=} {m=}')
+
+            isMipiReady = True
+            for config_cam in self.board_config['cameras']:
+                name = self.board_config['cameras'][config_cam]['name']
+                isMipiReady = isMipiReady and mipi[name]
+            if isMipiReady:
+                break
+            # self.socket_worker.ack()
+        for key in mipi.keys():
+            self.socket_worker.send('next_mipi')
+            if not mipi[key]:
+                self.socket_worker.send((key + "-Stream", 'uncheck'))
+            else:
+                self.socket_worker.send((key + "-Stream", 'check'))
+        time.sleep(1)
+        self.socket_worker.send('finish_mipi')
+        # self.socket_worker.join()
+        if self.socket_worker.recv() != 'finished':
+            self.device.close()
+        print('EEEND')
+
 
     def capture_servive_handler(self):
-        self.socket_worker.join()
+        # self.socket_worker.join()
 
         for key in self.camera_queue.keys():
             frame = self.camera_queue[key].getAll()[-1]
@@ -222,7 +289,7 @@ class DepthaiCamera:
                 gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
             self.socket_worker.send(gray_frame)
 
-        self.socket_worker.join()
+        # self.socket_worker.join()
 
         # TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
 
@@ -231,14 +298,14 @@ class DepthaiCamera:
 
     def calibration_servive_handler(self):
         self.socket_worker.send(self.device.getMxId())
-        self.socket_worker.join()
+        # self.socket_worker.join()
 
         if self.socket_worker.recv() == 'close':
             self.close_device()
 
         calibration_handler = dai.readCalibration2()
         self.socket_worker.send(calibration_handler)
-        self.socket_worker.join()
+        # self.socket_worker.join()
 
         if self.socket_worker.recv() == 'close':
             self.close_device()
@@ -279,7 +346,7 @@ class DepthaiCamera:
             if cam_info['hasAutofocus']:
                 trigCount[cam_info['name']] = 0
                 self.control_queue[cam_info['name']].send(ctrl)
-        self.socket_worker.ack()
+        # self.socket_worker.ack()
         # rospy.sleep(1)
         focusFailed  = False
         while True:
@@ -391,9 +458,8 @@ def main():
                 message = socket_worker.recv()
                 if message == 'start_camera':
                     print(f'{message=}')
-                    socket_worker.send('ACK')
+                    # socket_worker.ack()
                     this_camera = DepthaiCamera(socket_worker.recv(), socket_worker)
-                    # send_message('ACK')
                 elif message == 'capture_service' and this_camera is not None:
                     this_camera.capture_servive_handler()
                 elif message == 'calibration_service' and this_camera is not None:
@@ -402,8 +468,6 @@ def main():
                     this_camera.camera_focus_adjuster()
                 elif message == 'stop_camera':
                     print(f'{message=}')
-                    # if this_camera is not None:
-                    #     this_camera.stop_camera()
                     send_message(cs, 'ACK')
                 elif message == 'stop_calibration':
                     print(f'{message=}')
@@ -413,6 +477,7 @@ def main():
             del socket_worker
             del this_camera
     print('Calibration finished')
+
 
 if __name__ == '__main__':
     main()

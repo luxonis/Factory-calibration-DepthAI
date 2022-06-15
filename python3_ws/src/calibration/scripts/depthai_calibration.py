@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import base64
 
 import cv2
 import sys
@@ -48,46 +49,92 @@ pygame.init()
 
 class SocketWorker:
     def __init__(self):
-        HOST = '192.168.1.5'
-        PORT = 5015
+        self.PORT = 5101
+        self.send_connection()
+        # self.recv_connection()
+
+    def send_connection(self):
+        HOST = 'luxonis.local'
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.connect((HOST, PORT))
-        CHOST = '192.168.1.3'
-        CPORT = 5016
-        cs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        cs.bind((CHOST, CPORT))
-        cs.listen()
-        conn, addr = cs.accept()
-        self.recv_conn, self.send_conn = conn, s
+        s.connect((HOST, self.PORT))
+        self.send_conn = s
+        self.PORT+=1
+        self.recv_conn = self.send_conn
+
+    # def recv_connection(self):
+        # cs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        # CHOST = '192.168.1.3'
+        # CPORT = 5101
+        # cs.bind((CHOST, CPORT))
+        # cs.listen()
+        # conn, addr = cs.accept()
+        # self.recv_conn = self.send_conn
+
+    def send(self, msg):
+        try:
+            data_string = pickle.dumps(msg)
+            self.send_conn.send(data_string)
+            self.join()
+            time.sleep(0.1)
+        except Exception as e:
+            print(e)
+            self.send_conn.shutdown(1)
+            self.send_conn.close()
+            time.sleep(1)
+            self.send_connection()
+            self.send(msg)
+
+    def recv(self):
+        try:
+            data = []
+            #self.count = 0
+            size = 0
+            # size = pickle.loads(self.recv_conn.recv(4096))
+            # print(f'{size=}')
+            packet = self.recv_conn.recv(4096)
+            expected_size = pickle.loads(packet)
+            print(f'{expected_size=}')
+            time.sleep(0.1)
+            self.ack()
+            while size < expected_size:
+                packet = self.recv_conn.recv(4096)
+                if expected_size < 4096:
+                    print(f'{pickle.loads(packet)=}')
+                size += len(packet)
+                # print(f'{size=}')
+                #if packet == pickle.dumps('end'):
+                #    break
+                data.append(packet)
+                # print(self.count, flush=True)
+                # print(f'{len(data)*len(data[0])=}')
+                #self.count+=1
+            msg = pickle.loads(b"".join(data))
+            print(f'{msg=}')
+            time.sleep(0.2)
+            self.ack()
+            return msg
+        except Exception as e:
+            print(e)
+            self.recv().shutdown()
+            self.recv_conn.close()
+            time.sleep(1)
+            self.send_conn()
+
+    def join(self):
+        msg = pickle.loads(self.recv_conn.recv(4096))
+        if not (msg == 'ACK'):
+            raise RuntimeError(f'client join error {msg=}')
+        print('join=ACK')
+
+    def ack(self):
+        self.send_conn.send(pickle.dumps('ACK'))
+
 
     def __del__(self):
         if hasattr(self, 'recv_conn'):
             self.recv_conn.close()
         if hasattr(self, 'send_conn'):
             self.send_conn.close()
-
-    def send(self, msg):
-        data_string = pickle.dumps(msg)
-        self.send_conn.send(data_string)
-
-    def recv(self):
-        data = []
-        while True:
-            packet = self.recv_conn.recv(4096)
-            if not packet:
-                break
-            data.append(packet)
-        msg = pickle.loads(b"".join(data))
-        return msg
-
-    def join(self):
-        if not (self.recv() == 'ACK'):
-            raise RuntimeError('Socket network error')
-
-    def ack(self):
-        self.send('ACK')
-
-
 
 class depthai_calibration_node:
     def __init__(self, depthai_args):
@@ -215,9 +262,13 @@ class depthai_calibration_node:
 
             self.args['cameraModel'] = 'perspective'
             self.imgPublishers = dict()
+            print(f'{self.board_config["cameras"]=}')
             for cam_id in self.board_config['cameras']:
+                print(f'{cam_id=}')
                 name = self.board_config['cameras'][cam_id]['name']
+                print(f'{name=}')
                 self.imgPublishers[name] = rospy.Publisher(name, Image, queue_size=10)
+                print(f'{self.imgPublishers[name]=}')
 
             self.device = None
 
@@ -503,18 +554,23 @@ class depthai_calibration_node:
             checkbox.render_checkbox()
 
         self.socket_worker.send('start_camera')
-        self.socket_worker.join()
+        print(1)
+        # self.socket_worker.join()
+        print(2)
         self.socket_worker.send(self.board_config)
+        print(3)
         self.board_config = self.board_config_backup
-        self.socket_worker.join()
+        # self.socket_worker.join()
+        print(4)
         finished = False
         while not finished:
             if self.capture_exit():
                 rospy.signal_shutdown("Stopping calibration")
+            print(5)
             while self.socket_worker.recv() != 'device_connected':
                 if self.capture_exit():
                     rospy.signal_shutdown("Stopping calibration")
-
+                print(6)
                 if self.socket_worker.recv() == 'is_found':
                     # cameraList = self.device.getConnectedCameras()
                     # cameraProperties = self.device.getConnectedCameraProperties()
@@ -524,16 +580,20 @@ class depthai_calibration_node:
                     rospy.sleep(2)
                     # dev_info = self.device.getDeviceInfo()
                     text = self.socket_worker.recv()
+                    print(7)
                     pygame_render_text(self.screen, text, (400, 120), black, 30)
                     text = "Device Connected!!!"
                     pygame_render_text(self.screen, text, (400, 150), green, 30)
 
                     lost_camera = False
-                    self.socket_worker.ack()
+                    # self.socket_worker.ack()
+                    print(8)
                     while self.socket_worker.recv() != 'last_property':
+                        print(9)
                         for in_cam in self.board_config['cameras'].keys():
                             cam_info = self.board_config['cameras'][in_cam]
                             if self.socket_worker.recv() == 'checked':
+                                print(10)
                                 self.auto_checkbox_dict[cam_info['name'] + '-Camera-connected'].check()
                                 break
 
@@ -543,24 +603,34 @@ class depthai_calibration_node:
                             self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].uncheck()
                             lost_camera = True
                         self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].render_checkbox()
-                    self.socket_worker.ack()
-                    self.socket_worker.join()
+                    # self.socket_worker.ack()
+                    print(11)
+                    # self.socket_worker.join()
+                    print(12)
                     if self.args['usbMode']:
                         self.socket_worker.send('usb_mode')
-                        if self.socket_worker.recv() == 'check':
+                        print(13)
+                    else:
+                        print(15)
+                        self.socket_worker.send('no_usb_mode')
+
+                    if self.args['usbMode']:
+                        msg = self.socket_worker.recv()
+                        if msg == 'check':
                             self.auto_checkbox_dict["USB3"].check()
                         else:
                             lost_camera = True
                             self.auto_checkbox_dict["USB3"].uncheck()
+                        print(14)
                         self.auto_checkbox_dict["USB3"].render_checkbox()
-                    else:
-                        self.socket_worker.send('no_usb_mode')
 
                     if not lost_camera:
-                        self.socket_worker.send('workign_camera')
-                        self.socket_worker.join()
+                        print(16)
+                        self.socket_worker.send('working_camera')
+                        print(17)
+                        # self.socket_worker.join()
                     else:
-                        print(12)
+                        print(18)
                         self.socket_worker.send('lost_camera')
                         print("Closing Device...")
 
@@ -571,45 +641,59 @@ class depthai_calibration_node:
                         text = "Click RETEST when device is ready!!!"
                         pygame_render_text(self.screen, text, (400, 180), red, 30)
 
-                        print(13)
-                        self.socket_worker.join()
+                        print(19)
+                        # self.socket_worker.join()
                         self.retest()
                         print("Restarting Device...")
 
                         fill_color_2 = pygame.Rect(390, 430, 120, 35)
                         pygame.draw.rect(self.screen, white, fill_color_2)
             print(flush=True)
-            for _ in range(120):
-                print(14)
-                print(flush=True)
-                while self.socket_worker.recv() == 'next':
-                    print(15)
-                    print(flush=True)
-                    if self.socket_worker.recv() == 'good_frame':
-                        print(16)
-                        print(flush=True)
-                        frame = self.socket_worker.recv()
-                        print(17)
-                        print(flush=True)
-                        self.imgPublishers[name].publish(self.bridge.cv2_to_imgmsg(frame, "passthrough"))
-                print(18)
-                print(flush=True)
-
-                self.socket_worker.join()
-                print(19)
-                print(flush=True)
-                rospy.sleep(1)
-
+            # for _ in range(120):
+            #     print(f'{_=}')
+            #     # self.socket_worker.ack()
+            #     # self.socket_worker.join()
+            #     print(flush=True)
+            #     print(20)
+            #     msg = self.socket_worker.recv()
+            #     while msg == 'next':
+            #         print(f'next={msg}')
+            #         msg = self.socket_worker.recv()
+            #         print(f'good_frame={msg}')
+            #         print(flush=True)
+            #         if msg == 'good_frame':
+            #             # self.socket_worker.ack()
+            #             print(22)
+            #             print(flush=True)
+            #             frame = self.socket_worker.recv()
+            #             print(23)
+            #             print(flush=True)
+            #             # self.socket_worker.ack()
+            #             name = self.socket_worker.recv()
+            #             self.imgPublishers[name].publish(self.bridge.cv2_to_imgmsg(frame, "passthrough"))
+            #
+            #         msg = self.socket_worker.recv()
+            #     print(f'last_msg={msg}')
+            #     print(24)
+            #     print(flush=True)
+            #     # self.socket_worker.join()
+            #     print(25)
+            #     print(flush=True)
+            #     rospy.sleep(1)
+            # wait = self.socket_worker.recv()
+            # print(f'{wait=}')
+            # print(26)
             while self.socket_worker.recv() != 'finish_mipi':
-                print(20)
                 print(flush=True)
                 message = self.socket_worker.recv()
-                print(21)
+                print(28)
                 print(flush=True)
                 if message[1] == 'check':
-                    self.auto_checkbox_dict[key + "-Stream"].check()
+                    self.auto_checkbox_dict[message[0]].check()
                 else:
                     self.auto_checkbox_dict[message[0]].uncheck()
+                    print(f'{message[0]=}')
+            rospy.sleep(1)
 
             for i in range(len(self.auto_checkbox_names)):
                 self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
@@ -618,25 +702,27 @@ class depthai_calibration_node:
             for key in self.auto_checkbox_dict.keys():
                 #FIXME(sachin): is_checked is a function not a variable
                 isAllPassed = isAllPassed and self.auto_checkbox_dict[key].is_checked()
-            print(22)
+            print(29)
             print(flush=True)
-            self.socket_worker.ack()
+            # self.socket_worker.ack() # TODO: remove black magic
+            rospy.sleep(1)
+            # self.socket_worker.send('finished')
             if isAllPassed:
-                print(23)
+                print(30)
                 print(flush=True)
                 self.socket_worker.send('finished')
-                print(24)
+                print(31)
                 print(flush=True)
-                self.socket_worker.join()
+                # self.socket_worker.join()
                 finished = True
             else:
-                print(25)
+                print(32)
                 print(flush=True)
                 self.socket_worker.send('unfinished')
-                print(26)
+                print(33)
                 print(flush=True)
-                self.socket_worker.join()
-                print(27)
+                # self.socket_worker.join()
+                print(34)
                 print(flush=True)
                 self.retest()
 
@@ -645,8 +731,9 @@ class depthai_calibration_node:
             shutil.rmtree(str(dataset_path))
         # dev_info = self.device.getDeviceInfo()
         self.is_service_active = False
-        print(28)
+        print(35)
         print(flush=True)
+        print('EEEND')
         return finished, self.socket_worker.recv()
 
     def camera_focus_adjuster(self, req):
@@ -664,7 +751,7 @@ class depthai_calibration_node:
         # ctrl = dai.CameraControl()
         # ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
         # ctrl.setAutoFocusTrigger()
-        self.socket_worker.join()
+        # self.socket_worker.join()
 
         # for config_cam in self.board_config['cameras'].keys():
         #     cam_info = self.board_config['cameras'][config_cam]
@@ -792,7 +879,7 @@ class depthai_calibration_node:
         frameCount = 0
         detection_failed = False
         # while not finished:
-        self.socket_worker.ack()
+        # self.socket_worker.ack()
         for key in self.camera_queue.keys():
             frame = self.camera_queue[key].getAll()[-1]
             gray_frame = None
@@ -809,7 +896,7 @@ class depthai_calibration_node:
                 self.parse_frame(gray_frame, key + '_not', req.name)
                 detection_failed = True
         #TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
-        self.socket_worker.ack()
+        # self.socket_worker.ack()
         if detection_failed:
             self.socket_worker.send('close')
             self.is_service_active = False
@@ -841,7 +928,7 @@ class depthai_calibration_node:
                                         self.args['squares_y'],
                                         self.args['cameraModel'],
                                         False) # Turn off enable disp rectify
-         
+
         start_time = datetime.now()
         time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
@@ -849,7 +936,7 @@ class depthai_calibration_node:
         # for key in self.ccm_selected.keys():
         #     log_list.append(self.ccm_selected[key])
 
-        self.socket_worker.ack()
+        # self.socket_worker.ack()
 
         if status == -1:
             self.socket_worker.send('close')
@@ -931,7 +1018,7 @@ class depthai_calibration_node:
             log_csv_writer.writerow(log_list)
         # calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
 
-        self.socket_worker.ack()
+        # self.socket_worker.ack()
         if len(error_text) == 0:
             print('Flashing Calibration data into ')
             print(calib_dest_path)
