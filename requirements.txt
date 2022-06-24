@@ -9,5 +9,5 @@ scipy
 access-dict-by-dot
 # depthai==0.3.0.0
 --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-python-snapshot-local/
-depthai==2.15.4.0.dev+f931e075348436a56f7eae92318cbb5ed5e86628
+depthai==2.16.0.0.dev+9d15b2a23834a09c3f07e4439d40ff3ae77bad2a
 # depthai==2.16.0.0.dev0+9d866d9fa131a151ea592edb59b3d5e60649aef1
