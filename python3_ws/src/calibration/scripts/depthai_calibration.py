@@ -521,13 +521,9 @@ class depthai_calibration_node:
         return not (len(marker_corners) < 25)
 
     def close_device(self):
-        # if hasattr(self, 'left_camera_queue') and hasattr(self, 'right_camera_queue'):
-        #     delattr(self, 'left_camera_queue')
-        #     delattr(self, 'right_camera_queue')
-        # if hasattr(self, 'rgb_camera_queue') and hasattr(self, 'rgb_control_queue'):
-        #     delattr(self, 'rgb_camera_queue')
-        #     delattr(self, 'rgb_control_queue')
         self.device.close()
+        del self.device
+        self.device = None
 
     def device_status_handler(self, req):
         self.is_service_active = True
@@ -554,9 +550,8 @@ class depthai_calibration_node:
             checkbox.setUnattended()
             checkbox.render_checkbox()
 
-        if self.device is not None:
-            if not self.device.isClosed():
-                self.device.close()
+        if self.device is not None and not self.device.isClosed():
+            self.close_device()
         self.board_config = self.board_config_backup
         finished = False
         while not finished:
@@ -880,7 +875,7 @@ class depthai_calibration_node:
         #TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
 
         if detection_failed:
-            self.device.close()
+            self.close_device()
             self.is_service_active = False
             return (False, "Calibration board not found")
         else:
@@ -998,7 +993,7 @@ class depthai_calibration_node:
             print('Flashing Calibration data into ')
             print(calib_dest_path)
             # calibration_handler = self.device.readCalibration2()
-            calibration_handler.eepromToJsonFile(calib_dest_path)
+            # calibration_handler.eepromToJsonFile(calib_dest_path)
             # self.device.flashFactoryCalibration(calibration_handler)
             # self.device.flashCalibration2(calibration_handler)
             try:
@@ -1013,11 +1008,26 @@ class depthai_calibration_node:
                 self.device.flashFactoryCalibration(calibration_handler)
                 is_write_factory_sucessful = True
             except RuntimeError:
+                print("flashFactoryCalibration Failed...")
                 is_write_factory_sucessful = False
 
             self.close_device()
             self.is_service_active = False
             if is_write_succesful and is_write_factory_sucessful:
+                calib_dest_path = os.path.join(
+                    self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '_uni.json')
+                eepromUnionData = {}
+                calibHandler = self.device.readCalibration()
+                eepromUnionData['calibrationUser'] = calibHandler.eepromToJson()
+
+                calibHandler = self.device.readFactoryCalibration()
+                eepromUnionData['calibrationFactory'] = calibHandler.eepromToJson()
+
+                eepromUnionData['calibrationUserRaw'] = self.device.readCalibrationRaw()
+                eepromUnionData['calibrationFactoryRaw'] = self.device.readFactoryCalibrationRaw()
+                with open(calib_dest_path, "w") as outfile:
+                    json.dump(eepromUnionData, outfile, indent=4)
+
                 text = "EEPROM written succesfully"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
                 return (True, "EEPROM written succesfully")
