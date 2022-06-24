@@ -996,28 +996,32 @@ class depthai_calibration_node:
             # calibration_handler.eepromToJsonFile(calib_dest_path)
             # self.device.flashFactoryCalibration(calibration_handler)
             # self.device.flashCalibration2(calibration_handler)
+            eeepromData = calibration_handler.getEepromData()
+            print(f'EEPROM VERSION being flashed is  -> {eeepromData.version}')
+            eeepromData.version = 7
+            print(f'EEPROM VERSION being flashed is  -> {eeepromData.version}')
             try:
-                self.device.flashCalibration2(calibration_handler)
+                updatedCalib = dai.CalibrationHandler(eeepromData)
+                self.device.flashCalibration2(updatedCalib)
                 is_write_succesful = True
             except RuntimeError:
                 is_write_succesful = False
                 print("Writing in except...")
-                is_write_succesful = self.device.flashCalibration2(calibration_handler)
+                is_write_succesful = self.device.flashCalibration2(updatedCalib)
 
             try:
-                self.device.flashFactoryCalibration(calibration_handler)
+                self.device.flashFactoryCalibration(updatedCalib)
                 is_write_factory_sucessful = True
             except RuntimeError:
                 print("flashFactoryCalibration Failed...")
                 is_write_factory_sucessful = False
 
-            self.close_device()
             self.is_service_active = False
             if is_write_succesful and is_write_factory_sucessful:
                 calib_dest_path = os.path.join(
                     self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '_uni.json')
                 eepromUnionData = {}
-                calibHandler = self.device.readCalibration()
+                calibHandler = self.device.readCalibration2()
                 eepromUnionData['calibrationUser'] = calibHandler.eepromToJson()
 
                 calibHandler = self.device.readFactoryCalibration()
@@ -1027,14 +1031,16 @@ class depthai_calibration_node:
                 eepromUnionData['calibrationFactoryRaw'] = self.device.readFactoryCalibrationRaw()
                 with open(calib_dest_path, "w") as outfile:
                     json.dump(eepromUnionData, outfile, indent=4)
-
+                self.close_device()
                 text = "EEPROM written succesfully"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
                 return (True, "EEPROM written succesfully")
             else:
+                self.close_device()
                 text = "EEPROM write Failed!!"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
                 return (False, "EEPROM write Failed!!")
+            
         else:
             text = error_text[0]
             pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
