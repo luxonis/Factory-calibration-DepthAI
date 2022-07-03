@@ -58,22 +58,22 @@ stringToCam = {
 
 class SocketWorker:
     def __init__(self):
-        self.PORT = 51011
+        self.PORT = 51012
         self.connection()
         self.buffer = 4096
         self.FPS = 1/30
 
     def connection(self):
-        # HOST = 'luxonis.local'
-        HOST = "192.168.1.5"
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
-        os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
-        DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
-        if DEPTHAI_ALLOW_FACTORY_FLASHING is not None:
-            os.system(f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING={DEPTHAI_ALLOW_FACTORY_FLASHING}')
-        os.system(f"sshpass -p raspberry ssh pi@{HOST} python3 server.py &")
-        os.system(('sleep 5'))
-        time.sleep(5)
+        HOST = 'luxonis.local'
+        # HOST = "192.168.1.5"
+        # os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
+        # os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+        # DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
+        # if DEPTHAI_ALLOW_FACTORY_FLASHING is not None:
+        #     os.system(f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING={DEPTHAI_ALLOW_FACTORY_FLASHING}')
+        # os.system(f"sshpass -p raspberry ssh pi@{HOST} python3 server.py &")
+        # os.system(('sleep 5'))
+        # time.sleep(5)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOST, self.PORT))
         self.conn = s
@@ -743,108 +743,62 @@ class depthai_calibration_node:
     def camera_focus_adjuster(self, req):
         self.socket_worker.send('focus_adjuster')
         self.is_service_active = True
-        maxCountFocus   = 50
-        focusCount = {}
-        isFocused = {}
-        trigCount = {}
-        capturedFrames = {}
-
-        self.lensPosition = {}
-        self.focusSigma = {}
-
-        rospy.sleep(1)
-        focusFailed  = False
-        while True:
-            message = self.socket_worker.recv()
-            while message == 'next_frame':
-                message = self.socket_worker.recv()
-                self.imgPublishers[message[0]].publish(self.bridge.cv2_to_imgmsg(message[1], "passthrough"))
-                message = self.socket_worker.recv()
-                if message == 'failed_focus':
-                    focusFailed = True
-                    break
-
-                if cam_info['hasAutofocus']:
-                    marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
-                    if len(marker_corners) < 30:
-                        print("Board not detected. Waiting...!!!")
-                        trigCount[cam_info['name']] += 1
-                        focusCount[cam_info['name']] += 1
-                        if trigCount[cam_info['name']] > 31:
-                            trigCount[cam_info['name']] = 0
-                            self.control_queue[cam_info['name']].send(ctrl)
-                            time.sleep(1)
-                        if focusCount[cam_info['name']] > maxCountFocus:
-                            print("Failed to Focus...!!!")
-                            focusFailed = True
-                            break
-                        continue
-
-                dst_laplace = cv2.Laplacian(currFrame, cv2.CV_64F)
-                mu, sigma = cv2.meanStdDev(dst_laplace)
-
-                print('Sigma of {} is {}'.format(cam_info['name'], sigma))
-                localFocusThreshold = self.focusSigmaThreshold
-                if dst_laplace.shape[1] > 2000:
-                    localFocusThreshold = localFocusThreshold / 2
-
-                if sigma > localFocusThreshold:
-                    print('Setting focus true for {}'.format(cam_info['name']))
-                    isFocused[config_cam] = True
-                    self.focusSigma[cam_info['name']] = sigma
-                    if cam_info['hasAutofocus']:
-                        self.lensPosition[cam_info['name']] = frame.getLensPosition()
-                else:
-                    if cam_info['hasAutofocus']:
-                        trigCount[cam_info['name']] += 1
-                        if trigCount[cam_info['name']] > 31:
-                            trigCount[cam_info['name']] = 0
-                            self.control_queue[cam_info['name']].send(ctrl)
-                            time.sleep(1)
-                focusCount[cam_info['name']] += 1
-
-            if focusFailed:
-                break
-
-            isCountFull = True
-            for key in focusCount.keys():
-                if focusCount[key] < maxCountFocus:
-                    isCountFull = False
-                    break
-            if isCountFull:
-                break
-
-        backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
+        print(1)
+        a = 1
+        cam_info = self.socket_worker.recv()
+        while self.socket_worker.recv() == 'next':
+            print(f'1 -> {a}')
+            a = a + 1
+            # self.socket_worker.send()
+            currFrame = self.socket_worker.recv()
+            self.imgPublishers[cam_info['name']].publish(
+                        self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
+        print(2)
+        mx_id = self.socket_worker.recv()
+        
+        backupFocusPath = self.args['ds_backup_path'] + '/focus/' + mx_id
         if not os.path.exists(backupFocusPath):
             os.makedirs(backupFocusPath)
 
-        for name, image in capturedFrames.items():
+        print(3)
+        while self.socket_worker.recv() == 'img':
+            print(4)
+            name = self.socket_worker.recv()
+            print(5)
+            image = self.socket_worker.recv()
             print('Backing up images {}'.format(name))
             cv2.imwrite(backupFocusPath + "/" + name + '.png', image)
 
-        for key in isFocused.keys():
-            cam_name = self.board_config['cameras'][key]['name']
-            if isFocused[key]:
-                if self.board_config['cameras'][key]['hasAutofocus']:
-                    ctrl = dai.CameraControl()
-                    ctrl.setManualFocus(self.lensPosition[cam_name])
-                    print("Sending manual focus Control to {} at position {}".format(cam_name, self.lensPosition[cam_name]))
-                    self.control_queue[cam_name].send(ctrl)
+        print(6)
+        a = 1
+        while self.socket_worker.recv() == 'focus':
+            print(f'6 + {a}')
+            a = a + 1
+            cam_name = self.socket_worker.recv()
+            print(f'7 + {a}')
+            if self.socket_worker.recv() == 'check':
                 self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
                 self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
             else:
                 self.auto_focus_checkbox_dict[cam_name + "-Focus"].uncheck()
                 self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
-
+        print(8)
+        self.lensPosition = self.socket_worker.recv()
+        print(9)
+        self.focusSigma = self.socket_worker.recv()
+        print(10)
+        # self.socket_worker.send(self.auto_focus_checkbox_dict)
         for key in self.auto_focus_checkbox_dict.keys():
             if not self.auto_focus_checkbox_dict[key].is_checked():
-                self.close_device()
+                print(11)
+                # self.socket_worker.send('close')
                 self.is_service_active = False
                 return (False, key + " is out of Focus")
-
-        self.is_service_active = False
+            # else:
+            #     print(key + " is in Focus")
+        
+        self.is_service_active = False        
         return (True, "RGB in Focus")
-
 
     def capture_servive_handler(self, req):
         print("Capture image Service Started")
@@ -1081,7 +1035,7 @@ try:
 finally:
     # HOST = 'luxonis.local'
     HOST = "192.168.1.5"
-    os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py')
-    os.system(f'sshpass -p raspberry ssh pi@{HOST} unset DEPTHAI_ALLOW_FACTORY_FLASHING')
-    os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
-    os.system(f'sshpass -p raspberry ssh pi@{HOST} history -c')
+    # os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py')
+    # os.system(f'sshpass -p raspberry ssh pi@{HOST} unset DEPTHAI_ALLOW_FACTORY_FLASHING')
+    # os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
+    # os.system(f'sshpass -p raspberry ssh pi@{HOST} history -c')

@@ -17,25 +17,25 @@ stringToCam = {
 camToRgbRes = {
                 'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
                 'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
-                'OV9282' : dai.ColorCameraProperties.SensorResolution.THE_1080_P,
+                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_1080_P,
                 }
 
 camToMonoRes = {
                 'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
-                'OV9282' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
+                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
                 }
 
 
 class SocketWorker:
     def __init__(self):
-        self.port = 51011
+        self.port = 51012
         self.connection()
         self.buffer = 4096
         self.FPS = 1/30
 
     def connection(self):
-        # HOST = "luxonis.local"
-        HOST = "192.168.1.5"
+        HOST = "luxonis.local"
+        # HOST = "192.168.1.5"
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((HOST, self.port))
         self.port+= 1
@@ -326,10 +326,12 @@ class DepthaiCamera:
         isFocused = {}
         trigCount = {}
         capturedFrames = {}
-
+        
         self.lensPosition = {}
         self.focusSigma = {}
-
+        self.aruco_dictionary = cv2.aruco.Dictionary_get(
+            cv2.aruco.DICT_4X4_1000)
+        
         ctrl = dai.CameraControl()
         ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
         ctrl.setAutoFocusTrigger()
@@ -345,18 +347,20 @@ class DepthaiCamera:
             if cam_info['hasAutofocus']:
                 trigCount[cam_info['name']] = 0
                 self.control_queue[cam_info['name']].send(ctrl)
-        focusFailed = False
+        self.socket_worker.send(cam_info)
+        time.sleep(1)
+        focusFailed  = False
         while True:
             for config_cam in self.board_config['cameras'].keys():
+                self.socket_worker.send('next')
                 cam_info = self.board_config['cameras'][config_cam]
                 frame = self.camera_queue[cam_info['name']].getAll()[-1]
                 currFrame = frame.getCvFrame()
                 if frame.getType() != dai.RawImgFrame.Type.RAW8:
                     currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
                 print('Resolution: {}'.format(currFrame.shape))
-                capturedFrames[cam_info['name']] = currFrame
-                self.socket_worker.send('next_frame')
-                self.socket_worker.send((cam_info['name'], currFrame))
+                capturedFrames[cam_info['name']] = currFrame 
+                self.socket_worker.send(currFrame)
 
                 if cam_info['hasAutofocus']:
                     marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
@@ -370,7 +374,7 @@ class DepthaiCamera:
                             time.sleep(1)
                         if focusCount[cam_info['name']] > maxCountFocus:
                             print("Failed to Focus...!!!")
-                            self.socket_worker.send('failed_focus')
+                            focusFailed = True
                             break
                         continue
 
@@ -378,7 +382,7 @@ class DepthaiCamera:
                 mu, sigma = cv2.meanStdDev(dst_laplace)
 
                 print('Sigma of {} is {}'.format(cam_info['name'], sigma))
-                localFocusThreshold = self.focusSigmaThreshold
+                localFocusThreshold = 30
                 if dst_laplace.shape[1] > 2000:
                     localFocusThreshold = localFocusThreshold / 2
 
@@ -397,10 +401,11 @@ class DepthaiCamera:
                             time.sleep(1)
                 focusCount[cam_info['name']] += 1
 
+            
             if focusFailed:
                 break
-
-            isCountFull = True
+            
+            isCountFull = True 
             for key in focusCount.keys():
                 if focusCount[key] < maxCountFocus:
                     isCountFull = False
@@ -408,36 +413,39 @@ class DepthaiCamera:
             if isCountFull:
                 break
 
-        backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
-        if not os.path.exists(backupFocusPath):
-            os.makedirs(backupFocusPath)
-
+        self.socket_worker.send('end')
+        if self.device is None:
+            self.device = dai.Device()
+        self.socket_worker.send(self.device.getMxId())
+        
         for name, image in capturedFrames.items():
-            print('Backing up images {}'.format(name))
-            cv2.imwrite(backupFocusPath + "/" + name + '.png', image)
+            self.socket_worker.send('img')
+            self.socket_worker.send(name)
+            self.socket_worker.send(image)
+        self.socket_worker.send('end-img')
 
         for key in isFocused.keys():
+            self.socket_worker.send('focus')
             cam_name = self.board_config['cameras'][key]['name']
+            self.socket_worker.send(cam_name)
             if isFocused[key]:
                 if self.board_config['cameras'][key]['hasAutofocus']:
                     ctrl = dai.CameraControl()
                     ctrl.setManualFocus(self.lensPosition[cam_name])
                     print("Sending manual focus Control to {} at position {}".format(cam_name, self.lensPosition[cam_name]))
                     self.control_queue[cam_name].send(ctrl)
-                self.auto_focus_checkbox_dict[cam_name + "-Focus"].check()
-                self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
+                self.socket_worker.send('check')
             else:
-                self.auto_focus_checkbox_dict[cam_name + "-Focus"].uncheck()
-                self.auto_focus_checkbox_dict[cam_name + "-Focus"].render_checkbox()
-
-        for key in self.auto_focus_checkbox_dict.keys():
-            if not self.auto_focus_checkbox_dict[key].is_checked():
-                self.close_device()
-                self.is_service_active = False
-                return (False, key + " is out of Focus")
-
-        self.is_service_active = False
-        return (True, "RGB in Focus")
+                self.socket_worker.send('uncheck')
+        self.socket_worker.send('end-focus')
+        self.socket_worker.send(self.lensPosition)
+        self.socket_worker.send(self.focusSigma)
+        # auto_focus_checkbox_dict = self.socket_worker.recv()
+        # for key in auto_focus_checkbox_dict.keys():
+        #     if not auto_focus_checkbox_dict[key].is_checked():
+        #         self.device.close()
+        #         return (False, key + " is out of Focus")
+        # return (True, "RGB in Focus")
 
 
 def main():
