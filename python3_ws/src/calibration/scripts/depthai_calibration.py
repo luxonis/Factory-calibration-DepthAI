@@ -46,16 +46,26 @@ green = [4, 143, 7]
 black = [0, 0, 0]
 pygame.init()
 
+stringToCam = {
+                'RGB'   : dai.CameraBoardSocket.RGB,
+                'LEFT'  : dai.CameraBoardSocket.LEFT,
+                'RIGHT' : dai.CameraBoardSocket.RIGHT,
+                'CAM_A' : dai.CameraBoardSocket.RGB,
+                'CAM_B' : dai.CameraBoardSocket.LEFT,
+                'CAM_C' : dai.CameraBoardSocket.RIGHT,
+}
+
 
 class SocketWorker:
     def __init__(self):
-        self.PORT = 51010
-        self.send_connection()
-        # self.recv_connection()
+        self.PORT = 51011
+        self.connection()
+        self.buffer = 4096
+        self.FPS = 1/30
 
-    def send_connection(self):
-        HOST = 'luxonis.local'
-        # HOST = "192.168.1.5"
+    def connection(self):
+        # HOST = 'luxonis.local'
+        HOST = "192.168.1.5"
         os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
         os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
         DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
@@ -66,84 +76,68 @@ class SocketWorker:
         time.sleep(5)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOST, self.PORT))
-        self.send_conn = s
+        self.conn = s
         self.PORT+=1
-        self.recv_conn = self.send_conn
-
-    # def recv_connection(self):
-        # cs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # CHOST = '192.168.1.3'
-        # CPORT = 5101
-        # cs.bind((CHOST, CPORT))
-        # cs.listen()
-        # conn, addr = cs.accept()
-        # self.recv_conn = self.send_conn
 
     def send(self, msg):
         try:
             data_string = pickle.dumps(msg)
-            self.send_conn.send(data_string)
+            size = len(data_string)
+            print(f'size={size}')
+            self.conn.send(pickle.dumps(size))
+            time.sleep(self.FPS)
             self.join()
-            time.sleep(0.1)
+            self.conn.sendall(data_string)
+            print(f'send_msg={msg}')
+            self.join()
         except Exception as e:
             print(e)
-            self.send_conn.shutdown(1)
-            self.send_conn.close()
-            time.sleep(1)
-            self.send_connection()
+            self.conn.shutdown(1)
+            self.conn.close()
+            self.connection()
             self.send(msg)
 
     def recv(self):
         try:
             data = []
-            #self.count = 0
             size = 0
-            # size = pickle.loads(self.recv_conn.recv(4096))
-            # print(f'{size=}')
-            packet = self.recv_conn.recv(4096)
+            packet = self.conn.recv(self.buffer)
             expected_size = pickle.loads(packet)
             print(f'expected_size={expected_size}')
-            time.sleep(0.1)
+            time.sleep(self.FPS)
             self.ack()
             while size < expected_size:
-                packet = self.recv_conn.recv(4096)
-                if expected_size < 4096:
+                packet = self.conn.recv(self.buffer)
+                if expected_size < self.buffer:
                     print(f'pickle.loads(packet)={pickle.loads(packet)}')
                 size += len(packet)
-                # print(f'{size=}')
-                #if packet == pickle.dumps('end'):
-                #    break
                 data.append(packet)
-                # print(self.count, flush=True)
-                # print(f'{len(data)*len(data[0])=}')
-                #self.count+=1
             msg = pickle.loads(b"".join(data))
             print(f'msg={msg}')
-            time.sleep(0.2)
+            time.sleep(0.03)
             self.ack()
             return msg
         except Exception as e:
             print(e)
-            self.recv().shutdown()
-            self.recv_conn.close()
+            self.conn.shutdown(1)
+            self.conn.close()
             time.sleep(1)
-            self.send_conn()
+            self.connection()
+            self.recv()
 
     def join(self):
-        msg = pickle.loads(self.recv_conn.recv(4096))
+        msg = pickle.loads(self.conn.recv(4096))
         if not (msg == 'ACK'):
             raise RuntimeError(f'client join error msg={msg}')
         print('join=ACK')
 
     def ack(self):
-        self.send_conn.send(pickle.dumps('ACK'))
-
+        self.conn.send(pickle.dumps('ACK'))
 
     def __del__(self):
-        if hasattr(self, 'recv_conn'):
-            self.recv_conn.close()
-        if hasattr(self, 'send_conn'):
-            self.send_conn.close()
+        if hasattr(self, 'conn'):
+            self.conn.close()
+
 
 class depthai_calibration_node:
     def __init__(self, depthai_args):
@@ -758,34 +752,9 @@ class depthai_calibration_node:
         self.lensPosition = {}
         self.focusSigma = {}
 
-        # ctrl = dai.CameraControl()
-        # ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
-        # ctrl.setAutoFocusTrigger()
-        # self.socket_worker.join()
-
-        # for config_cam in self.board_config['cameras'].keys():
-        #     cam_info = self.board_config['cameras'][config_cam]
-        #     focusCount[cam_info['name']] = 0
-        #     self.focusSigma[cam_info['name']] = 0
-        #     self.lensPosition[cam_info['name']] = 0
-        #     isFocused[config_cam] = False
-        #     capturedFrames[cam_info['name']] = None
-        #
-        #     if cam_info['hasAutofocus']:
-        #         trigCount[cam_info['name']] = 0
-        #         self.control_queue[cam_info['name']].send(ctrl)
-
         rospy.sleep(1)
         focusFailed  = False
         while True:
-            # for config_cam in self.board_config['cameras'].keys():
-            #     cam_info = self.board_config['cameras'][config_cam]
-            #     frame = self.camera_queue[cam_info['name']].getAll()[-1]
-            #     currFrame = frame.getCvFrame()
-            #     if frame.getType() != dai.RawImgFrame.Type.RAW8:
-            #         currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
-            #     print('Resolution: {}'.format(currFrame.shape))
-            #     capturedFrames[cam_info['name']] = currFrame
             message = self.socket_worker.recv()
             while message == 'next_frame':
                 message = self.socket_worker.recv()
@@ -794,7 +763,6 @@ class depthai_calibration_node:
                 if message == 'failed_focus':
                     focusFailed = True
                     break
-
 
                 if cam_info['hasAutofocus']:
                     marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
@@ -873,8 +841,6 @@ class depthai_calibration_node:
                 self.close_device()
                 self.is_service_active = False
                 return (False, key + " is out of Focus")
-            # else:
-            #     print(key + " is in Focus")
 
         self.is_service_active = False
         return (True, "RGB in Focus")
@@ -947,7 +913,7 @@ class depthai_calibration_node:
 
         if status == -1:
             self.socket_worker.send('close')
-            self.close_device()
+            # self.close_device()
             self.is_service_active = False
             return result_config
         else:
@@ -956,7 +922,8 @@ class depthai_calibration_node:
         vis_x = 400
         vis_y = 180
         error_text = []
-        calibration_handler = self.socket_worker.recv()
+        eepromDataJson = self.socket_worker.recv()
+        calibration_handler = dai.CalibrationHandler.fromJson(eepromDataJson)
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]
             log_list.append(self.ccm_selected[cam_info['name']])
@@ -979,10 +946,11 @@ class depthai_calibration_node:
             calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info['dist_coeff'])
             calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
             calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
-
-            if cam_info['hasAutofocus']:
-                calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
-            
+            try:
+                if cam_info['hasAutofocus']:
+                    calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
+            except:
+                pass
             log_list.append(self.focusSigma[cam_info['name']])
             log_list.append(cam_info['reprojection_error'])
             
@@ -1030,15 +998,15 @@ class depthai_calibration_node:
             print('Flashing Calibration data into ')
             print(calib_dest_path)
             calibration_handler.eepromToJsonFile(calib_dest_path)
-            self.socket_worker.send(calibration_handler)
+            self.socket_worker.send(calibration_handler.eepromToJson())
             if self.socket_worker.recv() == 'flashed':
                 is_write_succesful = True
             else:
                 is_write_succesful = False
 
-            self.close_device()
+            # self.close_device()
             self.is_service_active = False
-            if is_write_succesful and is_write_factory_sucessful:
+            if is_write_succesful:
                 text = "EEPROM written succesfully"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
                 return (True, "EEPROM written succesfully")
@@ -1051,7 +1019,7 @@ class depthai_calibration_node:
             pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
             print(error_text)
 
-            self.close_device()
+            # self.close_device()
             self.is_service_active = False
             return (False, error_text[0])
 
@@ -1111,8 +1079,8 @@ try:
         depthai_dev.publisher()
         rospy.spin()
 finally:
-    HOST = 'luxonis.local'
-    # HOST = "192.168.1.5"
+    # HOST = 'luxonis.local'
+    HOST = "192.168.1.5"
     os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py')
     os.system(f'sshpass -p raspberry ssh pi@{HOST} unset DEPTHAI_ALLOW_FACTORY_FLASHING')
     os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')

@@ -3,6 +3,7 @@ import depthai as dai
 import cv2
 from datetime import timedelta
 import time
+import os
 
 stringToCam = {
                 'RGB'   : dai.CameraBoardSocket.RGB,
@@ -11,11 +12,6 @@ stringToCam = {
                 'CAM_A' : dai.CameraBoardSocket.RGB,
                 'CAM_B' : dai.CameraBoardSocket.LEFT,
                 'CAM_C' : dai.CameraBoardSocket.RIGHT,
-                # 'CAM_D' : dai.CameraBoardSocket.CAM_D,
-                # 'CAM_E' : dai.CameraBoardSocket.CAM_E,
-                # 'CAM_F' : dai.CameraBoardSocket.CAM_F,
-                # 'CAM_G' : dai.CameraBoardSocket.CAM_G,
-                # 'CAM_H' : dai.CameraBoardSocket.CAM_H
 }
 
 camToRgbRes = {
@@ -32,85 +28,81 @@ camToMonoRes = {
 
 class SocketWorker:
     def __init__(self):
-        # self.once = True
-        self.port = 51010
-        self.recv_connection()
-        # self.send_connection()
+        self.port = 51011
+        self.connection()
+        self.buffer = 4096
+        self.FPS = 1/30
 
-    def recv_connection(self):
-        HOST = "luxonis.local"
-        # HOST = "192.168.1.5"
+    def connection(self):
+        # HOST = "luxonis.local"
+        HOST = "192.168.1.5"
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # if self.once:
-        #     s.allow_reuse_address = True
-        #     s.bind()
-        # else:
         s.bind((HOST, self.port))
         self.port+= 1
         print(f'self.PORT={self.port}')
         s.listen()
         conn, addr = s.accept()
-        self.recv_conn = conn
-        self.send_conn = self.recv_conn
+        self.conn = conn
         print(f'Connected by {addr}')
-        # self.once = False
-
-    # def send_connection(self):
-        # CHOST = '192.168.1.3'
-        # CPORT = 5101
-        # cs = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        # cs.connect((CHOST, CPORT))
-        # self.send_conn = self.recv_conn
 
     def send(self, msg):
         try:
             data_string = pickle.dumps(msg)
             size = len(data_string)
             print(f'size={size}')
-            self.send_conn.send(pickle.dumps(size))
-            time.sleep(0.055)
+            self.conn.send(pickle.dumps(size))
+            time.sleep(self.FPS)
             self.join()
-            self.send_conn.sendall(data_string)
+            self.conn.sendall(data_string)
             print(f'send_msg={msg}')
             self.join()
         except Exception as e:
             print(e)
-            
-            # self.send_conn.shutdown(1)
-            self.send_conn.close()
-            self.recv_connection()
+            self.conn.shutdown(1)
+            self.conn.close()
+            self.connection()
             self.send(msg)
 
     def recv(self):
         try:
-            data = self.recv_conn.recv(4096)
-            msg = pickle.loads(data)
-            time.sleep(0.1)
+            data = []
+            size = 0
+            packet = self.conn.recv(self.buffer)
+            expected_size = pickle.loads(packet)
+            print(f'expected_size={expected_size}')
+            time.sleep(self.FPS)
             self.ack()
+            while size < expected_size:
+                packet = self.conn.recv(self.buffer)
+                if expected_size < self.buffer:
+                    print(f'pickle.loads(packet)={pickle.loads(packet)}')
+                size += len(packet)
+                data.append(packet)
+            msg = pickle.loads(b"".join(data))
             print(f'msg={msg}')
+            time.sleep(0.03)
+            self.ack()
             return msg
         except Exception as e:
             print(e)
-            # self.recv_conn.shutdown()
-            self.recv_conn.close()
-            self.recv_connection()
+            self.conn.shutdown(1)
+            self.conn.close()
+            time.sleep(1)
+            self.connection()
             self.recv()
 
     def join(self):
-        msg = pickle.loads(self.recv_conn.recv(4096))
+        msg = pickle.loads(self.conn.recv(self.buffer))
         if not (msg == 'ACK'):
             raise RuntimeError(f'ACK error msg={msg}')
 
     def ack(self):
         msg = pickle.dumps('ACK')
-        # self.send_conn.send(len(msg))
-        self.send_conn.send(msg)
+        self.conn.send(msg)
     
     def __del__(self):
-        if hasattr(self, 'recv_conn'):
-            self.recv_conn.close()
-        if hasattr(self, 'send_conn'):
-            self.send_conn.close()
+        if hasattr(self, 'conn'):
+            self.conn.close()
 
 
 def create_pipeline(board_config):
@@ -285,6 +277,7 @@ class DepthaiCamera:
         for key in self.camera_queue.keys():
             self.socket_worker.send(key)
             frame = self.camera_queue[key].getAll()[-1]
+            print(f'key = {key} frame = {frame}')
             if frame.getType() == dai.RawImgFrame.Type.RAW8:
                 gray_frame = frame.getCvFrame()
             else:
@@ -302,17 +295,22 @@ class DepthaiCamera:
         # self.socket_worker.join()
 
         if self.socket_worker.recv() == 'close':
-            self.close_device()
+            self.device.close()
 
-        calibration_handler = dai.readCalibration2()
-        self.socket_worker.send(calibration_handler)
+        # calibration_handler = self.device.readCalibration2()
+        eepromDataJson = {"batchName": "", "batchTime": 0, "boardConf": "nIR-C00M00-00", "boardName": "DM2097",
+                          "boardRev": "R1M1E1", "productName": "OAK-D CM4 POE", "boardCustom": "",
+                          "hardwareConf": "F0-FV00-BC000", "boardOptions": 0, "version": 7,
+                          'batchTime': int(time.time())}
+        self.socket_worker.send(eepromDataJson)
         # self.socket_worker.join()
 
         if self.socket_worker.recv() == 'close':
-            self.close_device()
+            self.device.close()
             return
 
-        calibration_handler = self.socket_worker.recv()
+        eepromDataJson = self.socket_worker.recv()
+        calibration_handler = dai.CalibrationHandler.fromJson(eepromDataJson)
         try:
             self.device.flashCalibration2(calibration_handler)
             self.device.flashFactoryCalibration(calibration_handler)
@@ -320,6 +318,7 @@ class DepthaiCamera:
             self.socket_worker.send('error')
         else:
             self.socket_worker.send('flashed')
+        self.device.close()
 
     def camera_focus_adjuster(self):
         maxCountFocus   = 50
@@ -335,7 +334,6 @@ class DepthaiCamera:
         ctrl.setAutoFocusMode(dai.CameraControl.AutoFocusMode.AUTO)
         ctrl.setAutoFocusTrigger()
 
-
         for config_cam in self.board_config['cameras'].keys():
             cam_info = self.board_config['cameras'][config_cam]
             focusCount[cam_info['name']] = 0
@@ -347,9 +345,7 @@ class DepthaiCamera:
             if cam_info['hasAutofocus']:
                 trigCount[cam_info['name']] = 0
                 self.control_queue[cam_info['name']].send(ctrl)
-        # self.socket_worker.ack()
-        # rospy.sleep(1)
-        focusFailed  = False
+        focusFailed = False
         while True:
             for config_cam in self.board_config['cameras'].keys():
                 cam_info = self.board_config['cameras'][config_cam]
@@ -439,8 +435,6 @@ class DepthaiCamera:
                 self.close_device()
                 self.is_service_active = False
                 return (False, key + " is out of Focus")
-            # else:
-            #     print(key + " is in Focus")
 
         self.is_service_active = False
         return (True, "RGB in Focus")
@@ -469,10 +463,10 @@ def main():
                     this_camera.camera_focus_adjuster()
                 elif message == 'stop_camera':
                     print(f'{message=}')
-                    send_message(cs, 'ACK')
+                    # send_message(cs, 'ACK')
                 elif message == 'stop_calibration':
                     print(f'{message=}')
-                    send_message(cs, 'ACK')
+                    # send_message(cs, 'ACK')
                     break
         finally:
             del socket_worker
