@@ -58,7 +58,7 @@ stringToCam = {
 
 class SocketWorker:
     def __init__(self):
-        self.PORT = 51012
+        self.PORT = 51011
         self.connection()
         self.buffer = 4096
         self.FPS = 1/30
@@ -66,14 +66,14 @@ class SocketWorker:
     def connection(self):
         HOST = 'luxonis.local'
         # HOST = "192.168.1.5"
-        # os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
-        # os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
-        # DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
-        # if DEPTHAI_ALLOW_FACTORY_FLASHING is not None:
-        #     os.system(f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING={DEPTHAI_ALLOW_FACTORY_FLASHING}')
-        # os.system(f"sshpass -p raspberry ssh pi@{HOST} python3 server.py &")
-        # os.system(('sleep 5'))
-        # time.sleep(5)
+        os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
+        os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+        DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
+        if DEPTHAI_ALLOW_FACTORY_FLASHING is not None:
+            os.system(f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING={DEPTHAI_ALLOW_FACTORY_FLASHING}')
+        os.system(f"sshpass -p raspberry ssh pi@{HOST} python3 server.py &")
+        os.system(('sleep 5'))
+        time.sleep(5)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOST, self.PORT))
         self.conn = s
@@ -188,9 +188,9 @@ class depthai_calibration_node:
             # header.append(cam_info['name'] + '-camera')
             header.append(cam_info['name'] + '-focus-stdDev')
             header.append(cam_info['name'] + '-Reprojection-Error')
-            self.auto_checkbox_names.append(cam_info['name']  + '-Camera-connected')
-            self.auto_checkbox_names.append(cam_info['name']  + '-Stream')
-            self.auto_focus_checkbox_names.append(cam_info['name']  + '-Focus')
+            self.auto_checkbox_names.append(cam_info['name'] + '-Camera-connected')
+            self.auto_checkbox_names.append(cam_info['name'] + '-Stream')
+            self.auto_focus_checkbox_names.append(cam_info['name'] + '-Focus')
             if 'extrinsics' in cam_info:
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = self.board_config['cameras'][cam_info['extrinsics']['to_cam']]['name']    
@@ -750,9 +750,9 @@ class depthai_calibration_node:
             print(f'1 -> {a}')
             a = a + 1
             # self.socket_worker.send()
-            currFrame = self.socket_worker.recv()
-            self.imgPublishers[cam_info['name']].publish(
-                        self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
+            # currFrame = self.socket_worker.recv()
+            # self.imgPublishers[cam_info['name']].publish(
+            #             self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
         print(2)
         mx_id = self.socket_worker.recv()
         
@@ -822,24 +822,27 @@ class depthai_calibration_node:
             else:
                 self.parse_frame(gray_frame, key + '_not', req.name)
                 detection_failed = True
-        #TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
+        # TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
         # self.socket_worker.ack()
         if detection_failed:
             self.socket_worker.send('close')
             self.is_service_active = False
-            return (False, "Calibration board not found")
+            return False, "Calibration board not found"
         else:
             self.socket_worker.send('success')
             self.is_service_active = False
             return (True, "No Error")
 
     def calibration_servive_handler(self, req):
+        print('Calibrate service')
         self.socket_worker.send('calibration_service')
+        print(1)
         self.is_service_active = True
         print("calibration Service Started")
         # pygame.draw.rect(self.screen, white, no_button)
 
         mx_serial_id = self.socket_worker.recv()
+        print(2)
         # dev_info = self.device.getDeviceInfo()
         # mx_serial_id = dev_info.getMxId()
         calib_dest_path = os.path.join(
@@ -867,16 +870,19 @@ class depthai_calibration_node:
 
         if status == -1:
             self.socket_worker.send('close')
+            print(3)
             # self.close_device()
             self.is_service_active = False
             return result_config
         else:
             self.socket_worker.send('pass')
+            print(4)
 
         vis_x = 400
         vis_y = 180
         error_text = []
         eepromDataJson = self.socket_worker.recv()
+        print(5)
         calibration_handler = dai.CalibrationHandler.fromJson(eepromDataJson)
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]
@@ -952,8 +958,11 @@ class depthai_calibration_node:
             print('Flashing Calibration data into ')
             print(calib_dest_path)
             calibration_handler.eepromToJsonFile(calib_dest_path)
-            self.socket_worker.send(calibration_handler.eepromToJson())
+            eepromDataJson = calibration_handler.eepromToJson()
+            self.socket_worker.send(eepromDataJson)
+            print(6)
             if self.socket_worker.recv() == 'flashed':
+                print(7)
                 is_write_succesful = True
             else:
                 is_write_succesful = False
@@ -975,7 +984,7 @@ class depthai_calibration_node:
 
             # self.close_device()
             self.is_service_active = False
-            return (False, error_text[0])
+            return False, error_text[0]
 
 
 no_button = pygame.Rect(490, 500, 80, 45)
@@ -1033,9 +1042,9 @@ try:
         depthai_dev.publisher()
         rospy.spin()
 finally:
-    # HOST = 'luxonis.local'
-    HOST = "192.168.1.5"
-    # os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py')
-    # os.system(f'sshpass -p raspberry ssh pi@{HOST} unset DEPTHAI_ALLOW_FACTORY_FLASHING')
-    # os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
-    # os.system(f'sshpass -p raspberry ssh pi@{HOST} history -c')
+    HOST = 'luxonis.local'
+    # HOST = "192.168.1.5"
+    os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py')
+    os.system(f'sshpass -p raspberry ssh pi@{HOST} unset DEPTHAI_ALLOW_FACTORY_FLASHING')
+    os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
+    os.system(f'sshpass -p raspberry ssh pi@{HOST} history -c')
