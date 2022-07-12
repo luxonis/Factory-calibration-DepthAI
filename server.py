@@ -366,7 +366,7 @@ class DepthaiCamera:
                     currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
                 print('Resolution: {}'.format(currFrame.shape))
                 capturedFrames[cam_info['name']] = currFrame
-                # self.socket_worker.send(currFrame)
+                self.socket_worker.send(currFrame)
 
                 if cam_info['hasAutofocus']:
                     marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)

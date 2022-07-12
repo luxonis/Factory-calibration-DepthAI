@@ -67,7 +67,10 @@ class SocketWorker:
         HOST = 'luxonis.local'
         # HOST = "192.168.1.5"
         os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
-        os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+        os.system(f'sshpass -p raspberry scp ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+        os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
+        os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install ~/pip_packages/*')
+
         DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
         if DEPTHAI_ALLOW_FACTORY_FLASHING is not None:
             os.system(f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING={DEPTHAI_ALLOW_FACTORY_FLASHING}')
@@ -750,7 +753,8 @@ class depthai_calibration_node:
             print(f'1 -> {a}')
             a = a + 1
             # self.socket_worker.send()
-            # currFrame = self.socket_worker.recv()
+            currFrame = self.socket_worker.recv()
+
             # self.imgPublishers[cam_info['name']].publish(
             #             self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
         print(2)
@@ -1047,4 +1051,5 @@ finally:
     os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py')
     os.system(f'sshpass -p raspberry ssh pi@{HOST} unset DEPTHAI_ALLOW_FACTORY_FLASHING')
     os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
+    os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install depthai==2.15.4.0')
     os.system(f'sshpass -p raspberry ssh pi@{HOST} history -c')
