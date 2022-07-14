@@ -2,7 +2,7 @@
 
   <arg name="robot_name"                  default=""/>
   <arg name="arm_operating_mode"          default="position"/>
-  <arg name="arm_profile_velocity"        default="90"/>
+  <arg name="arm_profile_velocity"        default="89"/>
   <arg name="arm_profile_acceleration"    default="5"/>
   <arg name="use_pid_cntlrs"              default="false"/>
   <arg name="use_gazebo"                  default="false"/>
