@@ -71,11 +71,10 @@ class SocketWorker:
         os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
         # os.system(f'sshpass -p raspberry scp -r ~/workspace/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install /home/pi/pip_packages/*')
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING=868632271')
-        # DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
-        # if DEPTHAI_ALLOW_FACTORY_FLASHING is not None:
-        #     os.system(
-        #         f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING={DEPTHAI_ALLOW_FACTORY_FLASHING}')
+        DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
+        if DEPTHAI_ALLOW_FACTORY_FLASHING is not None:
+            os.system(
+                f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING={DEPTHAI_ALLOW_FACTORY_FLASHING}')
         os.system(f"sshpass -p raspberry ssh pi@{HOST} python3 server.py &")
         os.system(f"sshpass -p raspberry ssh pi@{HOST} sleep 5")
         time.sleep(5)
@@ -929,6 +928,8 @@ class depthai_calibration_node:
             print(calib_dest_path)
             calibration_handler.eepromToJsonFile(calib_dest_path)
             eepromDataJson = calibration_handler.eepromToJson()
+            DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
+            self.socket_worker.send(DEPTHAI_ALLOW_FACTORY_FLASHING)
             self.socket_worker.send(eepromDataJson)
             if self.socket_worker.recv() == 'flashed':
                 is_write_succesful = True
