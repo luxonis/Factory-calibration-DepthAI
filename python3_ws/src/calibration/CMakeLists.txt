@@ -74,5 +74,6 @@ CATKIN_DEPENDS message_runtime
 catkin_install_python(PROGRAMS 
   scripts/depthai_calibration.py
   scripts/1097_socket_read.py
+  scripts/depthai_cm4_calibration.py
   DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

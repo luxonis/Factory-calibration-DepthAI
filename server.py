@@ -18,24 +18,26 @@ camToRgbRes = {
     'IMX378': dai.ColorCameraProperties.SensorResolution.THE_4_K,
     'IMX214': dai.ColorCameraProperties.SensorResolution.THE_4_K,
     'OV9*82': dai.ColorCameraProperties.SensorResolution.THE_1080_P,
+    'OV9282': dai.ColorCameraProperties.SensorResolution.THE_1080_P,
 }
 
 camToMonoRes = {
     'OV7251': dai.MonoCameraProperties.SensorResolution.THE_480_P,
     'OV9*82': dai.MonoCameraProperties.SensorResolution.THE_800_P,
+    'OV9282': dai.MonoCameraProperties.SensorResolution.THE_800_P,
 }
 
 
 class SocketWorker:
     def __init__(self):
-        self.port = 51011
+        self.port = 51014
         self.connection()
         self.buffer = 4096
         self.FPS = 1 / 30
 
     def connection(self):
-        HOST = "luxonis.local"
-        # HOST = "192.168.1.5"
+        # HOST = "luxonis.local"
+        HOST = "192.168.1.5"
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((HOST, self.port))
         self.port += 1
@@ -212,7 +214,7 @@ class DepthaiCamera:
                 else:
                     print("Closing Device...")
 
-                    self.close_device()
+                    self.device.close()
                     print("Restarting Device...")
                     # self.socket_worker.ack()
             self.socket_worker.send('device_connected')
@@ -271,7 +273,7 @@ class DepthaiCamera:
         if self.socket_worker.recv() != 'finished':
             self.device.close()
         self.socket_worker.send(self.device.getMxId())
-        print('EEEND')
+        print('Finish device status')
 
     def capture_servive_handler(self):
         for key in self.camera_queue.keys():
@@ -298,32 +300,32 @@ class DepthaiCamera:
             self.device.close()
 
         # calibration_handler = self.device.readCalibration2()
-        eepromDataJson = {"batchName": "", "batchTime": 0, "boardConf": "nIR-C00M00-00", "boardName": "DM2097",
-                          "boardRev": "R1M1E1", "productName": "OAK-D CM4 POE", "boardCustom": "",
-                          "hardwareConf": "F0-FV00-BC000", "boardOptions": 0, "version": 7,
-                          'batchTime': int(time.time())}
+        # eepromDataJson = {"batchName": "", "batchTime": 0, "boardConf": "nIR-C00M00-00", "boardName": "DM2097",
+        #                   "boardRev": "R1M1E1", "productName": "OAK-D CM4 POE", "boardCustom": "",
+        #                   "hardwareConf": "F0-FV00-BC000", "boardOptions": 0, "version": 7}
+        eepromDataJson = self.socket_worker.recv()
+
+        eepromDataJson['batchTime'] = int(time.time())
         self.socket_worker.send(eepromDataJson)
         # self.socket_worker.join()
 
         # if self.socket_worker.recv() == 'close':
         #     self.device.close()
         #     return
-        print('-------------------beforeEEPROMRecv--------------------------')
         eepromDataJson = self.socket_worker.recv()
-        print('================================================')
         calibration_handler = dai.CalibrationHandler.fromJson(eepromDataJson)
         print(f'calibration_handler = {calibration_handler}')
         flashed = True
         try:
             self.device.flashCalibration2(calibration_handler)
             self.device.flashFactoryCalibration(calibration_handler)
-        except:
+        except Exception as e:
+            print(f'------Write failed with: {e}-------')
             flashed = False
         if flashed:
             self.socket_worker.send('flashed')
         else:
             self.socket_worker.send('error')
-        print('ejndaskjndakljdlkwajdlskajdlkqwjasda')
         self.device.close()
 
     def camera_focus_adjuster(self):
@@ -358,7 +360,7 @@ class DepthaiCamera:
         focusFailed = False
         while True:
             for config_cam in self.board_config['cameras'].keys():
-                self.socket_worker.send('next')
+                # self.socket_worker.send('next')
                 cam_info = self.board_config['cameras'][config_cam]
                 frame = self.camera_queue[cam_info['name']].getAll()[-1]
                 currFrame = frame.getCvFrame()
@@ -366,7 +368,7 @@ class DepthaiCamera:
                     currFrame = cv2.cvtColor(currFrame, cv2.COLOR_BGR2GRAY)
                 print('Resolution: {}'.format(currFrame.shape))
                 capturedFrames[cam_info['name']] = currFrame
-                self.socket_worker.send(currFrame)
+                # self.socket_worker.send(currFrame)
 
                 if cam_info['hasAutofocus']:
                     marker_corners, _, _ = cv2.aruco.detectMarkers(currFrame, self.aruco_dictionary)
@@ -418,7 +420,7 @@ class DepthaiCamera:
             if isCountFull:
                 break
 
-        self.socket_worker.send('end')
+        # self.socket_worker.send('end')
         if self.device is None:
             self.device = dai.Device()
         self.socket_worker.send(self.device.getMxId())
