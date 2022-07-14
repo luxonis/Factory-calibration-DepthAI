@@ -65,6 +65,7 @@ class SocketWorker:
     def connection(self):
         HOST = 'luxonis.local'
         # HOST = "192.168.1.5"
+        os.system('source ~/Factory-calibration-DepthAI/set_cm4_factory.sh')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
         # os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
         os.system(f'sshpass -p raspberry scp ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
@@ -148,7 +149,7 @@ class SocketWorker:
         os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install depthai==2.15.4.0')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} history -c')
-	os.system(f'sshpass -p raspberry ssh pi@{HOST} echo raspberry | sudo -S reboot')
+        os.system(f'sshpass -p raspberry ssh pi@{HOST} echo raspberry | sudo -S reboot')
 
 
 class depthai_calibration_node:
@@ -545,7 +546,8 @@ class depthai_calibration_node:
         try:
             del self.socket_worker
         except AttributeError:
-            self.socket_worker = SocketWorker()
+            pass
+        self.socket_worker = SocketWorker()
 
         self.is_service_active = True
         self.start_disp = True  # TODO(sachin): Change code to Use this for display
@@ -987,6 +989,7 @@ if __name__ == "__main__":
         '~capture_service_name')  # Add  capture_checkerboard to launch file
     arg["calibration_service_name"] = rospy.get_param(
         '~calibration_service_name')  # Add capture_checkerboard to launch file
+    # arg['host'] = rospy.get_param('~host')
 
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])

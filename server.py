@@ -392,7 +392,7 @@ class DepthaiCamera:
                 mu, sigma = cv2.meanStdDev(dst_laplace)
 
                 print('Sigma of {} is {}'.format(cam_info['name'], sigma))
-                localFocusThreshold = 35
+                localFocusThreshold = 20
                 if dst_laplace.shape[1] > 2000:
                     localFocusThreshold = localFocusThreshold / 2
 
