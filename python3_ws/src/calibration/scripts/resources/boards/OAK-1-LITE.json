@@ -1,8 +1,8 @@
 {
     "board_config":
     {
-        "name": "OAK-1",
-        "revision": "R3M1E2",
+        "name": "OAK-1-LITE",
+        "revision": "R1M0E2",
         "cameras":{
             "CAM_A": {
                 "name": "rgb",

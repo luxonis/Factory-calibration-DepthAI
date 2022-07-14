@@ -1,17 +1,17 @@
 {
     "board_config":
     {
-        "name": "OAK-D Pro-W PoE",
-        "revision": "R3M2E2",
+        "name": "OAK-D-PRO",
+        "revision": "R3M1E3",
         "cameras":{
             "CAM_A": {
                 "name": "rgb",
-                "hfov": 108.0,
+                "hfov": 68.7938,
                 "type": "color"
             },
             "CAM_B": {
                 "name": "left",
-                "hfov": 127.0,
+                "hfov": 71.86,
                 "type": "mono",
                 "extrinsics": {
                     "to_cam": "CAM_C",
@@ -29,7 +29,7 @@
             },
             "CAM_C": {
                 "name": "right",
-                "hfov": 127.0,
+                "hfov": 71.86,
                 "type": "mono",
                 "extrinsics": {
                     "to_cam": "CAM_A",

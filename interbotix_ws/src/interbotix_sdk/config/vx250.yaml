@@ -47,7 +47,7 @@ waist:
   Baud_Rate: 3
   Return_Delay_Time: 0
   Drive_Mode: 0
-  Velocity_Limit: 131
+  Velocity_Limit: 66
   Min_Position_Limit: 0
   Max_Position_Limit: 4095
   Secondary_ID: 255
@@ -57,7 +57,7 @@ shoulder:
   Baud_Rate: 3
   Return_Delay_Time: 0
   Drive_Mode: 1
-  Velocity_Limit: 131
+  Velocity_Limit: 66
   Min_Position_Limit: 888
   Max_Position_Limit: 3185
   Secondary_ID: 255
@@ -67,7 +67,7 @@ shoulder_shadow:
   Baud_Rate: 3
   Return_Delay_Time: 0
   Drive_Mode: 0
-  Velocity_Limit: 131
+  Velocity_Limit: 66
   Min_Position_Limit: 888
   Max_Position_Limit: 3185
   Secondary_ID: 2
@@ -77,7 +77,7 @@ elbow:
   Baud_Rate: 3
   Return_Delay_Time: 0
   Drive_Mode: 0
-  Velocity_Limit: 131
+  Velocity_Limit: 66
   Min_Position_Limit: 1002
   Max_Position_Limit: 3208
   Secondary_ID: 255
@@ -87,7 +87,7 @@ wrist_angle:
   Baud_Rate: 3
   Return_Delay_Time: 0
   Drive_Mode: 0
-  Velocity_Limit: 131
+  Velocity_Limit: 66
   Min_Position_Limit: 650
   Max_Position_Limit: 3185
   Secondary_ID: 255
@@ -97,7 +97,7 @@ wrist_rotate:
   Baud_Rate: 3
   Return_Delay_Time: 0
   Drive_Mode: 0
-  Velocity_Limit: 131
+  Velocity_Limit: 66
   Min_Position_Limit: 0
   Max_Position_Limit: 4095
   Secondary_ID: 255
@@ -107,7 +107,7 @@ gripper:
   Baud_Rate: 3
   Return_Delay_Time: 0
   Drive_Mode: 0
-  Velocity_Limit: 131
+  Velocity_Limit: 66
   Min_Position_Limit: 0
   Max_Position_Limit: 4095
   Secondary_ID: 255

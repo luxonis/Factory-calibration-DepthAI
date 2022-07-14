@@ -1,12 +1,12 @@
 {
     "board_config":
     {
-        "name": "OAK-D Pro-W PoE",
-        "revision": "R3M2E2",
+        "name": "OAK-D-PRO-W-POE",
+        "revision": "R3M1E3",
         "cameras":{
             "CAM_A": {
                 "name": "rgb",
-                "hfov": 108.0,
+                "hfov": 127.0,
                 "type": "color"
             },
             "CAM_B": {

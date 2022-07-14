@@ -1,27 +1,27 @@
 <launch>
 
-  <arg name="swap_lr"                      default="false"/>
-  <arg name="disableRgb"                   default="false"/>
-  <arg name="disableLR"                    default="false"/>
-  <arg name="field_of_view"                default="71.86"/>
-  <arg name="baseline"                     default="7.5"/>
-  <arg name="square_size_cm"               default="4"/>
-  <arg name="marker_size_cm"               default="3.1"/>
-  <arg name="squares_x"                    default="22"/>
-  <arg name="squares_y"                    default="16"/>
-  <arg name="usbMode"                      default="true"/>
-  <arg name="depthai_path"                 default="/Desktop/depthai"/>
-  <arg name="calib_path"                   default="/Desktop/calib_files"/>
-  <arg name="log_path"                     default="/Desktop/logs"/>
-  <arg name="brd"                          default="bw1098obc"/>
-  <arg name="enable_IMU_test"              default="false"/>
-  <arg name="capture_service_name"         default="capture_checkerboard"/>
-  <arg name="calibration_service_name"     default="calibrate_stereo"/>
+  <arg name="swap_lr"                   default="false"/>
+  <arg name="disableRgb"                default="false"/>
+  <arg name="disableLR"                 default="false"/>
+  <arg name="field_of_view"             default="71.86"/>
+  <arg name="baseline"                  default="7.5"/>
+  <arg name="square_size_cm"            default="4"/>
+  <arg name="marker_size_cm"            default="3.1"/>
+  <arg name="squares_x"                 default="22"/>
+  <arg name="squares_y"                 default="16"/>
+  <arg name="usbMode"                   default="false"/>
+  <arg name="depthai_path"              default="/Desktop/depthai"/>
+  <arg name="calib_path"                default="/Desktop/calib_files"/>
+  <arg name="log_path"                  default="/Desktop/logs"/>
+  <arg name="brd"                       default="OAK-D-PRO-W-POE-CUSTOM"/>
+  <arg name="enable_IMU_test"           default="false"/>
+  <arg name="capture_service_name"      default="capture_checkerboard"/>
+  <arg name="calibration_service_name"  default="calibrate_stereo"/>
   
   <node 
-    name="depthai_cm4_calibration"
+    name="depthai_calibration"
     pkg="calibration"
-    type="depthai_cm4_calibration.py"
+    type="depthai_calibration.py"
     respawn="false"
     output="screen"
     required="true">
@@ -46,6 +46,6 @@
     <param name="calibration_service_name" value="$(arg calibration_service_name)"/>
   </node>
 
-  <node name="color_image_view" pkg="rqt_image_view" type="rqt_image_view" args="/color"/>
+  <node name="image_viewer" pkg="rqt_gui" type="rqt_gui" args="--perspective-file $(find calibration)/perspective/image.perspective"/>
 
 </launch> 

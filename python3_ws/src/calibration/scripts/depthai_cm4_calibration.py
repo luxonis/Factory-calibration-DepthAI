@@ -63,13 +63,13 @@ class SocketWorker:
         self.FPS = 1 / 30
 
     def connection(self):
-        # HOST = 'luxonis.local'
-        HOST = "192.168.1.5"
+        HOST = 'luxonis.local'
+        # HOST = "192.168.1.5"
         os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
-        os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
-        # os.system(f'sshpass -p raspberry scp ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
-        # os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
-        os.system(f'sshpass -p raspberry scp -r ~/workspace/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
+        # os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+        os.system(f'sshpass -p raspberry scp ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+        os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
+        # os.system(f'sshpass -p raspberry scp -r ~/workspace/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install /home/pi/pip_packages/*')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING=868632271')
         # DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
@@ -142,8 +142,8 @@ class SocketWorker:
     def __del__(self):
         if hasattr(self, 'conn'):
             self.conn.close()
-        # HOST = 'luxonis.local'
-        HOST = "192.168.1.5"
+        HOST = 'luxonis.local'
+        # HOST = "192.168.1.5"
         os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} unset DEPTHAI_ALLOW_FACTORY_FLASHING')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
@@ -841,7 +841,8 @@ class depthai_calibration_node:
         vis_y = 180
         error_text = []
         self.socket_worker.send(eepromDataJson)
-        eepromDataJson = self.socket_worker.recv()
+        eepromDataJson['batchTime'] = int(time.time())
+        # eepromDataJson = self.socket_worker.recv()
         calibration_handler = dai.CalibrationHandler.fromJson(eepromDataJson)
         for camera in result_config['cameras'].keys():
             cam_info = result_config['cameras'][camera]

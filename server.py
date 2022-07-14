@@ -36,8 +36,8 @@ class SocketWorker:
         self.FPS = 1 / 30
 
     def connection(self):
-        # HOST = "luxonis.local"
-        HOST = "192.168.1.5"
+        HOST = "luxonis.local"
+        # HOST = "192.168.1.5"
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((HOST, self.port))
         self.port += 1
@@ -306,7 +306,7 @@ class DepthaiCamera:
         eepromDataJson = self.socket_worker.recv()
 
         eepromDataJson['batchTime'] = int(time.time())
-        self.socket_worker.send(eepromDataJson)
+        # self.socket_worker.send(eepromDataJson)
         # self.socket_worker.join()
 
         # if self.socket_worker.recv() == 'close':
@@ -316,6 +316,7 @@ class DepthaiCamera:
         calibration_handler = dai.CalibrationHandler.fromJson(eepromDataJson)
         print(f'calibration_handler = {calibration_handler}')
         flashed = True
+        os.environ["DEPTHAI_ALLOW_FACTORY_FLASHING"] = "868632271"
         try:
             self.device.flashCalibration2(calibration_handler)
             self.device.flashFactoryCalibration(calibration_handler)
