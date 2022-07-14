@@ -148,6 +148,7 @@ class SocketWorker:
         os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install depthai==2.15.4.0')
         os.system(f'sshpass -p raspberry ssh pi@{HOST} history -c')
+	os.system(f'sshpass -p raspberry ssh pi@{HOST} echo raspberry | sudo -S reboot')
 
 
 class depthai_calibration_node:

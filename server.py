@@ -317,7 +317,7 @@ class DepthaiCamera:
         print(f'calibration_handler = {calibration_handler}')
         flashed = True
         DEPTHAI_ALLOW_FACTORY_FLASHING = self.socket_worker.recv()
-        os.environ["DEPTHAI_ALLOW_FACTORY_FLASHING"] = "DEPTHAI_ALLOW_FACTORY_FLASHING"
+        os.environ["DEPTHAI_ALLOW_FACTORY_FLASHING"] = str(DEPTHAI_ALLOW_FACTORY_FLASHING)
         try:
             self.device.flashCalibration2(calibration_handler)
             self.device.flashFactoryCalibration(calibration_handler)
@@ -392,7 +392,7 @@ class DepthaiCamera:
                 mu, sigma = cv2.meanStdDev(dst_laplace)
 
                 print('Sigma of {} is {}'.format(cam_info['name'], sigma))
-                localFocusThreshold = 20
+                localFocusThreshold = 35
                 if dst_laplace.shape[1] > 2000:
                     localFocusThreshold = localFocusThreshold / 2
 
