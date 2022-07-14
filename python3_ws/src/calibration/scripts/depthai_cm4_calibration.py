@@ -882,7 +882,7 @@ class depthai_calibration_node:
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
-                    epipolar_error_threshold = 0.6
+                    epipolar_error_threshold = 0.7
                     if cam_info['name'] == 'rgb' or right_cam == 'rgb':  # TODO: Remove this check later
                         epipolar_error_threshold = 1
 
