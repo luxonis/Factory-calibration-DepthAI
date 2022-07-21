@@ -65,25 +65,31 @@ class SocketWorker:
     def connection(self):
         HOST = 'luxonis.local'
         # HOST = "192.168.1.5"
-        var_path = Path(consts.resource_paths.boards_dir_path) / \
-                     Path('consts.resource_paths.txt')
-        if os.path.exists(var_path):
-            f = open(var_path)
-            self.DEPTHAI_ALLOW_FACTORY_FLASHING = f.read().splitlines()[0]
-        else:
-            self.DEPTHAI_ALLOW_FACTORY_FLASHING = None
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
-        # os.system(f'sshpass -p raspberry scp ~/workspace/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
-        os.system(f'sshpass -p raspberry scp ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
-        os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
-        # os.system(f'sshpass -p raspberry scp -r ~/workspace/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install /home/pi/pip_packages/*')
+        # var_path = Path(consts.resource_paths.boards_dir_path) / \
+        #              Path('consts.resource_paths.txt')
+        # if os.path.exists(var_path):
+        #     f = open(var_path)
+        #     self.DEPTHAI_ALLOW_FACTORY_FLASHING = f.read().splitlines()[0]
+        # else:
+        #     self.DEPTHAI_ALLOW_FACTORY_FLASHING = None
+        # install production and set env
+        # os.system(f'sshpass -p raspberry ssh pi@{HOST} unset HISTFILE')
+        # os.system(f'sshpass -p raspberry scp ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+        # os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/pip_packages pi@{HOST}:/home/pi')
+        # os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install /home/pi/pip_packages/*')
         # DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
-        if self.DEPTHAI_ALLOW_FACTORY_FLASHING is not None:
-            os.system(
-                f'sshpass -p raspberry ssh pi@{HOST} export DEPTHAI_ALLOW_FACTORY_FLASHING={self.DEPTHAI_ALLOW_FACTORY_FLASHING}')
-        os.system(f"sshpass -p raspberry ssh pi@{HOST} python3 server.py &")
-        os.system(f"sshpass -p raspberry ssh pi@{HOST} sleep 5")
+
+        # set pre-set env
+        os.system(f'\
+        sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/calib_env/ pi@{HOST}:/home/pi/ && \
+        sshpass -p raspberry scp ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+
+        os.system(f'\sshpass -p raspberry ssh pi@{HOST}\
+            unset HISTFILE && \
+            source calib_env/bin/activate && \
+            python3 server.py')
+
+        
         time.sleep(5)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOST, self.PORT))
@@ -150,12 +156,7 @@ class SocketWorker:
             self.conn.close()
         HOST = 'luxonis.local'
         # HOST = "192.168.1.5"
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py')
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} unset DEPTHAI_ALLOW_FACTORY_FLASHING')
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} rm -rf server.py')
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install depthai==2.15.4.0')
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} history -c')
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} echo raspberry | sudo -S reboot')
+        os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py && rm -rf calib_env server.py && history -c')
 
 
 class depthai_calibration_node:
@@ -938,7 +939,7 @@ class depthai_calibration_node:
             calibration_handler.eepromToJsonFile(calib_dest_path)
             eepromDataJson = calibration_handler.eepromToJson()
             # DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
-            self.socket_worker.send(self.socket_worker.DEPTHAI_ALLOW_FACTORY_FLASHING)
+            # self.socket_worker.send(self.socket_worker.DEPTHAI_ALLOW_FACTORY_FLASHING)
             self.socket_worker.send(eepromDataJson)
             if self.socket_worker.recv() == 'flashed':
                 is_write_succesful = True

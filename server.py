@@ -316,8 +316,8 @@ class DepthaiCamera:
         calibration_handler = dai.CalibrationHandler.fromJson(eepromDataJson)
         print(f'calibration_handler = {calibration_handler}')
         flashed = True
-        DEPTHAI_ALLOW_FACTORY_FLASHING = self.socket_worker.recv()
-        os.environ["DEPTHAI_ALLOW_FACTORY_FLASHING"] = str(DEPTHAI_ALLOW_FACTORY_FLASHING)
+        # DEPTHAI_ALLOW_FACTORY_FLASHING = self.socket_worker.recv()
+        # os.environ["DEPTHAI_ALLOW_FACTORY_FLASHING"] = str(DEPTHAI_ALLOW_FACTORY_FLASHING)
         try:
             self.device.flashCalibration2(calibration_handler)
             self.device.flashFactoryCalibration(calibration_handler)
