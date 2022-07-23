@@ -90,6 +90,7 @@ camToRgbRes = {
                 'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
                 'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
                 'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
+                'IMX582' : dai.ColorCameraProperties.SensorResolution.THE_12_MP
                 }
 
 
