@@ -83,11 +83,11 @@ class SocketWorker:
         os.system(f'\
         sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/calib_env/ pi@{HOST}:/home/pi/ && \
         sshpass -p raspberry scp ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
-
-        os.system(f'\sshpass -p raspberry ssh pi@{HOST}\
-            unset HISTFILE && \
-            source calib_env/bin/activate && \
-            python3 server.py')
+        os.system(f"\
+            sshpass -p raspberry ssh pi@{HOST} '\
+            unset HISTFILE; \
+            source calib_env/bin/activate; \
+            nohup python3 server.py > /dev/null 2>&1 &'")
 
         
         time.sleep(5)
@@ -156,7 +156,7 @@ class SocketWorker:
             self.conn.close()
         HOST = 'luxonis.local'
         # HOST = "192.168.1.5"
-        os.system(f'sshpass -p raspberry ssh pi@{HOST} killall -9 server.py && rm -rf calib_env server.py && history -c')
+        os.system(f"sshpass -p raspberry ssh pi@{HOST} 'killall -9 server.py; rm -rf calib_env server.py; history -c'")
 
 
 class depthai_calibration_node:
