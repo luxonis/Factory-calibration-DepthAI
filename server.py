@@ -33,15 +33,15 @@ class SocketWorker:
         self.port = 51014
         self.connection()
         self.buffer = 4096
-        self.FPS = 1 / 30
+        self.FPS = 1 / 60
 
     def connection(self):
         HOST = "luxonis.local"
         # HOST = "192.168.1.5"
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.bind((HOST, self.port))
-        self.port += 1
         print(f'self.PORT={self.port}')
+        self.port += 1
         s.listen()
         conn, addr = s.accept()
         self.conn = conn
@@ -72,7 +72,7 @@ class SocketWorker:
             packet = self.conn.recv(self.buffer)
             expected_size = pickle.loads(packet)
             print(f'expected_size={expected_size}')
-            time.sleep(self.FPS)
+            time.sleep(self.FPS/2)
             self.ack()
             while size < expected_size:
                 packet = self.conn.recv(self.buffer)
@@ -82,7 +82,7 @@ class SocketWorker:
                 data.append(packet)
             msg = pickle.loads(b"".join(data))
             print(f'msg={msg}')
-            time.sleep(0.03)
+            time.sleep(self.FPS/2)
             self.ack()
             return msg
         except Exception as e:
@@ -267,7 +267,7 @@ class DepthaiCamera:
                 self.socket_worker.send((key + "-Stream", 'uncheck'))
             else:
                 self.socket_worker.send((key + "-Stream", 'check'))
-        time.sleep(1)
+        time.sleep(0.1)
         self.socket_worker.send('finish_mipi')
         # self.socket_worker.join()
         if self.socket_worker.recv() != 'finished':
@@ -358,7 +358,7 @@ class DepthaiCamera:
                 trigCount[cam_info['name']] = 0
                 self.control_queue[cam_info['name']].send(ctrl)
         self.socket_worker.send(cam_info)
-        time.sleep(1)
+        time.sleep(0.1)
         focusFailed = False
         while True:
             for config_cam in self.board_config['cameras'].keys():
@@ -381,7 +381,7 @@ class DepthaiCamera:
                         if trigCount[cam_info['name']] > 31:
                             trigCount[cam_info['name']] = 0
                             self.control_queue[cam_info['name']].send(ctrl)
-                            time.sleep(1)
+                            time.sleep(0.1)
                         if focusCount[cam_info['name']] > maxCountFocus:
                             print("Failed to Focus...!!!")
                             focusFailed = True
@@ -408,7 +408,7 @@ class DepthaiCamera:
                         if trigCount[cam_info['name']] > 31:
                             trigCount[cam_info['name']] = 0
                             self.control_queue[cam_info['name']].send(ctrl)
-                            time.sleep(1)
+                            time.sleep(0.1)
                 focusCount[cam_info['name']] += 1
 
             if focusFailed:

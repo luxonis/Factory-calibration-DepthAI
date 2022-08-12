@@ -60,7 +60,7 @@ class SocketWorker:
         self.PORT = 51014
         self.connection()
         self.buffer = 4096
-        self.FPS = 1 / 30
+        self.FPS = 1 / 60
 
     def connection(self):
         HOST = 'luxonis.local'
@@ -80,17 +80,15 @@ class SocketWorker:
         # DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
 
         # set pre-set env
-        os.system(f'\
-        sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/calib_env/ pi@{HOST}:/home/pi/ && \
-        sshpass -p raspberry scp ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi')
+        os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/calib_env/ ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi/')
         os.system(f"\
             sshpass -p raspberry ssh pi@{HOST} '\
             unset HISTFILE; \
             source calib_env/bin/activate; \
-            nohup python3 server.py > /dev/null 2>&1 &'")
+            nohup python server.py > /home/pi/server_out 2>&1 &'")
 
         
-        time.sleep(5)
+        time.sleep(2)
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.connect((HOST, self.PORT))
         self.conn = s
@@ -121,7 +119,7 @@ class SocketWorker:
             packet = self.conn.recv(self.buffer)
             expected_size = pickle.loads(packet)
             print(f'expected_size={expected_size}')
-            time.sleep(self.FPS)
+            time.sleep(self.FPS/2)
             self.ack()
             while size < expected_size:
                 packet = self.conn.recv(self.buffer)
@@ -131,7 +129,7 @@ class SocketWorker:
                 data.append(packet)
             msg = pickle.loads(b"".join(data))
             print(f'msg={msg}')
-            time.sleep(0.03)
+            time.sleep(self.FPS/2)
             self.ack()
             return msg
         except Exception as e:
