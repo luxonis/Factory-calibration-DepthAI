@@ -80,7 +80,9 @@ class SocketWorker:
         # DEPTHAI_ALLOW_FACTORY_FLASHING = os.environ.get('DEPTHAI_ALLOW_FACTORY_FLASHING')
 
         # set pre-set env
-        os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/calib_env/ ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi/')
+        # TODO: Temp, remove after GPIO fix
+        os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/enable_cm4_oak.py ~/Factory-calibration-DepthAI/rc.local ~/Factory-calibration-DepthAI/calib_env/ ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi/')
+        os.system(f'sshpass -p raspberry ssh pi@luxonis.local "echo raspberry | sudo -S mv /home/pi/rc.local /etc/;python3 /home/pi/enable_cm4_oak.py"')
         os.system(f"\
             sshpass -p raspberry ssh pi@{HOST} '\
             unset HISTFILE; \
