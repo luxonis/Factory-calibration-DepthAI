@@ -1013,6 +1013,11 @@ if __name__ == "__main__":
             eepromDataJson = {"batchName": "", "batchTime": 0, "boardConf": "nIR-C00M00-00", "boardName": "DM2097",
                               "boardRev": "R1M1E1", "productName": "OAK-D CM4 POE", "boardCustom": "",
                               "hardwareConf": "F0-FV00-BC000", "boardOptions": 0, "version": 7}
+        if arg['board'].lower() == 'dm2097-c11':
+            print('Loading data for OAK-D-CM4-PoE')
+            eepromDataJson = {"batchName": "", "batchTime": 0, "boardConf": "nIR-C00M00-00", "boardName": "DM2097",
+                              "boardRev": "R1M1E1", "productName": "OAK-D CM4 POE C11", "boardCustom": "",
+                              "hardwareConf": "F0-FV00-BC000", "boardOptions": 0, "version": 7}
         if arg['board'].lower() == 'dm1097':
             print('Loading data for OAK-D-CM4')
             eepromDataJson = {"batchName": "Maxwell", "batchTime": 0, "boardConf": "nIR-C00M00-00",

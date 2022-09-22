@@ -19,6 +19,7 @@ camToRgbRes = {
     'IMX214': dai.ColorCameraProperties.SensorResolution.THE_4_K,
     'OV9*82': dai.ColorCameraProperties.SensorResolution.THE_1080_P,
     'OV9282': dai.ColorCameraProperties.SensorResolution.THE_1080_P,
+    'OV9782': dai.ColorCameraProperties.SensorResolution.THE_800_P
 }
 
 camToMonoRes = {
@@ -402,6 +403,8 @@ class DepthaiCamera:
                     self.focusSigma[cam_info['name']] = sigma
                     if cam_info['hasAutofocus']:
                         self.lensPosition[cam_info['name']] = frame.getLensPosition()
+                        if self.lensPosition[cam_info['name']] < 0:
+                            self.lensPosition[cam_info['name']] = 0
                 else:
                     if cam_info['hasAutofocus']:
                         trigCount[cam_info['name']] += 1
