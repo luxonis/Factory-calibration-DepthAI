@@ -29,6 +29,8 @@ import pygame
 from pygame.locals import *
 
 from depthai_helpers import utils
+from depthai_helpers import stats_server_api
+
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
 
 on_embedded = platform.machine().startswith(
@@ -145,20 +147,20 @@ class depthai_calibration_node:
 
         if self.args['usbMode']:
             self.auto_checkbox_names.append("USB3")
-        header = ['time', 'Mx_serial_id']
+        self.csv_log_header = ['time', 'Mx_serial_id']
         for cam_id in self.board_config['cameras'].keys():
             cam_info = self.board_config['cameras'][cam_id]
-            header.append(cam_info['name'] + '-CCM')
+            self.csv_log_header.append(cam_info['name'] + '-CCM')
             # header.append(cam_info['name'] + '-camera')
-            header.append(cam_info['name'] + '-focus-stdDev')
-            header.append(cam_info['name'] + '-Reprojection-Error')
+            self.csv_log_header.append(cam_info['name'] + '-focus-stdDev')
+            self.csv_log_header.append(cam_info['name'] + '-Reprojection-Error')
             self.auto_checkbox_names.append(cam_info['name']  + '-Camera-connected')
             self.auto_checkbox_names.append(cam_info['name']  + '-Stream')
             self.auto_focus_checkbox_names.append(cam_info['name']  + '-Focus')
             if 'extrinsics' in cam_info:
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = self.board_config['cameras'][cam_info['extrinsics']['to_cam']]['name']    
-                    header.append('Epipolar-error-' + cam_info['name'] + '-' + right_cam)
+                    self.csv_log_header.append('Epipolar-error-' + cam_info['name'] + '-' + right_cam)
             
         # ['Mono-CCM', 'RGB-CCM',
         #           'left_camera', 'right_camera', 'rgb_camera', 
@@ -169,7 +171,7 @@ class depthai_calibration_node:
         if not os.path.exists(log_file):
             with open(log_file, mode='w') as log_fopen:
                 log_csv_writer = csv.writer(log_fopen, delimiter=',')
-                log_csv_writer.writerow(header)
+                log_csv_writer.writerow(self.csv_log_header)
 
         y = 110
         x = 200
@@ -565,6 +567,10 @@ class depthai_calibration_node:
                 searchTime = timedelta(seconds=80)
                 isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
                 if isFound:
+                    # Get bootloader version
+                    self.bootloader_version = dai.DeviceBootloader(deviceInfo).getVersion().toStringSemver()
+                    print("Bootloader version: {}".format(self.bootloader_version))
+
                     self.device = dai.Device() 
                     # cameraList = self.device.getConnectedCameras()
                     cameraProperties = self.device.getConnectedCameraProperties()
@@ -609,6 +615,7 @@ class depthai_calibration_node:
                         pipeline = self.create_pipeline(cameraProperties)
                         self.device.startPipeline(pipeline)
                         print('Pieline started.............')
+                        self.camera_started_time = datetime.now()
                         self.camera_queue = {}
                         self.control_queue = {}
                         for config_cam in self.board_config['cameras']:
@@ -809,7 +816,7 @@ class depthai_calibration_node:
                     break
             if isCountFull:
                 break
-        
+
         backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
         if not os.path.exists(backupFocusPath):
             os.makedirs(backupFocusPath)
@@ -960,7 +967,7 @@ class depthai_calibration_node:
                     right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                     left_cam = cam_info['name']
                     
-                    epipolar_threshold = 0.6
+                    epipolar_threshold = 1.6 # TODO: change this back to 0.6
 
                     if cam_info['extrinsics']['epipolar_error'] > epipolar_threshold:
                         color = red
@@ -1001,6 +1008,7 @@ class depthai_calibration_node:
             print(f'EEPROM VERSION being flashed is  -> {eeepromData.version}')
             eeepromData.version = 7
             print(f'EEPROM VERSION being flashed is  -> {eeepromData.version}')
+            updatedCalib = {}
             try:
                 updatedCalib = dai.CalibrationHandler(eeepromData)
                 self.device.flashCalibration2(updatedCalib)
@@ -1016,6 +1024,21 @@ class depthai_calibration_node:
             except RuntimeError:
                 print("flashFactoryCalibration Failed...")
                 is_write_factory_sucessful = False
+
+            # Upload the calibration result to the server
+            tests = {k: v.is_checked() for k, v in self.auto_checkbox_dict.items()} \
+                  | {k: v.is_checked() for k, v in self.auto_focus_checkbox_dict.items()}
+
+            result = {
+                'result_config': result_config,
+                'eeprom_json': updatedCalib.eepromToJson(),
+                'tests': tests,
+                'legacy_log': {k: v.flatten()[0] if isinstance(v, np.ndarray) and len(v.flatten()) == 1 else v for k, v in zip(self.csv_log_header, log_list)},
+                'is_write_succesful': is_write_succesful,
+                'is_write_factory_sucessful': is_write_factory_sucessful,
+            }
+            stats_server_api.add_result('calib', mx_serial_id, self.args['board'], self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), result)
+            stats_server_api.sync()
 
             self.is_service_active = False
             if is_write_succesful and is_write_factory_sucessful:
