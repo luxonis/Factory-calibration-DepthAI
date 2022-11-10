@@ -85,13 +85,15 @@ CamToString = {
 
 camToMonoRes = {
                 'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
-                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
+                'OV9282' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
+                'OV9782' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
                 }
 
 camToRgbRes = {
                 'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
                 'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
-                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
+                'OV9282' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
+                'OV9782' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
                 'IMX582' : dai.ColorCameraProperties.SensorResolution.THE_12_MP
                 }
 
@@ -365,7 +367,7 @@ class depthai_calibration_node:
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.isp.link(xout.input)
-                if cam_info['sensorName'] == "OV9*82":
+                if cam_info['sensorName'] in ["OV9282", "OV9782"]:
                     cam_node.initialControl.setSharpness(0)
                     cam_node.initialControl.setLumaDenoise(0)
                     cam_node.initialControl.setChromaDenoise(4)
@@ -572,8 +574,7 @@ class depthai_calibration_node:
                     print("Bootloader version: {}".format(self.bootloader_version))
 
                     self.device = dai.Device() 
-                    # cameraList = self.device.getConnectedCameras()
-                    cameraProperties = self.device.getConnectedCameraProperties()
+                    cameraProperties = self.device.getConnectedCameraFeatures()                    
                     fill_color_2 = pygame.Rect(390, 120, 500, 100)
                     pygame.draw.rect(self.screen, white, fill_color_2)
 
