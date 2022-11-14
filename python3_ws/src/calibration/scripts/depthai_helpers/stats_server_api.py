@@ -28,7 +28,8 @@ def add_result(
 	library_version: str,
 	start_time: datetime,
 	end_time: datetime,
-	result_data: Dict
+	result_data: Dict,
+	error: Union[str, None] = None
 ):
 	"""
 	Adds a result to the cache.
@@ -42,7 +43,8 @@ def add_result(
 		'library_version': library_version,
 		'start_time': start_time.isoformat(),
 		'end_time': end_time.isoformat(),
-		'result_data': result_data
+		'result_data': result_data,
+		'error': error
 	}
 
 	# add to cache
