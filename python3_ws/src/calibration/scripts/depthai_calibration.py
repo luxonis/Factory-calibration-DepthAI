@@ -579,6 +579,7 @@ class depthai_calibration_node:
                 if isFound:
                     self.device = dai.Device() 
                     self.device_mxid = self.device.getMxId()
+                    self.device_name = self.device.getDeviceName()
                     cameraProperties = self.device.getConnectedCameraFeatures()                    
                     fill_color_2 = pygame.Rect(390, 120, 500, 100)
                     pygame.draw.rect(self.screen, white, fill_color_2)
@@ -1084,13 +1085,12 @@ class depthai_calibration_node:
     def upload_result(self, result, error=None):
         self.result['tests'] = {k: v.is_checked() for k, v in self.auto_checkbox_dict.items()} \
                         | {k: v.is_checked() for k, v in self.auto_focus_checkbox_dict.items()}
-        stats_server_api.add_result('calib', self.device_mxid, self.args['board'], self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), result, error)
+        stats_server_api.add_result('calib', self.device_mxid, self.device_name, self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), result, error)
         stats_server_api.sync()
 
 no_button = pygame.Rect(490, 500, 80, 45)
 
 if __name__ == "__main__":
-
     rospy.init_node('depthai_calibration', anonymous=True)
     arg = {}
     arg["swapLR"] = rospy.get_param('~swap_lr')
