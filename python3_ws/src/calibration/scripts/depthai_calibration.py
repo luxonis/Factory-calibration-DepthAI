@@ -1042,9 +1042,6 @@ class depthai_calibration_node:
                 print("flashFactoryCalibration Failed...")
                 is_write_factory_sucessful = False
 
-            eeprom_bytes = self.device.readCalibrationRaw()
-
-
             self.is_service_active = False
             if not is_write_succesful or not is_write_factory_sucessful:
                 text = "EEPROM write Failed!!"
@@ -1054,7 +1051,7 @@ class depthai_calibration_node:
             calib_dest_path = os.path.join(
                 self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '_uni.json')
             eepromUnionData = {}
-            
+
             eepromUnionData['is_write_succesful'] = is_write_succesful
             eepromUnionData['is_write_factory_sucessful'] = is_write_factory_sucessful
 
