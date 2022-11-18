@@ -1043,10 +1043,7 @@ class depthai_calibration_node:
                 is_write_factory_sucessful = False
 
             eeprom_bytes = self.device.readCalibrationRaw()
-            self.result['eeprom_raw'] = b64encode(struct.pack(f"{len(eeprom_bytes)}B", *eeprom_bytes)).decode('utf-8')
-            self.result['eeprom_json'] = updatedCalib.eepromToJson()
-            self.result['is_write_succesful'] = is_write_succesful
-            self.result['is_write_factory_sucessful'] = is_write_factory_sucessful
+
 
             self.is_service_active = False
             if not is_write_succesful or not is_write_factory_sucessful:
@@ -1057,6 +1054,10 @@ class depthai_calibration_node:
             calib_dest_path = os.path.join(
                 self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '_uni.json')
             eepromUnionData = {}
+            
+            eepromUnionData['is_write_succesful'] = is_write_succesful
+            eepromUnionData['is_write_factory_sucessful'] = is_write_factory_sucessful
+
             calibHandler = self.device.readCalibration2()
             eepromUnionData['calibrationUser'] = calibHandler.eepromToJson()
 
@@ -1065,6 +1066,7 @@ class depthai_calibration_node:
 
             eepromUnionData['calibrationUserRaw'] = self.device.readCalibrationRaw()
             eepromUnionData['calibrationFactoryRaw'] = self.device.readFactoryCalibrationRaw()
+            self.result['eeprom_data'] = eepromUnionData
             with open(calib_dest_path, "w") as outfile:
                 json.dump(eepromUnionData, outfile, indent=4)
             text = "EEPROM written succesfully"
