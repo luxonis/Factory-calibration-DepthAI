@@ -858,7 +858,7 @@ class depthai_calibration_node:
             if not self.auto_focus_checkbox_dict[key].is_checked():
                 self.close_device()
                 self.is_service_active = False
-                self.upload_result(self.result, "Failed to focus")
+                self.upload_result("Failed to focus")
                 return (False, key + " is out of Focus")
             # else:
             #     print(key + " is in Focus")
@@ -902,7 +902,7 @@ class depthai_calibration_node:
             self.close_device()
             self.is_service_active = False
             err = "Calibration board not found"
-            self.upload_result(self.result, err)
+            self.upload_result(err)
             return (False, err)
         else:
             self.is_service_active = False
@@ -1070,21 +1070,21 @@ class depthai_calibration_node:
             text = "EEPROM written succesfully"
             pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
             
-            self.upload_result(self.result)
+            self.upload_result()
             
             return (True, text)
 
         except CalibrationException as e:
-            self.upload_result(self.result, e.message)
+            self.upload_result(e.message)
             self.close_device()
             self.is_service_active = False
             return e.return_value
             
 
-    def upload_result(self, result, error=None):
+    def upload_result(self, error=None):
         self.result['tests'] = {k: v.is_checked() for k, v in self.auto_checkbox_dict.items()} \
                         | {k: v.is_checked() for k, v in self.auto_focus_checkbox_dict.items()}
-        stats_server_api.add_result('calib', self.device_mxid, self.args['board'], self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), result, error)
+        stats_server_api.add_result('calib', self.device_mxid, self.args['board'], self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), self.result, error)
         stats_server_api.sync()
 
 no_button = pygame.Rect(490, 500, 80, 45)
