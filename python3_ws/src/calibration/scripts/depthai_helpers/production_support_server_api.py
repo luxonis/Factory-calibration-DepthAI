@@ -1,5 +1,5 @@
 import jsonlines
-from typing import Literal, Dict, Union
+from typing import Dict, Union
 from datetime import datetime
 import requests
 import os
@@ -21,7 +21,7 @@ class NumpyArrayEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 def add_result(
-	stage: Literal['calib', 'test'], 
+	stage: str, 
 	device_id: str, 
 	device_type: str, 
 	bootloader_version: str,
