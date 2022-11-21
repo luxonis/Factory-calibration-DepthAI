@@ -31,7 +31,7 @@ import pygame
 from pygame.locals import *
 
 from depthai_helpers import utils
-from depthai_helpers import stats_server_api
+from depthai_helpers import production_support_server_api
 
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
 
@@ -1084,8 +1084,8 @@ class depthai_calibration_node:
     def upload_result(self, error=None):
         self.result['tests'] = {k: v.is_checked() for k, v in self.auto_checkbox_dict.items()} \
                         | {k: v.is_checked() for k, v in self.auto_focus_checkbox_dict.items()}
-        stats_server_api.add_result('calib', self.device_mxid, self.args['board'], self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), self.result, error)
-        stats_server_api.sync()
+        production_support_server_api.add_result('calib', self.device_mxid, self.args['board'], self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), self.result, error)
+        production_support_server_api.sync()
 
 no_button = pygame.Rect(490, 500, 80, 45)
 

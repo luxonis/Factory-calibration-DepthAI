@@ -10,3 +10,4 @@ access-dict-by-dot
 --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-python-snapshot-local/
 depthai==2.19.1
 jsonlines
+numpy
