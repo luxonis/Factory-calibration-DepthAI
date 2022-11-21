@@ -859,7 +859,7 @@ class depthai_calibration_node:
             if not self.auto_focus_checkbox_dict[key].is_checked():
                 self.close_device()
                 self.is_service_active = False
-                self.upload_result(self.result, "Failed to focus")
+                self.upload_result("Failed to focus")
                 return (False, key + " is out of Focus")
             # else:
             #     print(key + " is in Focus")
@@ -903,7 +903,7 @@ class depthai_calibration_node:
             self.close_device()
             self.is_service_active = False
             err = "Calibration board not found"
-            self.upload_result(self.result, err)
+            self.upload_result(err)
             return (False, err)
         else:
             self.is_service_active = False
@@ -1043,12 +1043,6 @@ class depthai_calibration_node:
                 print("flashFactoryCalibration Failed...")
                 is_write_factory_sucessful = False
 
-            eeprom_bytes = self.device.readCalibrationRaw()
-            self.result['eeprom_raw'] = b64encode(struct.pack(f"{len(eeprom_bytes)}B", *eeprom_bytes)).decode('utf-8')
-            self.result['eeprom_json'] = updatedCalib.eepromToJson()
-            self.result['is_write_succesful'] = is_write_succesful
-            self.result['is_write_factory_sucessful'] = is_write_factory_sucessful
-
             self.is_service_active = False
             if not is_write_succesful or not is_write_factory_sucessful:
                 text = "EEPROM write Failed!!"
@@ -1058,6 +1052,10 @@ class depthai_calibration_node:
             calib_dest_path = os.path.join(
                 self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '_uni.json')
             eepromUnionData = {}
+
+            eepromUnionData['is_write_succesful'] = is_write_succesful
+            eepromUnionData['is_write_factory_sucessful'] = is_write_factory_sucessful
+
             calibHandler = self.device.readCalibration2()
             eepromUnionData['calibrationUser'] = calibHandler.eepromToJson()
 
@@ -1066,26 +1064,27 @@ class depthai_calibration_node:
 
             eepromUnionData['calibrationUserRaw'] = self.device.readCalibrationRaw()
             eepromUnionData['calibrationFactoryRaw'] = self.device.readFactoryCalibrationRaw()
+            self.result['eeprom_data'] = eepromUnionData
             with open(calib_dest_path, "w") as outfile:
                 json.dump(eepromUnionData, outfile, indent=4)
             text = "EEPROM written succesfully"
             pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
             
-            self.upload_result(self.result)
+            self.upload_result()
             
             return (True, text)
 
         except CalibrationException as e:
-            self.upload_result(self.result, e.message)
+            self.upload_result(e.message)
             self.close_device()
             self.is_service_active = False
             return e.return_value
             
 
-    def upload_result(self, result, error=None):
+    def upload_result(self, error=None):
         self.result['tests'] = {k: v.is_checked() for k, v in self.auto_checkbox_dict.items()} \
                         | {k: v.is_checked() for k, v in self.auto_focus_checkbox_dict.items()}
-        stats_server_api.add_result('calib', self.device_mxid, self.device_name, self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), result, error)
+        stats_server_api.add_result('calib', self.device_mxid, self.args['board'], self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), self.result, error)
         stats_server_api.sync()
 
 no_button = pygame.Rect(490, 500, 80, 45)
