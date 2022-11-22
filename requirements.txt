@@ -11,3 +11,5 @@ access-dict-by-dot
 depthai==2.19.1
 jsonlines
 numpy
+--extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-depthai-data-local/wheels/
+pyqt5>5,<5.15.6 ; platform_machine != "armv6l" and platform_machine != "armv7l" and platform_machine != "aarch64"

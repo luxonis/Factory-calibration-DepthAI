@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
-
-import cv2
 import sys
+from select_device_ui import select_device
+SELECTED_DEVICE_EEPROM_DATA = select_device() # this has to run before cv2 is imported
+if not SELECTED_DEVICE_EEPROM_DATA:
+    sys.exit()
+    
+import cv2
 import copy
 import platform
 import signal
@@ -32,6 +36,7 @@ from pygame.locals import *
 
 from depthai_helpers import utils
 from depthai_helpers import production_support_server_api
+
 
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
 
@@ -611,6 +616,37 @@ class depthai_calibration_node:
                                 self.board_config['cameras'][in_cam]['hasAutofocus'] = properties.hasAutofocus
                                 self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].check()
                                 break
+
+
+                    # Check that the device matches selected device
+                    try:
+                        calib = self.device.readFactoryCalibration()
+                        calib_dict = calib.eepromToJson()
+                        for key, value in SELECTED_DEVICE_EEPROM_DATA.items():
+                            if key == "batchTime": 
+                                continue
+                            if key == "productName":
+                                if value.upper() != calib_dict.get(key, "").upper().replace(" ", "-"):
+                                    raise Exception(f"EEPROM mismatch - {key}: {value.upper()} != {calib_dict.get(key, '').upper().replace(' ', '-')}")
+                                continue
+                            if value != calib_dict.get(key): 
+                                raise Exception(f"EEPROM mismatch - {key}: {value} != {calib_dict.get(key)}")    
+                    except Exception as e:
+                        print("================================================================================")
+                        print("⚠ Device EEPROM does not match the device version specified at the beginning of")
+                        print("  the calibration procedure.")
+                        print()
+                        print(str(e))
+                        print()
+                        print("Device EEPROM content is:")
+                        print(json.dumps(calib_dict, indent=4, sort_keys=True))
+                        print()
+                        print("EEPROM should be:")
+                        print(json.dumps(SELECTED_DEVICE_EEPROM_DATA, indent=4, sort_keys=True))
+                        print("================================================================================")
+                        pygame_render_text(self.screen, "Device EEPROM does not match!", (400, 210), red, 30)
+                        pygame_render_text(self.screen, "Check the terminal for details.", (400, 240), 20)
+                        lost_camera = True
 
                     for config_cam in self.board_config['cameras'].keys():
                         cam_info = self.board_config['cameras'][config_cam]

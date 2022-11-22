@@ -1,0 +1,17 @@
+{
+  "legacy_id": 124345,
+  "legacy_log": {
+    "rgb-CCM": "ArduCam",
+    "left-CCM": "ArduCam",
+    "right-CCM": "ArduCam",
+    "rgb-focus-stdDev": 27.81681692,
+    "left-focus-stdDev": 52.79373687,
+    "right-focus-stdDev": 45.62265908,
+    "rgb-Reprojection-Error": 0.7998989545996881,
+    "left-Reprojection-Error": 0.29162165318305006,
+    "Epipolar-error-right-rgb": 0.31309770757501776,
+    "right-Reprojection-Error": 0.28229905181483195,
+    "Epipolar-error-left-right": 0.30716896507506386
+  },
+  "eeprom_data": null
+}
