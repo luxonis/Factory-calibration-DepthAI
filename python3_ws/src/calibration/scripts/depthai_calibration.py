@@ -999,7 +999,7 @@ class depthai_calibration_node:
                 # else:
                     # log_list.append("N/A")
 
-            self.result['legacy_log'] = {k: v.flatten()[0] if isinstance(v, np.ndarray) and len(v.flatten()) == 1 else v for k, v in zip(self.csv_log_header, log_list)},
+            self.result['legacy_log'] = {k: v.flatten()[0] if isinstance(v, np.ndarray) and len(v.flatten()) == 1 else v for k, v in zip(self.csv_log_header, log_list)}
 
             log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
             with open(log_file, mode='a') as log_fopen:
