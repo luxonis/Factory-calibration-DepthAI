@@ -22,6 +22,7 @@ Follow the video [here](https://youtu.be/oxK4ykVh1EE) till 30 min. and then pip 
 3. install python virual env using `sudo pip install virtualenv`
 4. Go to home directory `cd ~`
 5. Clone the repo ` git clone https://github.com/luxonis/Factory-calibration-DepthAI.git`
+6. Init the submodules `git submodule update --init --recursive`
 
 ### Calibration Node setup
 1. Go to python_ws directory `cd ~/Factory-calibration-DepthAI/python3_ws`
