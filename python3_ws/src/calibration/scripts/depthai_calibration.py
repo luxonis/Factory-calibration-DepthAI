@@ -1082,8 +1082,9 @@ class depthai_calibration_node:
             
 
     def upload_result(self, error=None):
-        self.result['tests'] = {k: v.is_checked() for k, v in self.auto_checkbox_dict.items()} \
-                        | {k: v.is_checked() for k, v in self.auto_focus_checkbox_dict.items()}
+        self.result['tests'] = {k: v.is_checked() for k, v in self.auto_checkbox_dict.items()}
+        self.result.update({k: v.is_checked() for k, v in self.auto_focus_checkbox_dict.items()})
+        
         production_support_server_api.add_result('calib', self.device_mxid, self.args['board'], self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), self.result, error)
         production_support_server_api.sync()
 
