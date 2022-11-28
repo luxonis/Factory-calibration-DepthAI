@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import sys
 from select_device_ui import select_device
-SELECTED_DEVICE_EEPROM_DATA = select_device() # this has to run before cv2 is imported
+SELECTED_DEVICE_EEPROM_DATA, SELECTED_BRD = select_device() # this has to run before cv2 is imported
 if not SELECTED_DEVICE_EEPROM_DATA:
     sys.exit()
     
@@ -1161,17 +1161,16 @@ if __name__ == "__main__":
     if not os.path.exists(arg['log_path']):
         os.makedirs(arg['log_path'])
 
-    if arg['board']:
-        board_path = Path(arg['board'])
-        if not board_path.exists():
-            board_path = Path(consts.resource_paths.boards_dir_path) / \
-                Path(arg['board'].upper()).with_suffix('.json')
-            print(board_path)
-            if not board_path.exists():
-                raise ValueError(
-                    'Board config not found: {}'.format(board_path))
-        with open(board_path) as fp:
-            board_config = json.load(fp)
+
+    board_path = Path(consts.resource_paths.boards_dir_path) / \
+        Path(SELECTED_BRD.upper()).with_suffix('.json')
+    print(board_path)
+    if not board_path.exists():
+        raise ValueError(
+            'Board config not found: {}'.format(board_path))
+    with open(board_path) as fp:
+        board_config = json.load(fp)
+        
     # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
     # Please add the correct path using depthai_path:=[path] while executing launchfile")
 

@@ -129,9 +129,9 @@ def select_device():
     dialog = Ui_CalibrateSelect()
     dialog.setWindowFlags(Qt.WindowStaysOnTopHint)
     if not dialog.exec_():
-        return None
+        return None, None
 
-    return dialog.eepromDataJson
+    return dialog.eepromDataJson, dialog.test_type
     
     
 # just for testing
