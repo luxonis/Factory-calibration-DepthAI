@@ -625,6 +625,8 @@ class depthai_calibration_node:
                         for key, value in SELECTED_DEVICE_EEPROM_DATA.items():
                             if key == "batchTime": 
                                 continue
+                            if key == "batchName":
+                                continue
                             if key == "productName":
                                 if value.upper() != calib_dict.get(key, "").upper().replace(" ", "-"):
                                     raise Exception(f"EEPROM mismatch - {key}: {value.upper()} != {calib_dict.get(key, '').upper().replace(' ', '-')}")
