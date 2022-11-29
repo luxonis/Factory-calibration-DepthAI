@@ -624,15 +624,15 @@ class depthai_calibration_node:
                         calib_dict = calib.eepromToJson()
                         for key, value in SELECTED_DEVICE_EEPROM_DATA.items():
                             if key == "batchTime": 
-                                continue
-                            if key == "batchName":
-                                continue
-                            if key == "productName":
+                                pass
+                            elif key == "batchName":
+                                pass
+                            elif key == "productName":
                                 if value.upper() != calib_dict.get(key, "").upper().replace(" ", "-"):
                                     raise Exception(f"EEPROM mismatch - {key}: {value.upper()} != {calib_dict.get(key, '').upper().replace(' ', '-')}")
-                                continue
-                            if value != calib_dict.get(key): 
-                                raise Exception(f"EEPROM mismatch - {key}: {value} != {calib_dict.get(key)}")    
+                            else:
+                                if value != calib_dict.get(key): 
+                                    raise Exception(f"EEPROM mismatch - {key}: {value} != {calib_dict.get(key)}")    
                     except Exception as e:
                         print("================================================================================")
                         print("⚠ Device EEPROM does not match the device version specified at the beginning of")
