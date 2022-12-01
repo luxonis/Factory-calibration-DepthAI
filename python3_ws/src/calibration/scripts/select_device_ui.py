@@ -4,9 +4,9 @@ import sys
 import glob
 import json
 from pathlib import Path
+import consts.resource_paths
 
-
-DEVICE_DIR = Path(__file__).resolve().parent / 'resources/depthai-boards/batch'
+DEVICE_DIR = Path(consts.resource_paths.batch_dir_path)
 
 print(f"DEVICE_DIR: {DEVICE_DIR}")
 class Ui_CalibrateSelect(QtWidgets.QDialog):

@@ -13,12 +13,16 @@ def relative_to_abs_path(relative_path):
 prefix                = relative_to_abs_path('../resources/')+"/"
 device_cmd_fpath      = relative_to_abs_path('../depthai.cmd')
 device_usb2_cmd_fpath = relative_to_abs_path('../depthai_usb2.cmd')
-boards_dir_path       = relative_to_abs_path('../resources/depthai-boards/boards') + "/"
 custom_calib_fpath    = relative_to_abs_path('../resources/depthai.calib')
 nn_resource_path      = relative_to_abs_path('../resources/nn')+"/"
 blob_fpath            = relative_to_abs_path('../resources/nn/mobilenet-ssd/mobilenet-ssd.blob')
 blob_config_fpath     = relative_to_abs_path('../resources/nn/mobilenet-ssd/mobilenet-ssd.json')
 factory_path          = relative_to_abs_path('../../../../../') + "/"
+
+# if environment variable DEPTHAI_BOARDS_PRIVATE_PATH is set, use it, else use the submodule
+depthai_boards_dir_path = os.environ.get("DEPTHAI_BOARDS_PRIVATE_PATH", relative_to_abs_path('../resources/depthai-boards'))
+boards_dir_path       = Path(depthai_boards_dir_path) / "boards"
+batch_dir_path        = Path(depthai_boards_dir_path) / "batch"
 
 if custom_calib_fpath is not None and Path(custom_calib_fpath).exists():
     calib_fpath = custom_calib_fpath
