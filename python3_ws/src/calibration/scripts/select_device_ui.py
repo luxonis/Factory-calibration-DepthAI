@@ -1,5 +1,5 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtCore import QObject, QRunnable, pyqtSlot, pyqtSignal, QThreadPool
+from PyQt5.QtCore import Qt, QObject, QRunnable, pyqtSlot, pyqtSignal, QThreadPool
 import sys
 import glob
 import json
@@ -125,14 +125,15 @@ class Ui_CalibrateSelect(QtWidgets.QDialog):
 
 
 def select_device():
-	app = QtWidgets.QApplication(sys.argv)
-	dialog = Ui_CalibrateSelect()
-	if not dialog.exec_():
-		return None
+    app = QtWidgets.QApplication(sys.argv)
+    dialog = Ui_CalibrateSelect()
+    dialog.setWindowFlags(Qt.WindowStaysOnTopHint)
+    if not dialog.exec_():
+        return None, None
 
-	return dialog.eepromDataJson
-	
-	
+    return dialog.eepromDataJson, dialog.test_type
+    
+    
 # just for testing
 if __name__ == "__main__":
-	print(select_device())
+    print(select_device())
