@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
 import sys
+import os
+
+if os.environ.get('PRODUCTION_ENVIRONMENT') is not None:
+    from depthai_helpers.update_submodules import update_submodules
+    update_submodules()
+
 from select_device_ui import select_device
 SELECTED_DEVICE_EEPROM_DATA = select_device() # this has to run before cv2 is imported
 if not SELECTED_DEVICE_EEPROM_DATA:
@@ -14,7 +20,6 @@ import json
 import csv
 import time
 import numpy as np
-import os
 from pathlib import Path
 import shutil
 from datetime import datetime, timedelta
