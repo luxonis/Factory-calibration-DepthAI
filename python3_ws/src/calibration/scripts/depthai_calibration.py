@@ -8,7 +8,7 @@ if os.environ.get('PRODUCTION_ENVIRONMENT') is not None:
 
 from select_device_ui import select_device
 SELECTED_DEVICE_EEPROM_DATA, SELECTED_BRD = select_device() # this has to run before cv2 is imported
-if not SELECTED_DEVICE_EEPROM_DATA:
+if SELECTED_DEVICE_EEPROM_DATA is None:
     sys.exit()
     
 import cv2
