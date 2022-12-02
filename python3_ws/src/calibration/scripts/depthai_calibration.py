@@ -1146,7 +1146,7 @@ if __name__ == "__main__":
     arg["squares_x"] = rospy.get_param('~squares_x')
     arg["squares_y"] = rospy.get_param('~squares_y')
 
-    arg["board"] = SELECTED_BRD
+    arg["board"] = rospy.get_param('~brd')
     arg["depthai_path"] = rospy.get_param(
         '~depthai_path')  # Path of depthai repo
     # local path to store calib files with using mx device id.
@@ -1167,14 +1167,17 @@ if __name__ == "__main__":
         os.makedirs(arg['log_path'])
 
 
-    board_path = Path(consts.resource_paths.boards_dir_path) / \
-        Path(SELECTED_BRD.upper()).with_suffix('.json')
-    print(board_path)
-    if not board_path.exists():
-        raise ValueError(
-            'Board config not found: {}'.format(board_path))
-    with open(board_path) as fp:
-        board_config = json.load(fp)
+    if arg['board']:
+        board_path = Path(arg['board'])
+        if not board_path.exists():
+            board_path = Path(consts.resource_paths.boards_dir_path) / \
+                Path(arg['board'].upper()).with_suffix('.json')
+            print(board_path)
+            if not board_path.exists():
+                raise ValueError(
+                    'Board config not found: {}'.format(board_path))
+        with open(board_path) as fp:
+            board_config = json.load(fp)
         
     # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
     # Please add the correct path using depthai_path:=[path] while executing launchfile")
