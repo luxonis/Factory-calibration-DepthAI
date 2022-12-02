@@ -1114,7 +1114,7 @@ class depthai_calibration_node:
             pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
             
             self.upload_result()
-            
+            self.close_device()
             return (True, text)
 
         except CalibrationException as e:
@@ -1146,7 +1146,7 @@ if __name__ == "__main__":
     arg["squares_x"] = rospy.get_param('~squares_x')
     arg["squares_y"] = rospy.get_param('~squares_y')
 
-    arg["board"] = rospy.get_param('~brd')
+    arg["board"] = SELECTED_BRD
     arg["depthai_path"] = rospy.get_param(
         '~depthai_path')  # Path of depthai repo
     # local path to store calib files with using mx device id.
