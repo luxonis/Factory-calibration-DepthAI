@@ -17,13 +17,10 @@ dataset
 *.so
 *.dylib
 *.dll
-<<<<<<< HEAD
 */__pycache__/
-=======
 
 */__pycache__
 
->>>>>>> added git ignore
 # Fortran module files
 *.mod
 *.smod
@@ -61,3 +58,5 @@ ros_ws/.catkin_workspace
 # Ignoring pcd and json files
 *.pcd
 *.calib
+
+results_cache.jsonl
