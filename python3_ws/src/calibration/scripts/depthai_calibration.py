@@ -652,7 +652,8 @@ class depthai_calibration_node:
                         print(json.dumps(SELECTED_DEVICE_EEPROM_DATA, indent=4, sort_keys=True))
                         print("================================================================================")
                         pygame_render_text(self.screen, "Device EEPROM does not match!", (400, 210), red, 30)
-                        pygame_render_text(self.screen, "Check the terminal for details.", (400, 240), 20)
+                        pygame_render_text(self.screen, f"{key}: {value} != {calib_dict.get(key)}", (400, 240), black, 16)
+                        pygame_render_text(self.screen, "Check the terminal for details.", (400, 270), black, 16)
                         lost_camera = True
 
                     for config_cam in self.board_config['cameras'].keys():
