@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
-
-import cv2
 import sys
+import os
+
+if os.environ.get('PRODUCTION_ENVIRONMENT') is not None:
+    from depthai_helpers.update_submodules import update_submodules
+    update_submodules()
+
+from select_device_ui import select_device
+SELECTED_DEVICE_EEPROM_DATA, SELECTED_BRD = select_device() # this has to run before cv2 is imported
+if SELECTED_DEVICE_EEPROM_DATA is None:
+    sys.exit()
+    
+import cv2
 import copy
 import platform
 import signal
@@ -10,7 +20,6 @@ import json
 import csv
 import time
 import numpy as np
-import os
 from pathlib import Path
 import shutil
 from datetime import datetime, timedelta
@@ -19,6 +28,8 @@ from std_msgs.msg import String
 from calibration.srv import Capture
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
+import struct
+from base64 import b64encode
 
 import depthai as dai
 import consts.resource_paths
@@ -29,6 +40,9 @@ import pygame
 from pygame.locals import *
 
 from depthai_helpers import utils
+from depthai_helpers import production_support_server_api
+
+
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
 
 on_embedded = platform.machine().startswith(
@@ -83,16 +97,24 @@ CamToString = {
 
 camToMonoRes = {
                 'OV7251' : dai.MonoCameraProperties.SensorResolution.THE_480_P,
-                'OV9*82' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
+                'OV9282' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
+                'OV9782' : dai.MonoCameraProperties.SensorResolution.THE_800_P,
                 }
 
 camToRgbRes = {
                 'IMX378' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
                 'IMX214' : dai.ColorCameraProperties.SensorResolution.THE_4_K,
-                'OV9*82' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
+                'OV9282' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
+                'OV9782' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
                 'IMX582' : dai.ColorCameraProperties.SensorResolution.THE_12_MP
                 }
 
+
+class CalibrationException(RuntimeError):
+    def __init__(self,message, return_value=None):
+        super().__init__(message)
+        self.message = message
+        self.return_value = return_value
 
 class depthai_calibration_node:
     def __init__(self, depthai_args):
@@ -145,20 +167,20 @@ class depthai_calibration_node:
 
         if self.args['usbMode']:
             self.auto_checkbox_names.append("USB3")
-        header = ['time', 'Mx_serial_id']
+        self.csv_log_header = ['time', 'Mx_serial_id']
         for cam_id in self.board_config['cameras'].keys():
             cam_info = self.board_config['cameras'][cam_id]
-            header.append(cam_info['name'] + '-CCM')
+            self.csv_log_header.append(cam_info['name'] + '-CCM')
             # header.append(cam_info['name'] + '-camera')
-            header.append(cam_info['name'] + '-focus-stdDev')
-            header.append(cam_info['name'] + '-Reprojection-Error')
+            self.csv_log_header.append(cam_info['name'] + '-focus-stdDev')
+            self.csv_log_header.append(cam_info['name'] + '-Reprojection-Error')
             self.auto_checkbox_names.append(cam_info['name']  + '-Camera-connected')
             self.auto_checkbox_names.append(cam_info['name']  + '-Stream')
             self.auto_focus_checkbox_names.append(cam_info['name']  + '-Focus')
             if 'extrinsics' in cam_info:
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = self.board_config['cameras'][cam_info['extrinsics']['to_cam']]['name']    
-                    header.append('Epipolar-error-' + cam_info['name'] + '-' + right_cam)
+                    self.csv_log_header.append('Epipolar-error-' + cam_info['name'] + '-' + right_cam)
             
         # ['Mono-CCM', 'RGB-CCM',
         #           'left_camera', 'right_camera', 'rgb_camera', 
@@ -169,7 +191,7 @@ class depthai_calibration_node:
         if not os.path.exists(log_file):
             with open(log_file, mode='w') as log_fopen:
                 log_csv_writer = csv.writer(log_fopen, delimiter=',')
-                log_csv_writer.writerow(header)
+                log_csv_writer.writerow(self.csv_log_header)
 
         y = 110
         x = 200
@@ -363,7 +385,7 @@ class depthai_calibration_node:
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.isp.link(xout.input)
-                if cam_info['sensorName'] == "OV9*82":
+                if cam_info['sensorName'] in ["OV9282", "OV9782"]:
                     cam_node.initialControl.setSharpness(0)
                     cam_node.initialControl.setLumaDenoise(0)
                     cam_node.initialControl.setChromaDenoise(4)
@@ -566,10 +588,21 @@ class depthai_calibration_node:
                 isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
                 if isFound:
                     self.device = dai.Device() 
-                    # cameraList = self.device.getConnectedCameras()
-                    cameraProperties = self.device.getConnectedCameraProperties()
+                    self.device_mxid = self.device.getMxId()
+                    self.device_name = self.device.getDeviceName()
+                    cameraProperties = self.device.getConnectedCameraFeatures()                    
                     fill_color_2 = pygame.Rect(390, 120, 500, 100)
                     pygame.draw.rect(self.screen, white, fill_color_2)
+
+                    self.result = {} # to be filled with data and uploaded to the stats server
+
+                    try:
+                        self.bootloader_version = self.device.getBootloaderVersion().toStringSemver()
+                    except:
+                        self.bootloader_version = "library"
+
+                    self.camera_started_time = datetime.now()
+                    
 
                     rospy.sleep(2)
                     # dev_info = self.device.getDeviceInfo()
@@ -588,6 +621,40 @@ class depthai_calibration_node:
                                 self.board_config['cameras'][in_cam]['hasAutofocus'] = properties.hasAutofocus
                                 self.auto_checkbox_dict[cam_info['name']  + '-Camera-connected'].check()
                                 break
+
+
+                    # Check that the device matches selected device
+                    try:
+                        calib = self.device.readFactoryCalibration()
+                        calib_dict = calib.eepromToJson()
+                        for key, value in SELECTED_DEVICE_EEPROM_DATA.items():
+                            if key == "batchTime": 
+                                pass
+                            elif key == "batchName":
+                                pass
+                            elif key == "productName":
+                                if value.upper() != calib_dict.get(key, "").upper().replace(" ", "-"):
+                                    raise Exception(f"EEPROM mismatch - {key}: {value.upper()} != {calib_dict.get(key, '').upper().replace(' ', '-')}")
+                            else:
+                                if value != calib_dict.get(key): 
+                                    raise Exception(f"EEPROM mismatch - {key}: {value} != {calib_dict.get(key)}")    
+                    except Exception as e:
+                        print("================================================================================")
+                        print("⚠ Device EEPROM does not match the device version specified at the beginning of")
+                        print("  the calibration procedure.")
+                        print()
+                        print(str(e))
+                        print()
+                        print("Device EEPROM content is:")
+                        print(json.dumps(calib_dict, indent=4, sort_keys=True))
+                        print()
+                        print("EEPROM should be:")
+                        print(json.dumps(SELECTED_DEVICE_EEPROM_DATA, indent=4, sort_keys=True))
+                        print("================================================================================")
+                        pygame_render_text(self.screen, "Device EEPROM does not match!", (400, 210), red, 30)
+                        pygame_render_text(self.screen, f"{key}: {value} != {calib_dict.get(key)}", (400, 240), black, 16)
+                        pygame_render_text(self.screen, "Check the terminal for details.", (400, 270), black, 16)
+                        lost_camera = True
 
                     for config_cam in self.board_config['cameras'].keys():
                         cam_info = self.board_config['cameras'][config_cam]
@@ -809,7 +876,7 @@ class depthai_calibration_node:
                     break
             if isCountFull:
                 break
-        
+
         backupFocusPath = self.args['ds_backup_path'] + '/focus/' + self.device.getMxId()
         if not os.path.exists(backupFocusPath):
             os.makedirs(backupFocusPath)
@@ -836,6 +903,7 @@ class depthai_calibration_node:
             if not self.auto_focus_checkbox_dict[key].is_checked():
                 self.close_device()
                 self.is_service_active = False
+                self.upload_result("Failed to focus")
                 return (False, key + " is out of Focus")
             # else:
             #     print(key + " is in Focus")
@@ -878,7 +946,9 @@ class depthai_calibration_node:
         if detection_failed:
             self.close_device()
             self.is_service_active = False
-            return (False, "Calibration board not found")
+            err = "Calibration board not found"
+            self.upload_result(err)
+            return (False, err)
         else:
             self.is_service_active = False
             return (True, "No Error")
@@ -886,111 +956,110 @@ class depthai_calibration_node:
     def calibration_servive_handler(self, req):
         self.is_service_active = True
         print("calibration Service Started")
-        # pygame.draw.rect(self.screen, white, no_button)
+        try:
+            mx_serial_id = self.device.getMxId()
+            calib_dest_path = os.path.join(
+                self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
+            # print(self.package_path)
+            stereo_calib = StereoCalibration()
+            status, result_config = stereo_calib.calibrate( # status: 1|-1, result: dict
+                self.board_config, self.package_path + "/dataset", 
+                self.args['square_size_cm'], self.args['marker_size_cm'], 
+                self.args['squares_x'], self.args['squares_y'], 
+                self.args['cameraModel'], False # Turn off enable disp rectify
+            ) 
 
-        mx_serial_id = self.device.getMxId()
-        # mx_serial_id = "Test-device"
-        # dev_info = self.device.getDeviceInfo()
-        # mx_serial_id = dev_info.getMxId()
-        calib_dest_path = os.path.join(
-            self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
-        # print(self.package_path)
-        stereo_calib = StereoCalibration()
-        status, result_config = stereo_calib.calibrate(
-                                        self.board_config,
-                                        self.package_path + "/dataset",
-                                        self.args['square_size_cm'],
-                                        self.args['marker_size_cm'],
-                                        self.args['squares_x'],
-                                        self.args['squares_y'],
-                                        self.args['cameraModel'],
-                                        False) # Turn off enable disp rectify
-         
-        start_time = datetime.now()
-        time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
+            self.result['result_config'] = result_config
+            
+            start_time = datetime.now()
+            time_stmp = start_time.strftime("%m-%d-%Y %H:%M:%S")
 
-        log_list = [time_stmp, mx_serial_id]
-        # for key in self.ccm_selected.keys():
-        #     log_list.append(self.ccm_selected[key])
+            log_list = [time_stmp, mx_serial_id]
 
-        if status == -1:
-            self.close_device()
-            self.is_service_active = False
-            return result_config
+            if status == -1: # Calibration failed
+                raise CalibrationException("Calibration failed", return_value=result_config)
 
-        vis_x = 400
-        vis_y = 180
-        error_text = []
-        calibration_handler = self.device.readCalibration2()
-        for camera in result_config['cameras'].keys():
-            cam_info = result_config['cameras'][camera]
-            log_list.append(self.ccm_selected[cam_info['name']])
+            vis_x = 400
+            vis_y = 180
+            error_text = []
+            calibration_handler = self.device.readCalibration2()
+            for camera in result_config['cameras'].keys():
+                cam_info = result_config['cameras'][camera]
+                log_list.append(self.ccm_selected[cam_info['name']])
 
-            color = green
-            reprojection_error_threshold = 1.0
-            if cam_info['size'][1] > 720:
-                print(cam_info['size'][1])
-                reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
+                color = green
+                reprojection_error_threshold = 2.0 # TODO: Change this back to 1.0
+                if cam_info['size'][1] > 720:
+                    print(cam_info['size'][1])
+                    reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
 
-            if cam_info['name'] == 'rgb':
-                reprojection_error_threshold = 6
-            print('Reprojection error threshold -> {}'.format(reprojection_error_threshold))
-            if cam_info['reprojection_error'] > reprojection_error_threshold:
-                color = red
-                error_text.append("high Reprojection Error")
-            text = cam_info['name'] + ' Reprojection Error: ' + format(cam_info['reprojection_error'], '.6f')
-            pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
+                if cam_info['name'] == 'rgb':
+                    reprojection_error_threshold = 6
+                print('Reprojection error threshold -> {}'.format(reprojection_error_threshold))
+                if cam_info['reprojection_error'] > reprojection_error_threshold:
+                    color = red
+                    error_text.append("high Reprojection Error")
+                text = cam_info['name'] + ' Reprojection Error: ' + format(cam_info['reprojection_error'], '.6f')
+                pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
 
-            calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info['dist_coeff'])
-            calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
-            calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
+                calibration_handler.setDistortionCoefficients(stringToCam[camera], cam_info['dist_coeff'])
+                calibration_handler.setCameraIntrinsics(stringToCam[camera], cam_info['intrinsics'],  cam_info['size'][0], cam_info['size'][1])
+                calibration_handler.setFov(stringToCam[camera], cam_info['hfov'])
 
-            if cam_info['hasAutofocus']:
-                calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
+                if cam_info['hasAutofocus']:
+                    calibration_handler.setLensPosition(stringToCam[camera], self.lensPosition[cam_info['name']])
 
-            log_list.append(self.focusSigma[cam_info['name']])
-            log_list.append(cam_info['reprojection_error'])
+                log_list.append(self.focusSigma[cam_info['name']])
+                log_list.append(cam_info['reprojection_error'])
 
-            vis_y += 30
-            color = green
+                vis_y += 30
+                color = green
 
-            if 'extrinsics' in cam_info:
+                if 'extrinsics' in cam_info:
 
-                if 'to_cam' in cam_info['extrinsics']:
-                    right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
-                    left_cam = cam_info['name']
-                    
-                    epipolar_threshold = 0.6
+                    if 'to_cam' in cam_info['extrinsics']:
+                        right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
+                        left_cam = cam_info['name']
+                        
+                        epipolar_threshold = 1.6 # TODO: change this back to 0.6
 
-                    if cam_info['extrinsics']['epipolar_error'] > epipolar_threshold:
-                        color = red
-                        error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
-                    elif cam_info['extrinsics']['epipolar_error'] == -1:
-                        color = red
-                        error_text.append("Epiploar validation failed between " + left_cam + " and " + right_cam)
+                        if cam_info['extrinsics']['epipolar_error'] > epipolar_threshold:
+                            color = red
+                            error_text.append("high epipolar error between " + left_cam + " and " + right_cam)
+                        elif cam_info['extrinsics']['epipolar_error'] == -1:
+                            color = red
+                            error_text.append("Epiploar validation failed between " + left_cam + " and " + right_cam)
 
-                    log_list.append(cam_info['extrinsics']['epipolar_error'])
-                    text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info['extrinsics']['epipolar_error'], '.6f')
-                    pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
-                    vis_y += 30
-                    specTranslation = np.array([cam_info['extrinsics']['specTranslation']['x'], cam_info['extrinsics']['specTranslation']['y'], cam_info['extrinsics']['specTranslation']['z']], dtype=np.float32)
+                        log_list.append(cam_info['extrinsics']['epipolar_error'])
+                        text = left_cam + "-" + right_cam + ' Avg Epipolar error: ' + format(cam_info['extrinsics']['epipolar_error'], '.6f')
+                        pygame_render_text(self.screen, text, (vis_x, vis_y), color, 30)
+                        vis_y += 30
+                        specTranslation = np.array([cam_info['extrinsics']['specTranslation']['x'], cam_info['extrinsics']['specTranslation']['y'], cam_info['extrinsics']['specTranslation']['z']], dtype=np.float32)
 
-                    calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info['extrinsics']['to_cam']], cam_info['extrinsics']['rotation_matrix'], cam_info['extrinsics']['translation'], specTranslation)
-                    if result_config['stereo_config']['left_cam'] == camera and result_config['stereo_config']['right_cam'] == cam_info['extrinsics']['to_cam']:
-                        calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
-                        calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
-            # else:
-                # log_list.append("N/A")
+                        calibration_handler.setCameraExtrinsics(stringToCam[camera], stringToCam[cam_info['extrinsics']['to_cam']], cam_info['extrinsics']['rotation_matrix'], cam_info['extrinsics']['translation'], specTranslation)
+                        if result_config['stereo_config']['left_cam'] == camera and result_config['stereo_config']['right_cam'] == cam_info['extrinsics']['to_cam']:
+                            calibration_handler.setStereoLeft(stringToCam[camera], result_config['stereo_config']['rectification_left'])
+                            calibration_handler.setStereoRight(stringToCam[cam_info['extrinsics']['to_cam']], result_config['stereo_config']['rectification_right'])
+                # else:
+                    # log_list.append("N/A")
 
-        log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
-        with open(log_file, mode='a') as log_fopen:
-            # header =
-            log_csv_writer = csv.writer(log_fopen, delimiter=',')
-            log_csv_writer.writerow(log_list)
-        # calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
+            self.result['legacy_log'] = {k: v.flatten()[0] if isinstance(v, np.ndarray) and len(v.flatten()) == 1 else v for k, v in zip(self.csv_log_header, log_list)}
 
-        # error_text = []
-        if len(error_text) == 0:
+            log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
+            with open(log_file, mode='a') as log_fopen:
+                # header =
+                log_csv_writer = csv.writer(log_fopen, delimiter=',')
+                log_csv_writer.writerow(log_list)
+            # calibration_handler.setBoardInfo(self.board_config['name'], self.board_config['revision'])
+
+            # error_text = []
+            if len(error_text) != 0:
+                text = error_text[0]
+                pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
+                print(error_text)
+
+                raise CalibrationException(text, return_value=(False, error_text[0]))
+            
             print('Flashing Calibration data into ')
             print(calib_dest_path)
             # calibration_handler = self.device.readCalibration2()
@@ -1001,6 +1070,7 @@ class depthai_calibration_node:
             print(f'EEPROM VERSION being flashed is  -> {eeepromData.version}')
             eeepromData.version = 7
             print(f'EEPROM VERSION being flashed is  -> {eeepromData.version}')
+            updatedCalib = {}
             try:
                 updatedCalib = dai.CalibrationHandler(eeepromData)
                 self.device.flashCalibration2(updatedCalib)
@@ -1018,44 +1088,53 @@ class depthai_calibration_node:
                 is_write_factory_sucessful = False
 
             self.is_service_active = False
-            if is_write_succesful and is_write_factory_sucessful:
-                calib_dest_path = os.path.join(
-                    self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '_uni.json')
-                eepromUnionData = {}
-                calibHandler = self.device.readCalibration2()
-                eepromUnionData['calibrationUser'] = calibHandler.eepromToJson()
-
-                calibHandler = self.device.readFactoryCalibration()
-                eepromUnionData['calibrationFactory'] = calibHandler.eepromToJson()
-
-                eepromUnionData['calibrationUserRaw'] = self.device.readCalibrationRaw()
-                eepromUnionData['calibrationFactoryRaw'] = self.device.readFactoryCalibrationRaw()
-                with open(calib_dest_path, "w") as outfile:
-                    json.dump(eepromUnionData, outfile, indent=4)
-                self.close_device()
-                text = "EEPROM written succesfully"
-                pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
-                return (True, "EEPROM written succesfully")
-            else:
-                self.close_device()
+            if not is_write_succesful or not is_write_factory_sucessful:
                 text = "EEPROM write Failed!!"
                 pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
-                return (False, "EEPROM write Failed!!")
-            
-        else:
-            text = error_text[0]
-            pygame_render_text(self.screen, text, (vis_x, vis_y), red, 30)
-            print(error_text)
+                raise CalibrationException(text, return_value=(False, text))
 
+            calib_dest_path = os.path.join(
+                self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '_uni.json')
+            eepromUnionData = {}
+
+            eepromUnionData['is_write_succesful'] = is_write_succesful
+            eepromUnionData['is_write_factory_sucessful'] = is_write_factory_sucessful
+
+            calibHandler = self.device.readCalibration2()
+            eepromUnionData['calibrationUser'] = calibHandler.eepromToJson()
+
+            calibHandler = self.device.readFactoryCalibration()
+            eepromUnionData['calibrationFactory'] = calibHandler.eepromToJson()
+
+            eepromUnionData['calibrationUserRaw'] = self.device.readCalibrationRaw()
+            eepromUnionData['calibrationFactoryRaw'] = self.device.readFactoryCalibrationRaw()
+            self.result['eeprom_data'] = eepromUnionData
+            with open(calib_dest_path, "w") as outfile:
+                json.dump(eepromUnionData, outfile, indent=4)
+            text = "EEPROM written succesfully"
+            pygame_render_text(self.screen, text, (vis_x, vis_y), green, 30)
+            
+            self.upload_result()
+            self.close_device()
+            return (True, text)
+
+        except CalibrationException as e:
+            self.upload_result(e.message)
             self.close_device()
             self.is_service_active = False
-            return (False, error_text[0])
+            return e.return_value
+            
 
+    def upload_result(self, error=None):
+        self.result['tests'] = {k: v.is_checked() for k, v in self.auto_checkbox_dict.items()}
+        self.result['tests'].update({k: v.is_checked() for k, v in self.auto_focus_checkbox_dict.items()})
+
+        production_support_server_api.add_result('calib', self.device_mxid, self.args['board'], self.bootloader_version, dai.__version__, self.camera_started_time, datetime.now(), self.result, error)
+        production_support_server_api.sync()
 
 no_button = pygame.Rect(490, 500, 80, 45)
 
 if __name__ == "__main__":
-
     rospy.init_node('depthai_calibration', anonymous=True)
     arg = {}
     arg["swapLR"] = rospy.get_param('~swap_lr')
@@ -1088,6 +1167,7 @@ if __name__ == "__main__":
     if not os.path.exists(arg['log_path']):
         os.makedirs(arg['log_path'])
 
+
     if arg['board']:
         board_path = Path(arg['board'])
         if not board_path.exists():
@@ -1099,6 +1179,7 @@ if __name__ == "__main__":
                     'Board config not found: {}'.format(board_path))
         with open(board_path) as fp:
             board_config = json.load(fp)
+        
     # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
     # Please add the correct path using depthai_path:=[path] while executing launchfile")
 
