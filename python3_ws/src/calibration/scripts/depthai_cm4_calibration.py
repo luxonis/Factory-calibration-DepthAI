@@ -1011,17 +1011,17 @@ if __name__ == "__main__":
         if arg['board'].lower() == 'dm2097':
             print('Loading data for OAK-D-CM4-PoE')
             eepromDataJson = {"batchName": "", "batchTime": 0, "boardConf": "nIR-C00M00-00", "boardName": "DM2097",
-                              "boardRev": "R1M1E1", "productName": "OAK-D CM4 POE", "boardCustom": "",
+                              "boardRev": "R1M1E1", "productName": "OAK-D-CM4-POE", "boardCustom": "",
                               "hardwareConf": "F0-FV00-BC000", "boardOptions": 0, "version": 7}
         if arg['board'].lower() == 'dm2097-c11':
             print('Loading data for OAK-D-CM4-PoE')
-            eepromDataJson = {"batchName": "", "batchTime": 0, "boardConf": "nIR-C00M00-00", "boardName": "DM2097",
-                              "boardRev": "R1M1E1", "productName": "OAK-D CM4 POE C11", "boardCustom": "",
-                              "hardwareConf": "F0-FV00-BC000", "boardOptions": 0, "version": 7}
+            eepromDataJson = {"batchName": "", "batchTime": 0, "boardConf": "nIR-C11M00-00", "boardName": "DM2097",
+                              "boardRev": "R3M1E4", "productName": "OAK-D-CM4-POE-C11", "boardCustom": "",
+                              "hardwareConf": "F1-FV00-BC000", "boardOptions": 0, "version": 7}
         if arg['board'].lower() == 'dm1097':
             print('Loading data for OAK-D-CM4')
             eepromDataJson = {"batchName": "Maxwell", "batchTime": 0, "boardConf": "nIR-C00M00-00",
-                              "boardName": "DM1097", "boardRev": "R2M0E2", "productName": "OAK-D CM4",
+                              "boardName": "DM1097", "boardRev": "R2M0E2", "productName": "OAK-D-CM4",
                               "boardCustom": "", "hardwareConf": "F0-FV00-BC000", "boardOptions": 0, "version": 7}
 
         if not board_path.exists():
