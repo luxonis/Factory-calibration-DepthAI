@@ -20,6 +20,7 @@ from std_msgs.msg import String
 from calibration.srv import Capture
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
+import ssh_wait
 
 import depthai as dai
 import consts.resource_paths
@@ -64,6 +65,7 @@ class SocketWorker:
 
     def connection(self):
         HOST = 'luxonis.local'
+        ssh_wait.ssh_wait(HOST, service='ssh', wait=True, wait_limit=600, log_fn=print )
         # HOST = "192.168.1.5"
         # var_path = Path(consts.resource_paths.boards_dir_path) / \
         #              Path('consts.resource_paths.txt')
@@ -81,6 +83,7 @@ class SocketWorker:
 
         # set pre-set env
         # TODO: Temp, remove after GPIO fix
+        os.system(f'sshpass -p raspberry ssh pi@{HOST} killall python')
         os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/enable_cm4_oak.py ~/Factory-calibration-DepthAI/rc.local ~/Factory-calibration-DepthAI/calib_env/ ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi/')
         os.system(f'sshpass -p raspberry ssh pi@luxonis.local "echo raspberry | sudo -S mv /home/pi/rc.local /etc/;python3 /home/pi/enable_cm4_oak.py"')
         os.system(f"\
