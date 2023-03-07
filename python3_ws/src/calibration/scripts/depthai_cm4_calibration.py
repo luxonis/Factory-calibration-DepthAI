@@ -786,16 +786,19 @@ class depthai_calibration_node:
         # self.socket_worker.ack()
         self.socket_worker.send('capture_service')
         while True:
-            key = self.socket_worker.recv()
-            if key == 'next': break
+            msg = self.socket_worker.recv()
+            if msg == 'next': break
             # self.imgPublishers[key].publish(self.bridge.cv2_to_imgmsg(self.socket_worker.recv(), "passthrough"))
-            gray_frame = self.socket_worker.recv()
-            is_board_found = self.is_markers_found(gray_frame)
-            if is_board_found:
-                self.parse_frame(gray_frame, key, req.name)
-            else:
-                self.parse_frame(gray_frame, key + '_not', req.name)
-                detection_failed = True
+
+            for key, gray_frame in msg.items():
+                is_board_found = self.is_markers_found(gray_frame)
+                if is_board_found:
+                    self.parse_frame(gray_frame, key, req.name)
+                else:
+                    self.parse_frame(gray_frame, key + '_not', req.name)
+                    detection_failed = True
+
+            
         # TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
         # self.socket_worker.ack()
         if detection_failed:

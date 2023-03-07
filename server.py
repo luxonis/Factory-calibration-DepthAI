@@ -40,6 +40,7 @@ class SocketWorker:
         HOST = "luxonis.local"
         # HOST = "192.168.1.5"
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket = s
         s.bind((HOST, self.port))
         print(f'self.PORT={self.port}')
         self.port += 1
@@ -47,6 +48,12 @@ class SocketWorker:
         conn, addr = s.accept()
         self.conn = conn
         print(f'Connected by {addr}')
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.socket.close()
 
     def send(self, msg):
         try:
@@ -277,15 +284,18 @@ class DepthaiCamera:
         print('Finish device status')
 
     def capture_servive_handler(self):
+        frames = {}
         for key in self.camera_queue.keys():
-            self.socket_worker.send(key)
+            # self.socket_worker.send(key)
             frame = self.camera_queue[key].getAll()[-1]
             print(f'key = {key} frame = {frame}')
             if frame.getType() == dai.RawImgFrame.Type.RAW8:
                 gray_frame = frame.getCvFrame()
             else:
                 gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-            self.socket_worker.send(gray_frame)
+            frames[key] = gray_frame
+            # self.socket_worker.send(gray_frame)
+        self.socket_worker.send(frames)
         self.socket_worker.send('next')
 
         # TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
@@ -463,37 +473,28 @@ class DepthaiCamera:
 
 def main():
     this_camera = None
-    try:
-        socket_worker = SocketWorker()
-    except:
-        del socket_worker
-        print('Connexion error')
-    else:
-        try:
-            while True:
-                message = socket_worker.recv()
-                if message == 'start_camera':
-                    print(f'{message=}')
-                    # socket_worker.ack()
-                    this_camera = DepthaiCamera(socket_worker.recv(), socket_worker)
-                elif message == 'capture_service' and this_camera is not None:
-                    this_camera.capture_servive_handler()
-                elif message == 'calibration_service' and this_camera is not None:
-                    this_camera.calibration_servive_handler()
-                elif message == 'focus_adjuster' and this_camera is not None:
-                    this_camera.camera_focus_adjuster()
-                elif message == 'stop_camera':
-                    print(f'{message=}')
-                    # send_message(cs, 'ACK')
-                elif message == 'stop_calibration':
-                    print(f'{message=}')
-                    # send_message(cs, 'ACK')
-                    break
-        finally:
-            del socket_worker
-            del this_camera
-    print('Calibration finished')
+    with SocketWorker() as socket_worker:
+        while True:
+            message = socket_worker.recv()
+            if message == 'start_camera':
+                print(f'{message=}')
+                # socket_worker.ack()
+                this_camera = DepthaiCamera(socket_worker.recv(), socket_worker)
+            elif message == 'capture_service' and this_camera is not None:
+                this_camera.capture_servive_handler()
+            elif message == 'calibration_service' and this_camera is not None:
+                this_camera.calibration_servive_handler()
+            elif message == 'focus_adjuster' and this_camera is not None:
+                this_camera.camera_focus_adjuster()
+            elif message == 'stop_camera':
+                print(f'{message=}')
+                # send_message(cs, 'ACK')
+            elif message == 'stop_calibration':
+                print(f'{message=}')
+                # send_message(cs, 'ACK')
+                break
 
+    print('Calibration finished')
 
 if __name__ == '__main__':
     main()
