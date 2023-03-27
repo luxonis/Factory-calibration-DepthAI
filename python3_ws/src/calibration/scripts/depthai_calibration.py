@@ -989,7 +989,7 @@ class depthai_calibration_node:
                 log_list.append(self.ccm_selected[cam_info['name']])
 
                 color = green
-                reprojection_error_threshold = 1.4
+                reprojection_error_threshold = 1.0
                 if cam_info['size'][1] > 720:
                     print(cam_info['size'][1])
                     reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
@@ -1022,7 +1022,7 @@ class depthai_calibration_node:
                         right_cam = result_config['cameras'][cam_info['extrinsics']['to_cam']]['name']
                         left_cam = cam_info['name']
                         
-                        epipolar_threshold = 1.6 # TODO: change this back to 0.6
+                        epipolar_threshold = 0.6 
 
                         if cam_info['extrinsics']['epipolar_error'] > epipolar_threshold:
                             color = red
