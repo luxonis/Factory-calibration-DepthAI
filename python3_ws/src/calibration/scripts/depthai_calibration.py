@@ -989,7 +989,7 @@ class depthai_calibration_node:
                 log_list.append(self.ccm_selected[cam_info['name']])
 
                 color = green
-                reprojection_error_threshold = 2.0 # TODO: Change this back to 1.0
+                reprojection_error_threshold = 1.4
                 if cam_info['size'][1] > 720:
                     print(cam_info['size'][1])
                     reprojection_error_threshold = reprojection_error_threshold * cam_info['size'][1] / 720
