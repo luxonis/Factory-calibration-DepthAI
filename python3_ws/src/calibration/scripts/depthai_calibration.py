@@ -626,8 +626,12 @@ class depthai_calibration_node:
 
                     # Check that the device matches selected device
                     try:
-                        calib = self.device.readFactoryCalibration()
-                        calib_dict = calib.eepromToJson()
+                        calib = self.device.readCalibration()
+                    except:
+                        calib = self.device.readFactoryCalibrationOrDefault()
+                    
+                    calib_dict = calib.eepromToJson()
+                    try:
                         for key, value in SELECTED_DEVICE_EEPROM_DATA.items():
                             if key == "batchTime": 
                                 pass
