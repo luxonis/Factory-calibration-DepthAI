@@ -410,7 +410,7 @@ class StereoCalibration(object):
             cameraMatrix=cameraMatrixInit,
             distCoeffs=distCoeffsInit,
             flags=flags,
-            criteria=(cv2.TERM_CRITERIA_EPS & cv2.TERM_CRITERIA_COUNT, 50000, 1e-9))
+            criteria=(cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_COUNT, 50000, 1e-9))
         print('Per View Errors...')
         print(perViewErrors)
         return ret, camera_matrix, distortion_coefficients, rotation_vectors, translation_vectors
