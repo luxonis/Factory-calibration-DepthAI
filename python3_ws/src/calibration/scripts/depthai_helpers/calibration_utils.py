@@ -368,7 +368,11 @@ class StereoCalibration(object):
         """
         Calibrates the camera using the dected corners.
         """
-        f = imsize[0] / (2 * np.tan(np.deg2rad(hfov/2)))
+        if hfov < 110:
+            f = imsize[0] / (2 * np.tan(np.deg2rad(hfov/2)))
+        else:
+            f = 500
+
         # TODO(sachin): Change the initialization to be initialized using the guess from fov
         print("CAMERA CALIBRATION")
         print(imsize)
