@@ -4,7 +4,6 @@ import sys
 import glob
 import json
 from pathlib import Path
-import consts.resource_paths
 
 from resources.depthai_boards.boards_reader import DEVICES
 
@@ -101,6 +100,7 @@ class Ui_CalibrateSelect(QtWidgets.QDialog):
         # Update description
         self.variant_desc_label.setText(self.selected_variant.get("description"))
         self.eeprom_data = self.selected_variant.get("eeprom_data")
+        print(self.eeprom_data)
 
 def select_device():
     app = QtWidgets.QApplication(sys.argv)
@@ -109,7 +109,7 @@ def select_device():
     if not dialog.exec_():
         return None, None
 
-    return dialog.eeprom_data, dialog.test_type, dialog.selected_variant
+    return dialog.eeprom_data, dialog.selected_variant
     
     
 # just for testing

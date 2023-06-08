@@ -7,10 +7,12 @@ if os.environ.get('PRODUCTION_ENVIRONMENT') is not None:
     update_submodules()
 DEBUG = True
 from select_device_ui import select_device
-if DEBUG:
-    SELECTED_DEVICE_EEPROM_DATA, SELECTED_BRD, DEVICE_VARIANT = select_device() # this has to run before cv2 is imported
+SELECTED_DEVICE_EEPROM_DATA, DEVICE_VARIANT = select_device() # this has to run before cv2 is imported
 
-print('Board Config is \n{}'.format(DEVICE_VARIANT.board_config))
+if DEBUG:
+    print('SELECTED_DEVICE_EEPROM_DATA Config is \n {}'.format(SELECTED_DEVICE_EEPROM_DATA))
+    print('Board Config is \n {}'.format(DEVICE_VARIANT.board_config))
+
 if SELECTED_DEVICE_EEPROM_DATA is None:
     sys.exit()
 if DEVICE_VARIANT.board_config is None:
