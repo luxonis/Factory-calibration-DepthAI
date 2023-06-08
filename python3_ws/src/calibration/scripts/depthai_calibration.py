@@ -11,11 +11,11 @@ SELECTED_DEVICE_EEPROM_DATA, DEVICE_VARIANT = select_device() # this has to run 
 
 if DEBUG:
     print('SELECTED_DEVICE_EEPROM_DATA Config is \n {}'.format(SELECTED_DEVICE_EEPROM_DATA))
-    print('Board Config is \n {}'.format(DEVICE_VARIANT.board_config))
+    print('Board Config is \n {}'.format(DEVICE_VARIANT.get("board_config")))
 
 if SELECTED_DEVICE_EEPROM_DATA is None:
     sys.exit()
-if DEVICE_VARIANT.board_config is None:
+if DEVICE_VARIANT.get("board_config") is None:
     raise Exception('Board config not found')
 
     
@@ -150,7 +150,7 @@ class depthai_calibration_node:
         # self.frame_count = 0
         self.init_time = time.time()
 
-        self.board_config = DEVICE_VARIANT.board_config
+        self.board_config = DEVICE_VARIANT.get("board_config")
         self.board_config_backup = self.board_config
 
 
