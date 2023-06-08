@@ -122,6 +122,7 @@ class Ui_CalibrateSelect(QtWidgets.QDialog):
                 self.eepromDataJson = json.load(jfile)
 
             self.selectedDeviceInfo = curDevice['variants'][variantIndex]['title']
+            self.selectedDeviceBoardFile = curDevice['variants'][variantIndex]['board_file']
 
 
 def select_device():
