@@ -1141,26 +1141,23 @@ no_button = pygame.Rect(490, 500, 80, 45)
 if __name__ == "__main__":
     rospy.init_node('depthai_calibration', anonymous=True)
     arg = {}
-    arg["usbMode"] = rospy.get_param('~usbMode')
 
     arg["package_path"] = rospy.get_param('~package_path')
-
     arg["square_size_cm"] = rospy.get_param('~square_size_cm')
     arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
     arg["squares_x"] = rospy.get_param('~squares_x')
     arg["squares_y"] = rospy.get_param('~squares_y')
-
-    arg["board"] = rospy.get_param('~brd')
+    arg["usbMode"] = rospy.get_param('~usbMode')
     # local path to store calib files with using mx device id.
     arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
     arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
-    arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
 
     # Adding service names to arg
     arg["capture_service_name"] = rospy.get_param(
         '~capture_service_name')  # Add  capture_checkerboard to launch file
     arg["calibration_service_name"] = rospy.get_param(
         '~calibration_service_name')  # Add capture_checkerboard to launch file
+    arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
 
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])
