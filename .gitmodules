@@ -1,6 +1,3 @@
 [submodule "python3_ws/src/calibration/scripts/resources/depthai-boards"]
 	path = python3_ws/src/calibration/scripts/resources/depthai-boards
 	url = https://github.com/luxonis/depthai-boards
-[submodule "python3_ws/src/calibration/scripts/resources/depthai-boards-private"]
-	path = python3_ws/src/calibration/scripts/resources/depthai-boards-private
-	url = https://github.com/luxonis/depthai-boards-private.git
