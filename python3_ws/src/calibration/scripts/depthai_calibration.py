@@ -6,6 +6,7 @@ if os.environ.get('PRODUCTION_ENVIRONMENT') is not None:
     from depthai_helpers.update_submodules import update_submodules
     update_submodules()
 DEBUG = True
+
 from select_device_ui import select_device
 SELECTED_DEVICE_EEPROM_DATA, DEVICE_VARIANT = select_device() # this has to run before cv2 is imported
 
@@ -129,6 +130,7 @@ class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
+        self.args['board'] = Path(DEVICE_VARIANT.get("board_config_file")).stem
         self.bridge = CvBridge()
         self.is_service_active = False
 
@@ -187,7 +189,7 @@ class depthai_calibration_node:
         #           'left_focus_stdDev', 'right_focus_stdDev', 'rgb_focus_stdDev',
         #           'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
         
-        log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv"
+        log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
         if not os.path.exists(log_file):
             with open(log_file, mode='w') as log_fopen:
                 log_csv_writer = csv.writer(log_fopen, delimiter=',')
