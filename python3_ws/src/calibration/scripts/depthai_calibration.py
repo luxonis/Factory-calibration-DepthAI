@@ -5,9 +5,12 @@ import os
 if os.environ.get('PRODUCTION_ENVIRONMENT') is not None:
     from depthai_helpers.update_submodules import update_submodules
     update_submodules()
-
+DEBUG = True
 from select_device_ui import select_device
-SELECTED_DEVICE_EEPROM_DATA, SELECTED_BRD, DEVICE_VARIANT = select_device() # this has to run before cv2 is imported
+if DEBUG:
+    SELECTED_DEVICE_EEPROM_DATA, SELECTED_BRD, DEVICE_VARIANT = select_device() # this has to run before cv2 is imported
+
+print('Board Config is \n{}'.format(DEVICE_VARIANT.board_config))
 if SELECTED_DEVICE_EEPROM_DATA is None:
     sys.exit()
 if DEVICE_VARIANT.board_config is None:
@@ -1136,7 +1139,6 @@ no_button = pygame.Rect(490, 500, 80, 45)
 if __name__ == "__main__":
     rospy.init_node('depthai_calibration', anonymous=True)
     arg = {}
-    arg["swapLR"] = rospy.get_param('~swap_lr')
     arg["usbMode"] = rospy.get_param('~usbMode')
 
     arg["package_path"] = rospy.get_param('~package_path')
@@ -1147,8 +1149,6 @@ if __name__ == "__main__":
     arg["squares_y"] = rospy.get_param('~squares_y')
 
     arg["board"] = rospy.get_param('~brd')
-    arg["depthai_path"] = rospy.get_param(
-        '~depthai_path')  # Path of depthai repo
     # local path to store calib files with using mx device id.
     arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
     arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
@@ -1166,9 +1166,6 @@ if __name__ == "__main__":
     if not os.path.exists(arg['log_path']):
         os.makedirs(arg['log_path'])
         
-    # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
-    # Please add the correct path using depthai_path:=[path] while executing launchfile")
-
     depthai_dev = depthai_calibration_node(arg)
     depthai_dev.publisher()
     rospy.spin()
