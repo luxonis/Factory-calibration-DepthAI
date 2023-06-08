@@ -100,7 +100,7 @@ class Ui_CalibrateSelect(QtWidgets.QDialog):
         self.selected_variant = variants[self.variant_dropdown.currentIndex()]
         # Update description
         self.variant_desc_label.setText(self.selected_variant.get("description"))
-
+        print(self.selected_variant.eeprom_data)
 
 def select_device():
     app = QtWidgets.QApplication(sys.argv)
