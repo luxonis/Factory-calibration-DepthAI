@@ -1,4 +1,4 @@
-pydantic==1.10.5
+pydantic==1.9.2
 opencv-python==4.5.4.58
 opencv-contrib-python==4.5.4.58
 requests==2.24.0
