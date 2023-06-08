@@ -7,9 +7,12 @@ if os.environ.get('PRODUCTION_ENVIRONMENT') is not None:
     update_submodules()
 
 from select_device_ui import select_device
-SELECTED_DEVICE_EEPROM_DATA, SELECTED_BRD = select_device() # this has to run before cv2 is imported
+SELECTED_DEVICE_EEPROM_DATA, SELECTED_BRD, DEVICE_VARIANT = select_device() # this has to run before cv2 is imported
 if SELECTED_DEVICE_EEPROM_DATA is None:
     sys.exit()
+if DEVICE_VARIANT.board_config is None:
+    raise Exception('Board config not found')
+
     
 import cv2
 import copy
@@ -141,18 +144,9 @@ class depthai_calibration_node:
 
         # self.frame_count = 0
         self.init_time = time.time()
-        if self.args['board']:
-            board_path = Path(self.args['board'])
-            if not board_path.exists():
-                board_path = Path(consts.resource_paths.boards_dir_path) / \
-                    Path(self.args['board'].upper()).with_suffix('.json')
-                if not board_path.exists():
-                    raise ValueError(
-                        'Board config not found: {}'.format(board_path))
-            with open(board_path) as fp:
-                self.board_config = json.load(fp)
-                self.board_config = self.board_config['board_config']
-                self.board_config_backup = self.board_config
+
+        self.board_config = DEVICE_VARIANT.board_config
+        self.board_config_backup = self.board_config
 
 
         self.aruco_dictionary = cv2.aruco.Dictionary_get(
@@ -1171,19 +1165,6 @@ if __name__ == "__main__":
 
     if not os.path.exists(arg['log_path']):
         os.makedirs(arg['log_path'])
-
-
-    if arg['board']:
-        board_path = Path(arg['board'])
-        if not board_path.exists():
-            board_path = Path(consts.resource_paths.boards_dir_path) / \
-                Path(arg['board'].upper()).with_suffix('.json')
-            print(board_path)
-            if not board_path.exists():
-                raise ValueError(
-                    'Board config not found: {}'.format(board_path))
-        with open(board_path) as fp:
-            board_config = json.load(fp)
         
     # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
     # Please add the correct path using depthai_path:=[path] while executing launchfile")
