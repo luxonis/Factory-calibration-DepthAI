@@ -5,11 +5,20 @@ import os
 if os.environ.get('PRODUCTION_ENVIRONMENT') is not None:
     from depthai_helpers.update_submodules import update_submodules
     update_submodules()
+DEBUG = True
 
 from select_device_ui import select_device
-SELECTED_DEVICE_EEPROM_DATA, SELECTED_BRD = select_device() # this has to run before cv2 is imported
+SELECTED_DEVICE_EEPROM_DATA, DEVICE_VARIANT = select_device() # this has to run before cv2 is imported
+
+if DEBUG:
+    print('SELECTED_DEVICE_EEPROM_DATA Config is \n {}'.format(SELECTED_DEVICE_EEPROM_DATA))
+    print('Board Config is \n {}'.format(DEVICE_VARIANT.get("board_config")))
+
 if SELECTED_DEVICE_EEPROM_DATA is None:
     sys.exit()
+if DEVICE_VARIANT.get("board_config") is None:
+    raise Exception('Board config not found')
+
     
 import cv2
 import copy
@@ -121,6 +130,7 @@ class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
+        self.args['board'] = Path(DEVICE_VARIANT.get("board_config_file")).stem
         self.bridge = CvBridge()
         self.is_service_active = False
 
@@ -141,18 +151,9 @@ class depthai_calibration_node:
 
         # self.frame_count = 0
         self.init_time = time.time()
-        if self.args['board']:
-            board_path = Path(self.args['board'])
-            if not board_path.exists():
-                board_path = Path(consts.resource_paths.boards_dir_path) / \
-                    Path(self.args['board'].upper()).with_suffix('.json')
-                if not board_path.exists():
-                    raise ValueError(
-                        'Board config not found: {}'.format(board_path))
-            with open(board_path) as fp:
-                self.board_config = json.load(fp)
-                self.board_config = self.board_config['board_config']
-                self.board_config_backup = self.board_config
+
+        self.board_config = DEVICE_VARIANT.get("board_config")
+        self.board_config_backup = self.board_config
 
 
         self.aruco_dictionary = cv2.aruco.Dictionary_get(
@@ -188,7 +189,7 @@ class depthai_calibration_node:
         #           'left_focus_stdDev', 'right_focus_stdDev', 'rgb_focus_stdDev',
         #           'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
         
-        log_file = self.args['log_path'] + "/calibration_logs_" + arg['board'] + ".csv"
+        log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
         if not os.path.exists(log_file):
             with open(log_file, mode='w') as log_fopen:
                 log_csv_writer = csv.writer(log_fopen, delimiter=',')
@@ -1142,52 +1143,30 @@ no_button = pygame.Rect(490, 500, 80, 45)
 if __name__ == "__main__":
     rospy.init_node('depthai_calibration', anonymous=True)
     arg = {}
-    arg["swapLR"] = rospy.get_param('~swap_lr')
-    arg["usbMode"] = rospy.get_param('~usbMode')
 
     arg["package_path"] = rospy.get_param('~package_path')
-
     arg["square_size_cm"] = rospy.get_param('~square_size_cm')
     arg["marker_size_cm"] = rospy.get_param('~marker_size_cm')
     arg["squares_x"] = rospy.get_param('~squares_x')
     arg["squares_y"] = rospy.get_param('~squares_y')
-
-    arg["board"] = rospy.get_param('~brd')
-    arg["depthai_path"] = rospy.get_param(
-        '~depthai_path')  # Path of depthai repo
+    arg["usbMode"] = rospy.get_param('~usbMode')
     # local path to store calib files with using mx device id.
     arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
     arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
-    arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
 
     # Adding service names to arg
     arg["capture_service_name"] = rospy.get_param(
         '~capture_service_name')  # Add  capture_checkerboard to launch file
     arg["calibration_service_name"] = rospy.get_param(
         '~calibration_service_name')  # Add capture_checkerboard to launch file
+    arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
 
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])
 
     if not os.path.exists(arg['log_path']):
         os.makedirs(arg['log_path'])
-
-
-    if arg['board']:
-        board_path = Path(arg['board'])
-        if not board_path.exists():
-            board_path = Path(consts.resource_paths.boards_dir_path) / \
-                Path(arg['board'].upper()).with_suffix('.json')
-            print(board_path)
-            if not board_path.exists():
-                raise ValueError(
-                    'Board config not found: {}'.format(board_path))
-        with open(board_path) as fp:
-            board_config = json.load(fp)
         
-    # assert os.path.exists(arg['depthai_path']), (arg['depthai_path'] +" Doesn't exist. \
-    # Please add the correct path using depthai_path:=[path] while executing launchfile")
-
     depthai_dev = depthai_calibration_node(arg)
     depthai_dev.publisher()
     rospy.spin()

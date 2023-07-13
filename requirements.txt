@@ -1,4 +1,4 @@
-
+pydantic==1.9.2
 opencv-python==4.5.4.58
 opencv-contrib-python==4.5.4.58
 requests==2.24.0
@@ -9,7 +9,7 @@ scipy
 access-dict-by-dot
 ssh-wait
 --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-python-snapshot-local/
-depthai==2.19.1
+depthai==2.21.2
 jsonlines
 numpy
 --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-depthai-data-local/wheels/
