@@ -42,13 +42,12 @@ from base64 import b64encode
 
 import depthai as dai
 import consts.resource_paths
-from depthai_helpers.calibration_utils import *
+from calibration_coms.calibration_utils import *
 
 from depthai_helpers.pygame_checkbox import Checkbox, pygame_render_text
 import pygame
 from pygame.locals import *
 
-from depthai_helpers import utils
 from depthai_helpers import production_support_server_api
 
 
@@ -183,7 +182,13 @@ class depthai_calibration_node:
                 if 'to_cam' in cam_info['extrinsics']:
                     right_cam = self.board_config['cameras'][cam_info['extrinsics']['to_cam']]['name']    
                     self.csv_log_header.append('Epipolar-error-' + cam_info['name'] + '-' + right_cam)
-            
+        
+        self.args['cameraModel'] = 'perspective'
+        if "camera_model" in self.board_config['cameras']:
+            print("~~~ Camera model is ~~~ {}".format(self.board_config['camera_model']))
+            if self.board_config['camera_model'] == 'fisheye':
+                self.args['cameraModel'] = 'fisheye'
+
         # ['Mono-CCM', 'RGB-CCM',
         #           'left_camera', 'right_camera', 'rgb_camera', 
         #           'left_focus_stdDev', 'right_focus_stdDev', 'rgb_focus_stdDev',
@@ -245,7 +250,6 @@ class depthai_calibration_node:
         # self.rgb_focus_srv = rospy.Service(
         #     "set_rgb_focus", Capture, self.rgb_focus_handler)
 
-        self.args['cameraModel'] = 'perspective'
         self.imgPublishers = dict()
         for cam_id in self.board_config['cameras']:
             name = self.board_config['cameras'][cam_id]['name']

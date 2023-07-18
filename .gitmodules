@@ -4,3 +4,6 @@
 [submodule "python3_ws/src/calibration/scripts/resources/depthai-boards-private"]
 	path = python3_ws/src/calibration/scripts/resources/depthai_boards_private
 	url = ../depthai-boards-private.git
+[submodule "python3_ws/src/calibration/scripts/calibration_coms"]
+	path = python3_ws/src/calibration/scripts/calibration_coms
+	url = git@github.com:luxonis/calibtaion_coms.git
