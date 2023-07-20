@@ -154,8 +154,8 @@ class depthai_calibration_node:
 
         self.board_config = DEVICE_VARIANT.get("board_config")
         self.board_config_backup = self.board_config
-        if 'POE' in self.board_config['name'].upper():
-            self.args['usbMode'] = False
+        # if 'POE' in self.board_config['name'].upper():
+        #     self.args['usbMode'] = False
 
 
 
