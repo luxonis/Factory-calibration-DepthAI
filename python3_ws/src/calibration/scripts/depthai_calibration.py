@@ -42,7 +42,7 @@ from base64 import b64encode
 
 import depthai as dai
 import consts.resource_paths
-from calibration_coms.calibration_utils import *
+from depthai_calibration.calibration_utils import *
 
 from depthai_helpers.pygame_checkbox import Checkbox, pygame_render_text
 import pygame
