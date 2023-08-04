@@ -11,9 +11,9 @@
   <arg name="calibration_service_name"     default="calibrate_stereo"/>
   
   <node 
-    name="depthai_calibration"
+    name="dai_calibration"
     pkg="calibration"
-    type="depthai_calibration.py"
+    type="depthai_calibrator.py"
     respawn="false"
     output="screen"
     required="true">

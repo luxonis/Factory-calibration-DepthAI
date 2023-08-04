@@ -112,5 +112,5 @@ def select_device():
     
     
 # just for testing
-if __name__ == "__main__":
-    print(select_device())
+# if __name__ == "__main__":
+#     print(select_device())

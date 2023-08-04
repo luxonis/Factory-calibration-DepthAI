@@ -13,7 +13,7 @@
   <node 
     name="depthai_calibration"
     pkg="calibration"
-    type="depthai_calibration.py"
+    type="depthai_calibrator.py"
     respawn="false"
     output="screen"
     required="true">
