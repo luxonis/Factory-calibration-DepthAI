@@ -9,7 +9,7 @@ scipy
 access-dict-by-dot
 ssh-wait
 --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-python-snapshot-local/
-depthai==2.22.0
+depthai==2.22.0.0.dev+4b8f0a3f40945a74d4603e8b383a00d76f9bdc56 # production version of depthai (supports flashWrite, flashRead)
 jsonlines
 numpy
 --extra-index-url https://artifacts.luxonis.com/artifactory/luxonis-depthai-data-local/wheels/
