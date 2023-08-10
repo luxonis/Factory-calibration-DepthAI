@@ -154,9 +154,9 @@ class depthai_calibration_node:
         self.board_config = DEVICE_VARIANT.get("board_config")
         self.board_config_backup = self.board_config
 
-        if 'POE' in self.board_config['name'].upper():
-            print('PoE is set')
-            self.args['usbMode'] = False
+        # if 'POE' in self.board_config['name'].upper():
+        #     print('PoE is set')
+        #     self.args['usbMode'] = False
 
         self.aruco_dictionary = cv2.aruco.Dictionary_get(
             cv2.aruco.DICT_4X4_1000)
@@ -500,9 +500,9 @@ class depthai_calibration_node:
         del self.device
         self.device = None
     
-    def setup_ui(self, isUSB):
+    def setup_ui(self):
         
-        if isUSB:
+        if self.args['usbMode']:
             self.auto_checkbox_names.append("USB3")
         self.csv_log_header = ['time', 'Mx_serial_id']
         for cam_id in self.board_config['cameras'].keys():
@@ -604,13 +604,14 @@ class depthai_calibration_node:
                 searchTime = timedelta(seconds=80)
                 isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
                 if isFound:
-                    isUSB = True
-                    if deviceInfo.protocol == dai.XLinkProtocol.X_LINK_TCP_IP:
-                        isUSB = False
 
                     if not self.isUIReady:
+                        self.args['usbMode'] = True
+                        if deviceInfo.protocol == dai.XLinkProtocol.X_LINK_TCP_IP:
+                            self.args['usbMode'] = False
+
                         self.isUIReady = True
-                        self.setup_ui(isUSB)
+                        self.setup_ui()
 
                     self.device = dai.Device() 
                     self.device_mxid = self.device.getMxId()
