@@ -172,8 +172,11 @@ class depthai_calibration_node:
         # Connection checks ----------->
         title = "Device Status"
         pygame_render_text(self.screen, title, (350, 20), orange, 50)
+
         self.auto_checkbox_names = []
         self.auto_focus_checkbox_names = []
+        self.auto_checkbox_dict = {}
+        self.auto_focus_checkbox_dict = {}
 
         pygame.draw.rect(self.screen, red, no_button)
         pygame_render_text(self.screen, 'Exit', (500, 505))
@@ -532,7 +535,6 @@ class depthai_calibration_node:
         x = 200
         self.start_disp = False
         font = pygame.font.Font(None, 20)
-        self.auto_checkbox_dict = {}
 
         for i in range(len(self.auto_checkbox_names)):
             w, h = font.size(self.auto_checkbox_names[i])
@@ -547,7 +549,7 @@ class depthai_calibration_node:
             self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
 
         y = y + (40*len(self.auto_checkbox_names))
-        self.auto_focus_checkbox_dict = {}
+
         
         for i in range(len(self.auto_focus_checkbox_names)):
             w, h = font.size(self.auto_focus_checkbox_names[i])
