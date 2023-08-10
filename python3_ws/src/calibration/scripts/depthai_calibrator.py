@@ -177,7 +177,8 @@ class depthai_calibration_node:
         self.auto_focus_checkbox_names = []
         self.auto_checkbox_dict = {}
         self.auto_focus_checkbox_dict = {}
-
+        self.isUIReady = False
+        
         pygame.draw.rect(self.screen, red, no_button)
         pygame_render_text(self.screen, 'Exit', (500, 505))
         self.no_active = False
