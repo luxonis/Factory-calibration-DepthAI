@@ -36,6 +36,8 @@ from pygame.locals import *
 
 
 from depthai_helpers import utils
+traceLevel = 0
+outputScaleFactor = 1.0
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
 
 on_embedded = platform.machine().startswith(
@@ -411,7 +413,7 @@ class socket_calibration_node:
             arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.calib')
 
         flags = [True]
-        stereo_calib = StereoCalibration()
+        stereo_calib = StereoCalibration(traceLevel, outputScaleFactor)
         avg_epipolar_error_l_r, avg_epipolar_error_rgb_r, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
             self.args['square_size_cm'],

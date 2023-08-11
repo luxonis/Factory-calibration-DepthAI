@@ -50,7 +50,8 @@ from pygame.locals import *
 
 from depthai_helpers import production_support_server_api
 
-
+traceLevel = 0
+outputScaleFactor = 1.0
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
 
 on_embedded = platform.machine().startswith(
@@ -974,7 +975,7 @@ class depthai_calibration_node:
             calib_dest_path = os.path.join(
                 self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
             # print(self.package_path)
-            stereo_calib = StereoCalibration()
+            stereo_calib = StereoCalibration(traceLevel, outputScaleFactor)
             status, result_config = stereo_calib.calibrate( # status: 1|-1, result: dict
                 self.board_config, self.package_path + "/dataset", 
                 self.args['square_size_cm'], self.args['marker_size_cm'], 
