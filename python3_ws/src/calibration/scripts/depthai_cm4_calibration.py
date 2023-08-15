@@ -24,7 +24,7 @@ import ssh_wait
 
 import depthai as dai
 import consts.resource_paths
-from depthai_helpers.calibration_utils import *
+from depthai_calibration.calibration_utils import *
 
 from depthai_helpers.pygame_checkbox import Checkbox, pygame_render_text
 import pygame
