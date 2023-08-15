@@ -20,7 +20,7 @@ blob_config_fpath     = relative_to_abs_path('../resources/nn/mobilenet-ssd/mobi
 factory_path          = relative_to_abs_path('../../../../../') + "/"
 
 # if environment variable DEPTHAI_BOARDS_PRIVATE_PATH is set, use it, else use the submodule
-depthai_boards_dir_path = os.environ.get("DEPTHAI_BOARDS_PRIVATE_PATH", relative_to_abs_path('../resources/depthai-boards'))
+depthai_boards_dir_path = os.environ.get("DEPTHAI_BOARDS_PRIVATE_PATH", relative_to_abs_path('../resources/depthai_boards'))
 boards_dir_path       = Path(depthai_boards_dir_path) / "boards"
 batch_dir_path        = Path(depthai_boards_dir_path) / "batch"
 
