@@ -9,6 +9,9 @@
   <arg name="use_actual"                  default="false"/>
   <arg name="use_fake"                    default="false"/>
   <arg name="dof"                         default="5"/>
+  <arg name="enable_rviz"                 default="true"/>
+  <arg name="rviz_frame"                  default="world"/>
+
   <!-- <arg name="use_cpp_interface"           default="false"/> -->
   <!-- <arg name="moveit_interface_gui"        default="true"/> -->
   <!-- <arg name="use_python_interface"        default="false"/> -->
@@ -37,5 +40,10 @@
     <remap from="/attached_collision_object" to="/$(arg robot_name)/attached_collision_object"/>
     <remap from="/collision_object" to="/$(arg robot_name)/collision_object"/>
   </node>
+
+  <include if="$(arg enable_rviz)" file="$(find interbotix_moveit)/launch/moveit_rviz.launch" ns="$(arg robot_name)">
+    <arg name="rviz_frame"                       value="$(arg rviz_frame)"/>
+    <arg name="config"                           value="true"/>
+  </include>
 
 </launch>
