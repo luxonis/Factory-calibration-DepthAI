@@ -12,6 +12,7 @@ from moveit_commander.conversions import pose_to_list
 from calibration.srv import Capture
 import time
 ## END_SUB_TUTORIAL
+input = raw_input
 
 def all_close(goal, actual, tolerance):
   """
