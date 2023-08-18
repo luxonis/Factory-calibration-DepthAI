@@ -573,6 +573,18 @@ def main():
         'center_swap' : [    0, -0.78, -0.80,  0.0, 0.0, 0.0],
         'sleep'       : [ 0.05, -1.76, -1.55, 0.05,-0.8, 0.05]
       }
+  
+  # order: [waist, shoulder, shoulder_shadow, elbow, elbow_shadow, forearm_roll, wrist_angle, wrist_rotate, gripper]
+
+    joints_goal_dict = {
+        'start'       : [0,0,0,0,0,0],
+
+        'far_1m'      : [0, -1.6057, -0.855211, 0, -0.750492, 0],
+        'mid_70cm'    : [0, -0.453786, -0.575959, 0, -0.139626, 0],
+        'close_50cm'  : [0, 0.122173, -0.122173, 0, -0.226893, 0],
+        'sleep'       : [ 0.05, -1.76, -1.55, 0.05,-0.8, 0.05]
+
+      }
 
     tutorial.go_to_next_joint_state(joints_goal_dict['start'])
     # joints_goal = [0.06580003696516191, 0.610865, 1.682566763564324, -0.11621634143272604, -1.5237012151902027, -0.014641551594950784]
