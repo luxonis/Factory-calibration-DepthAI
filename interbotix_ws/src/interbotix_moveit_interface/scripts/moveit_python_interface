@@ -797,10 +797,10 @@ def main():
         'far_1m_r'      : [-0.261799, -1.6057, -0.855211, 0, -0.750492, 0], # Rotate waist to right by -15 deg
         'far_1m_l'      : [0.261799, -1.6057, -0.855211, 0, -0.750492, 0], # Rotate waist to right by 15 deg
 
-        'far_1m_tr'      : [-0.261799, -1.6057, -0.855211, 0, -0.645772, 0], # Rotate waist to right by -15 deg, wrist angle to loop up 
-        'far_1m_tl'      : [ 0.261799, -1.6057, -0.855211, 0, -0.645772, 0], # Rotate waist to right by 15 deg, wrist angle to loop up 
-        'far_1m_br'      : [-0.261799, -1.6057, -0.855211, 0, -0.977384, 0], # Rotate waist to right by -15 deg, wrist angle to loop up 
-        'far_1m_bl'      : [ 0.261799, -1.6057, -0.855211, 0, -0.977384, 0], # Rotate waist to right by 15 deg, wrist angle to loop up 
+        'far_1m_tr'     : [-0.261799, -1.6057, -0.855211, 0, -0.645772, 0], # Rotate waist to right by -15 deg, wrist angle to loop up 
+        'far_1m_tl'     : [ 0.261799, -1.6057, -0.855211, 0, -0.645772, 0], # Rotate waist to right by 15 deg, wrist angle to loop up 
+        'far_1m_br'     : [-0.261799, -1.6057, -0.855211, 0, -0.977384, 0], # Rotate waist to right by -15 deg, wrist angle to loop up 
+        'far_1m_bl'     : [ 0.261799, -1.6057, -0.855211, 0, -0.977384, 0], # Rotate waist to right by 15 deg, wrist angle to loop up 
 
         'mid_70cm'      : [0,        -0.453786,  -0.575959, 0, 0.139626, 0],
         'mid_70cm_tr'   : [-0.314159, -0.506145, -0.575959, 0, 0.139626, 0], # wrist rotate right and shoulder looks up
@@ -851,8 +851,8 @@ def main():
     actions = []
 
     side_actions = ['start', 'left', 'top', 'bottom', 'right']
-    close_50cm_actions = ['close_50cm', 'close_50cm_tr', 'close_50cm_tl', 'close_50cm_br', 'close_50cm_bl']
-    mid_70cm_actions = ['mid_70cm', 'mid_70cm_tr', 'mid_70cm_tl', 'mid_70cm_br', 'mid_70cm_bl']
+    close_50cm_actions = ['close_50cm', 'close_50cm_tr', 'close_50cm_br', 'close_50cm_bl', 'close_50cm_tl']
+    mid_70cm_actions = ['mid_70cm', 'mid_70cm_tr', 'mid_70cm_br', 'mid_70cm_bl', 'mid_70cm_tl']
     far_1m_actions = ['far_1m', 'far_1m_tl', 'far_1m_t',  'far_1m_tr', 'far_1m_r', 'far_1m_br', 'far_1m_b', 'far_1m_bl', 'far_1m_l']
     
     actions.extend(side_actions)
