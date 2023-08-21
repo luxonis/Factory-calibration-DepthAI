@@ -850,15 +850,15 @@ def main():
     res = arm_control.add_box(box_name, [0, 0, -0.01],(0.6, 0.6, 0.02))
     actions = []
 
-    side_actions = ['start', 'left', 'top', 'bottom', 'right']
+    side_actions = ['left', 'top', 'bottom', 'right', 'start']
     close_50cm_actions = ['close_50cm', 'close_50cm_tr', 'close_50cm_br', 'close_50cm_bl', 'close_50cm_tl']
     mid_70cm_actions = ['mid_70cm', 'mid_70cm_tr', 'mid_70cm_br', 'mid_70cm_bl', 'mid_70cm_tl']
     far_1m_actions = ['far_1m', 'far_1m_tl', 'far_1m_t',  'far_1m_tr', 'far_1m_r', 'far_1m_br', 'far_1m_b', 'far_1m_bl', 'far_1m_l']
     
-    actions.extend(side_actions)
     actions.extend(close_50cm_actions)
     actions.extend(mid_70cm_actions)
     actions.extend(far_1m_actions)
+    actions.extend(side_actions)
 
     
     # actions = ['start', 'left_1', 'left_2', 'left_3', 'center_swap', 'top_1', 'top_3', 'bottom_1', 'bottom_2', 'bottom_3', 'right_1', 'right_2', 'right_3']
@@ -866,7 +866,8 @@ def main():
     
     device_status_srv = rospy.ServiceProxy('/device_status', Capture) 
     focus_setting_srv = rospy.ServiceProxy('/rgb_focus_adjuster', Capture) 
-
+        # arm_control.go_to_next_joint_state(joints_goal_dict[act])
+        # rospy.sleep(delay)
     # print("============ Press `Enter` to begin calibration ============")    
     
     # temp = raw_input()   
