@@ -3,7 +3,7 @@ import depthai as dai
 import cv2
 from datetime import timedelta
 import time
-import os
+
 
 stringToCam = {
     'RGB': dai.CameraBoardSocket.RGB,
@@ -28,7 +28,6 @@ camToMonoRes = {
     'OV9282': dai.MonoCameraProperties.SensorResolution.THE_800_P,
 }
 
-
 class SocketWorker:
     def __init__(self):
         self.port = 51014
@@ -48,65 +47,37 @@ class SocketWorker:
         self.conn = conn
         print(f'Connected by {addr}')
 
-    def send(self, msg):
-        try:
-            data_string = pickle.dumps(msg)
-            size = len(data_string)
-            print(f'size={size}')
-            self.conn.send(pickle.dumps(size))
-            time.sleep(self.FPS)
-            self.join()
-            self.conn.sendall(data_string)
-            print(f'send_msg={msg}')
-            self.join()
-        except Exception as e:
-            print(e)
-            self.conn.shutdown(1)
-            self.conn.close()
-            self.connection()
-            self.send(msg)
-
     def recv(self):
         try:
-            data = []
-            size = 0
-            packet = self.conn.recv(self.buffer)
-            expected_size = pickle.loads(packet)
-            print(f'expected_size={expected_size}')
-            time.sleep(self.FPS/2)
-            self.ack()
-            while size < expected_size:
-                packet = self.conn.recv(self.buffer)
-                if expected_size < self.buffer:
-                    print(f'pickle.loads(packet)={pickle.loads(packet)}')
-                size += len(packet)
-                data.append(packet)
-            msg = pickle.loads(b"".join(data))
-            print(f'msg={msg}')
-            time.sleep(self.FPS/2)
-            self.ack()
-            return msg
+            # Receive the size of the data
+            data_size = self.conn.recv(4)
+            if not data_size:
+                return None
+            data_size = int.from_bytes(data_size, 'big')
+
+            # Receive the actual data
+            data = b''
+            while len(data) < data_size:
+                packet = self.conn.recv(data_size - len(data))
+                if not packet:
+                    return None
+                data += packet
+            return pickle.loads(data)
         except Exception as e:
-            print(e)
-            self.conn.shutdown(1)
-            self.conn.close()
-            time.sleep(1)
-            self.connection()
-            self.recv()
+            print(f"An error occurred while receiving data: {e}")
+            return None
 
-    def join(self):
-        msg = pickle.loads(self.conn.recv(self.buffer))
-        if not (msg == 'ACK'):
-            raise RuntimeError(f'ACK error msg={msg}')
-
-    def ack(self):
-        msg = pickle.dumps('ACK')
-        self.conn.send(msg)
+    def send(self, data):
+        try:
+            data_bytes = pickle.dumps(data)
+            self.conn.send(len(data_bytes).to_bytes(4, 'big'))
+            self.conn.send(data_bytes)
+        except Exception as e:
+            print(f"An error occurred while sending data: {e}")
 
     def __del__(self):
         if hasattr(self, 'conn'):
             self.conn.close()
-
 
 def create_pipeline(board_config):
     pipeline = dai.Pipeline()
@@ -278,16 +249,19 @@ class DepthaiCamera:
 
     def capture_servive_handler(self):
         for key in self.camera_queue.keys():
-            self.socket_worker.send(key)
-            frame = self.camera_queue[key].getAll()[-1]
-            print(f'key = {key} frame = {frame}')
-            if frame.getType() == dai.RawImgFrame.Type.RAW8:
-                gray_frame = frame.getCvFrame()
-            else:
-                gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
-            self.socket_worker.send(gray_frame)
-        self.socket_worker.send('next')
 
+            self.socket_worker.send(key)
+            time_start=time.time()
+            while time.time()-time_start < 20:
+                frame = self.camera_queue[key].tryGetAll()[-1]
+                if frame is not None:
+                    if frame.getType() == dai.RawImgFrame.Type.RAW8:
+                        gray_frame = frame.getCvFrame()
+                    else:
+                        gray_frame = cv2.cvtColor(frame.getCvFrame(), cv2.COLOR_BGR2GRAY)
+                    self.socket_worker.send(gray_frame)
+                    break
+        self.socket_worker.send('next')
         # TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
 
         if self.socket_worker.recv() == 'close':
@@ -413,7 +387,6 @@ class DepthaiCamera:
                             self.control_queue[cam_info['name']].send(ctrl)
                             time.sleep(0.1)
                 focusCount[cam_info['name']] += 1
-
             if focusFailed:
                 break
 
@@ -462,6 +435,7 @@ class DepthaiCamera:
 
 
 def main():
+    #setup_logging()
     this_camera = None
     try:
         socket_worker = SocketWorker()
@@ -473,7 +447,7 @@ def main():
             while True:
                 message = socket_worker.recv()
                 if message == 'start_camera':
-                    print(f'{message=}')
+                    #print(f'{message=}')
                     # socket_worker.ack()
                     this_camera = DepthaiCamera(socket_worker.recv(), socket_worker)
                 elif message == 'capture_service' and this_camera is not None:
@@ -486,7 +460,7 @@ def main():
                     print(f'{message=}')
                     # send_message(cs, 'ACK')
                 elif message == 'stop_calibration':
-                    print(f'{message=}')
+                    #print(f'{message=}')
                     # send_message(cs, 'ACK')
                     break
         finally:

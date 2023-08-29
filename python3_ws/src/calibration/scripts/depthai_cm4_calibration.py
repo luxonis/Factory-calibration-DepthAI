@@ -22,6 +22,7 @@ from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 import ssh_wait
 
+
 import depthai as dai
 import consts.resource_paths
 from depthai_calibration.calibration_utils import *
@@ -55,7 +56,6 @@ stringToCam = {
     'CAM_C': dai.CameraBoardSocket.RIGHT,
 }
 
-
 class SocketWorker:
     def __init__(self):
         self.PORT = 51014
@@ -84,12 +84,12 @@ class SocketWorker:
         # set pre-set env
         # TODO: Temp, remove after GPIO fix
         os.system(f'sshpass -p raspberry ssh pi@{HOST} killall python')
-        os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/enable_cm4_oak.py ~/Factory-calibration-DepthAI/rc.local ~/Factory-calibration-DepthAI/calib_env/ ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi/')
-        os.system(f'sshpass -p raspberry ssh pi@luxonis.local "echo raspberry | sudo -S mv /home/pi/rc.local /etc/;python3 /home/pi/enable_cm4_oak.py"')
+        os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/enable_cm4_oak.py ~/Factory-calibration-DepthAI/rc.local ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi/')
+        os.system(f'sshpass -p raspberry ssh pi@luxonis.local "echo raspberry | sudo -S mv /home/pi/rc.local | /etc/python3 /home/pi/enable_cm4_oak.py"')
         os.system(f"\
             sshpass -p raspberry ssh pi@{HOST} '\
             unset HISTFILE; \
-            source calib_env/bin/activate; \
+            export DEPTHAI_ALLOW_FACTORY_FLASHING=868632271;\
             nohup python server.py > /home/pi/server_out 2>&1 &'")
 
         
@@ -99,68 +99,40 @@ class SocketWorker:
         self.conn = s
         self.PORT += 1
 
-    def send(self, msg):
-        try:
-            data_string = pickle.dumps(msg)
-            size = len(data_string)
-            print(f'size={size}')
-            self.conn.send(pickle.dumps(size))
-            time.sleep(self.FPS)
-            self.join()
-            self.conn.sendall(data_string)
-            print(f'send_msg={msg}')
-            self.join()
-        except Exception as e:
-            print(e)
-            self.conn.shutdown(1)
-            self.conn.close()
-            self.connection()
-            self.send(msg)
-
     def recv(self):
         try:
-            data = []
-            size = 0
-            packet = self.conn.recv(self.buffer)
-            expected_size = pickle.loads(packet)
-            print(f'expected_size={expected_size}')
-            time.sleep(self.FPS/2)
-            self.ack()
-            while size < expected_size:
-                packet = self.conn.recv(self.buffer)
-                if expected_size < self.buffer:
-                    print(f'pickle.loads(packet)={pickle.loads(packet)}')
-                size += len(packet)
-                data.append(packet)
-            msg = pickle.loads(b"".join(data))
-            print(f'msg={msg}')
-            time.sleep(self.FPS/2)
-            self.ack()
-            return msg
+            # Receive the size of the data
+            data_size = self.conn.recv(4)
+            if not data_size:
+                return None
+            data_size = int.from_bytes(data_size, 'big')
+
+            # Receive the actual data
+            data = b''
+            while len(data) < data_size:
+                packet = self.conn.recv(data_size - len(data))
+                if not packet:
+                    return None
+                data += packet
+            return pickle.loads(data)
         except Exception as e:
-            print(e)
-            self.conn.shutdown(1)
-            self.conn.close()
-            time.sleep(1)
-            self.connection()
-            self.recv()
+            print(f"An error occurred while receiving data: {e}")
+            return None
 
-    def join(self):
-        msg = pickle.loads(self.conn.recv(4096))
-        if not (msg == 'ACK'):
-            raise RuntimeError(f'client join error msg={msg}')
-        print('join=ACK')
-
-    def ack(self):
-        self.conn.send(pickle.dumps('ACK'))
-
+    def send(self, data):
+        try:
+            data_bytes = pickle.dumps(data)
+            self.conn.send(len(data_bytes).to_bytes(4, 'big'))
+            self.conn.send(data_bytes)
+        except Exception as e:
+            print(f"An error occurred while sending data: {e}")
+   
     def __del__(self):
         if hasattr(self, 'conn'):
             self.conn.close()
         HOST = 'luxonis.local'
         # HOST = "192.168.1.5"
         os.system(f"sshpass -p raspberry ssh pi@{HOST} 'killall -9 server.py; rm -rf calib_env server.py; history -c'")
-
 
 class depthai_calibration_node:
     def __init__(self, depthai_args):
@@ -809,7 +781,6 @@ class depthai_calibration_node:
 
     def calibration_servive_handler(self, req):
         global eepromDataJson
-        print('Calibrate service')
         self.socket_worker.send('calibration_service')
         self.is_service_active = True
         print("calibration Service Started")
@@ -973,7 +944,7 @@ no_button = pygame.Rect(490, 500, 80, 45)
 
 
 if __name__ == "__main__":
-
+    #setup_logging()
     rospy.init_node('depthai_calibration', anonymous=True)
     arg = {}
     arg["swapLR"] = rospy.get_param('~swap_lr')
