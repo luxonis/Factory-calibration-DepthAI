@@ -5,8 +5,6 @@
   <arg name="squares_x"                    default="22"/>
   <arg name="squares_y"                    default="16"/>
   <arg name="usbMode"                      default="false"/>
-  <arg name="traceLevel"                   default="0"/>
-  <arg name="outputScaleFactor"            default="1"/>
   <arg name="calib_path"                   default="/Desktop/calib_files"/>
   <arg name="log_path"                     default="/Desktop/logs"/>
   <arg name="capture_service_name"         default="capture_checkerboard"/>
@@ -25,8 +23,6 @@
     <param name="marker_size_cm"           value="$(arg marker_size_cm)"/>
     <param name="squares_x"                value="$(arg squares_x)"/>
     <param name="squares_y"                value="$(arg squares_y)"/>
-    <param name="traceLevel"               value="$(arg traceLevel)"/>
-    <param name="outputScaleFactor"        value="$(arg outputScaleFactor)"/>
     <param name="usbMode"                  value="$(arg usbMode)"/>
     <param name="calib_path"               value="$(arg calib_path)"/>
     <param name="log_path"                 value="$(arg log_path)"/>
