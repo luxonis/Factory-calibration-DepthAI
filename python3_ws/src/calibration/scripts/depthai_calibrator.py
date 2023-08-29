@@ -50,8 +50,7 @@ from pygame.locals import *
 
 from depthai_helpers import production_support_server_api
 
-traceLevel = 0
-outputScaleFactor = 1.0
+
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'
 
 on_embedded = platform.machine().startswith(
@@ -116,6 +115,7 @@ camToRgbRes = {
                 'OV9282' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
                 'OV9782' : dai.ColorCameraProperties.SensorResolution.THE_800_P,
                 'IMX582' : dai.ColorCameraProperties.SensorResolution.THE_12_MP,
+                'AR0234' : dai.ColorCameraProperties.SensorResolution.THE_1200_P,
                 'LCM48' : dai.ColorCameraProperties.SensorResolution.THE_12_MP
                 }
 
@@ -130,6 +130,8 @@ class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
+        self.traceLevel = self.args["traceLevel"]
+        self.outputScaleFactor = self.args["outputScaleFactor"]
         self.args['board'] = Path(DEVICE_VARIANT.get("board_config_file")).stem
         self.bridge = CvBridge()
         self.is_service_active = False
@@ -155,88 +157,31 @@ class depthai_calibration_node:
         self.board_config = DEVICE_VARIANT.get("board_config")
         self.board_config_backup = self.board_config
 
-        if 'POE' in self.board_config['name'].upper():
-            print('PoE is set')
-            self.args['usbMode'] = False
+        # if 'POE' in self.board_config['name'].upper():
+        #     print('PoE is set')
+        #     self.args['usbMode'] = False
 
         self.aruco_dictionary = cv2.aruco.Dictionary_get(
             cv2.aruco.DICT_4X4_1000)
         
         self.ccm_selector()
 
-        # Connection checks ----------->
-        title = "Device Status"
-        pygame_render_text(self.screen, title, (350, 20), orange, 50)
-        self.auto_checkbox_names = []
-        self.auto_focus_checkbox_names = []
-
-        if self.args['usbMode']:
-            self.auto_checkbox_names.append("USB3")
-        self.csv_log_header = ['time', 'Mx_serial_id']
-        for cam_id in self.board_config['cameras'].keys():
-            cam_info = self.board_config['cameras'][cam_id]
-            self.csv_log_header.append(cam_info['name'] + '-CCM')
-            # header.append(cam_info['name'] + '-camera')
-            self.csv_log_header.append(cam_info['name'] + '-focus-stdDev')
-            self.csv_log_header.append(cam_info['name'] + '-Reprojection-Error')
-            self.auto_checkbox_names.append(cam_info['name']  + '-Camera-connected')
-            self.auto_checkbox_names.append(cam_info['name']  + '-Stream')
-            self.auto_focus_checkbox_names.append(cam_info['name']  + '-Focus')
-            if 'extrinsics' in cam_info:
-                if 'to_cam' in cam_info['extrinsics']:
-                    right_cam = self.board_config['cameras'][cam_info['extrinsics']['to_cam']]['name']    
-                    self.csv_log_header.append('Epipolar-error-' + cam_info['name'] + '-' + right_cam)
-        
         self.args['cameraModel'] = 'perspective'
         if "camera_model" in self.board_config['cameras']:
             print("~~~ Camera model is ~~~ {}".format(self.board_config['camera_model']))
             if self.board_config['camera_model'] == 'fisheye':
                 self.args['cameraModel'] = 'fisheye'
 
-        # ['Mono-CCM', 'RGB-CCM',
-        #           'left_camera', 'right_camera', 'rgb_camera', 
-        #           'left_focus_stdDev', 'right_focus_stdDev', 'rgb_focus_stdDev',
-        #           'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
-        
-        log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
-        if not os.path.exists(log_file):
-            with open(log_file, mode='w') as log_fopen:
-                log_csv_writer = csv.writer(log_fopen, delimiter=',')
-                log_csv_writer.writerow(self.csv_log_header)
+        # Connection checks ----------->
+        title = "Device Status"
+        pygame_render_text(self.screen, title, (350, 20), orange, 50)
 
-        y = 110
-        x = 200
-        self.start_disp = False
-        font = pygame.font.Font(None, 20)
+        self.auto_checkbox_names = []
+        self.auto_focus_checkbox_names = []
         self.auto_checkbox_dict = {}
-
-        for i in range(len(self.auto_checkbox_names)):
-            w, h = font.size(self.auto_checkbox_names[i])
-            x_axis = x - w
-            y_axis = y + (40*i)
-            font_surf = font.render(self.auto_checkbox_names[i], True, green)
-            self.screen.blit(font_surf, (x_axis, y_axis))
-            self.auto_checkbox_dict[self.auto_checkbox_names[i]] = Checkbox(self.screen, x + 10, y_axis-5, outline_color=green,
-                                                                            check_color=green, check=False)
-        # text = 'call rosservice of device_status_handler to update the device status'
-        for i in range(len(self.auto_checkbox_names)):
-            self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
-
-        y = y + (40*len(self.auto_checkbox_names))
         self.auto_focus_checkbox_dict = {}
+        self.isUIReady = False
         
-        for i in range(len(self.auto_focus_checkbox_names)):
-            w, h = font.size(self.auto_focus_checkbox_names[i])
-            x_axis = x - w
-            y_axis = y + (40*i)
-            font_surf = font.render(self.auto_focus_checkbox_names[i], True, green)
-            self.screen.blit(font_surf, (x_axis, y_axis))
-            self.auto_focus_checkbox_dict[self.auto_focus_checkbox_names[i]] = Checkbox(self.screen, x + 10, y_axis-5, outline_color=green,
-                                                                            check_color=green, check=False)
-
-        for i in range(len(self.auto_focus_checkbox_names)):
-            self.auto_focus_checkbox_dict[self.auto_focus_checkbox_names[i]].render_checkbox()
-
         pygame.draw.rect(self.screen, red, no_button)
         pygame_render_text(self.screen, 'Exit', (500, 505))
         self.no_active = False
@@ -557,6 +502,71 @@ class depthai_calibration_node:
         self.device.close()
         del self.device
         self.device = None
+    
+    def setup_ui(self):
+        
+        if self.args['usbMode']:
+            self.auto_checkbox_names.append("USB3")
+        self.csv_log_header = ['time', 'Mx_serial_id']
+        for cam_id in self.board_config['cameras'].keys():
+            cam_info = self.board_config['cameras'][cam_id]
+            self.csv_log_header.append(cam_info['name'] + '-CCM')
+            # header.append(cam_info['name'] + '-camera')
+            self.csv_log_header.append(cam_info['name'] + '-focus-stdDev')
+            self.csv_log_header.append(cam_info['name'] + '-Reprojection-Error')
+            self.auto_checkbox_names.append(cam_info['name']  + '-Camera-connected')
+            self.auto_checkbox_names.append(cam_info['name']  + '-Stream')
+            self.auto_focus_checkbox_names.append(cam_info['name']  + '-Focus')
+            if 'extrinsics' in cam_info:
+                if 'to_cam' in cam_info['extrinsics']:
+                    right_cam = self.board_config['cameras'][cam_info['extrinsics']['to_cam']]['name']    
+                    self.csv_log_header.append('Epipolar-error-' + cam_info['name'] + '-' + right_cam)
+        
+
+
+        # ['Mono-CCM', 'RGB-CCM',
+        #           'left_camera', 'right_camera', 'rgb_camera', 
+        #           'left_focus_stdDev', 'right_focus_stdDev', 'rgb_focus_stdDev',
+        #           'Epipolar error L-R', 'Epipolar error R-Rgb', 'RGB Reprojection Error']
+        
+        log_file = self.args['log_path'] + "/calibration_logs_" + self.args['board'] + ".csv"
+        if not os.path.exists(log_file):
+            with open(log_file, mode='w') as log_fopen:
+                log_csv_writer = csv.writer(log_fopen, delimiter=',')
+                log_csv_writer.writerow(self.csv_log_header)
+
+        y = 110
+        x = 200
+        self.start_disp = False
+        font = pygame.font.Font(None, 20)
+
+        for i in range(len(self.auto_checkbox_names)):
+            w, h = font.size(self.auto_checkbox_names[i])
+            x_axis = x - w
+            y_axis = y + (40*i)
+            font_surf = font.render(self.auto_checkbox_names[i], True, green)
+            self.screen.blit(font_surf, (x_axis, y_axis))
+            self.auto_checkbox_dict[self.auto_checkbox_names[i]] = Checkbox(self.screen, x + 10, y_axis-5, outline_color=green,
+                                                                            check_color=green, check=False)
+        # text = 'call rosservice of device_status_handler to update the device status'
+        for i in range(len(self.auto_checkbox_names)):
+            self.auto_checkbox_dict[self.auto_checkbox_names[i]].render_checkbox()
+
+        y = y + (40*len(self.auto_checkbox_names))
+
+        
+        for i in range(len(self.auto_focus_checkbox_names)):
+            w, h = font.size(self.auto_focus_checkbox_names[i])
+            x_axis = x - w
+            y_axis = y + (40*i)
+            font_surf = font.render(self.auto_focus_checkbox_names[i], True, green)
+            self.screen.blit(font_surf, (x_axis, y_axis))
+            self.auto_focus_checkbox_dict[self.auto_focus_checkbox_names[i]] = Checkbox(self.screen, x + 10, y_axis-5, outline_color=green,
+                                                                            check_color=green, check=False)
+
+        for i in range(len(self.auto_focus_checkbox_names)):
+            self.auto_focus_checkbox_dict[self.auto_focus_checkbox_names[i]].render_checkbox()
+
 
     def device_status_handler(self, req):
         self.is_service_active = True
@@ -597,6 +607,15 @@ class depthai_calibration_node:
                 searchTime = timedelta(seconds=80)
                 isFound, deviceInfo = dai.Device.getAnyAvailableDevice(searchTime)
                 if isFound:
+
+                    if not self.isUIReady:
+                        self.args['usbMode'] = True
+                        if deviceInfo.protocol == dai.XLinkProtocol.X_LINK_TCP_IP:
+                            self.args['usbMode'] = False
+
+                        self.isUIReady = True
+                        self.setup_ui()
+
                     self.device = dai.Device() 
                     self.device_mxid = self.device.getMxId()
                     self.device_name = self.device.getDeviceName()
@@ -975,7 +994,7 @@ class depthai_calibration_node:
             calib_dest_path = os.path.join(
                 self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
             # print(self.package_path)
-            stereo_calib = StereoCalibration(traceLevel, outputScaleFactor)
+            stereo_calib = StereoCalibration(self.traceLevel, self.outputScaleFactor)
             status, result_config = stereo_calib.calibrate( # status: 1|-1, result: dict
                 self.board_config, self.package_path + "/dataset", 
                 self.args['square_size_cm'], self.args['marker_size_cm'], 
@@ -1168,6 +1187,8 @@ if __name__ == "__main__":
     arg["calibration_service_name"] = rospy.get_param(
         '~calibration_service_name')  # Add capture_checkerboard to launch file
     arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
+    arg["traceLevel"] =  rospy.get_param("~traceLevel")
+    arg["outputScaleFactor"] =  rospy.get_param("~outputScaleFactor")
 
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])
