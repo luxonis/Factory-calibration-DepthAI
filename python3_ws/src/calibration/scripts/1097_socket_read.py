@@ -62,6 +62,8 @@ class socket_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
+        self.traceLevel = self.args["traceLevel"]
+        self.outputScaleFactor = self.args["outputScaleFactor"]
         self.bridge = CvBridge()
         self.is_service_active = False
         self.focus_value = 130
@@ -411,7 +413,7 @@ class socket_calibration_node:
             arg['calib_path'], arg["board"] + '_' + mx_serial_id + '.calib')
 
         flags = [True]
-        stereo_calib = StereoCalibration()
+        stereo_calib = StereoCalibration(self.traceLevel, self.outputScaleFactor)
         avg_epipolar_error_l_r, avg_epipolar_error_rgb_r, calib_data = stereo_calib.calibrate(
             self.package_path + "/dataset",
             self.args['square_size_cm'],
@@ -509,6 +511,8 @@ if __name__ == "__main__":
     arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
     arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
     arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
+    arg["traceLevel"] =  rospy.get_param("~traceLevel")
+    arg["outputScaleFactor"] =  rospy.get_param("~outputScaleFactor")
 
     # Adding service names to arg
     arg["capture_service_name"] = rospy.get_param(

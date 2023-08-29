@@ -130,6 +130,8 @@ class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
+        self.traceLevel = self.args["traceLevel"]
+        self.outputScaleFactor = self.args["outputScaleFactor"]
         self.args['board'] = Path(DEVICE_VARIANT.get("board_config_file")).stem
         self.bridge = CvBridge()
         self.is_service_active = False
@@ -992,7 +994,7 @@ class depthai_calibration_node:
             calib_dest_path = os.path.join(
                 self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
             # print(self.package_path)
-            stereo_calib = StereoCalibration()
+            stereo_calib = StereoCalibration(self.traceLevel, self.outputScaleFactor)
             status, result_config = stereo_calib.calibrate( # status: 1|-1, result: dict
                 self.board_config, self.package_path + "/dataset", 
                 self.args['square_size_cm'], self.args['marker_size_cm'], 
@@ -1185,6 +1187,8 @@ if __name__ == "__main__":
     arg["calibration_service_name"] = rospy.get_param(
         '~calibration_service_name')  # Add capture_checkerboard to launch file
     arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
+    arg["traceLevel"] =  rospy.get_param("~traceLevel")
+    arg["outputScaleFactor"] =  rospy.get_param("~outputScaleFactor")
 
     if not os.path.exists(arg['calib_path']):
         os.makedirs(arg['calib_path'])

@@ -166,6 +166,8 @@ class depthai_calibration_node:
     def __init__(self, depthai_args):
         self.package_path = depthai_args['package_path']
         self.args = depthai_args
+        self.traceLevel = self.args["traceLevel"]
+        self.outputScaleFactor = self.args["outputScaleFactor"]
         self.bridge = CvBridge()
         self.is_service_active = False
 
@@ -821,7 +823,7 @@ class depthai_calibration_node:
         calib_dest_path = os.path.join(
             self.args['calib_path'], self.args["board"] + '_' + mx_serial_id + '.json')
         # print(self.package_path)
-        stereo_calib = StereoCalibration()
+        stereo_calib = StereoCalibration(self.traceLevel, self.outputScaleFactor)
         status, result_config = stereo_calib.calibrate(
             self.board_config,
             self.package_path + "/dataset",
@@ -993,6 +995,8 @@ if __name__ == "__main__":
     arg["calib_path"] = str(Path.home()) + rospy.get_param('~calib_path')
     arg["log_path"] = str(Path.home()) + rospy.get_param("~log_path")
     arg["ds_backup_path"] = str(Path.home()) + '/Desktop/ds_backup'
+    arg["traceLevel"] =  rospy.get_param("~traceLevel")
+    arg["outputScaleFactor"] =  rospy.get_param("~outputScaleFactor")
 
     # Adding service names to arg
     arg["capture_service_name"] = rospy.get_param(
