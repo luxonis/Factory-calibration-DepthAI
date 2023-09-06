@@ -328,6 +328,31 @@ class depthai_calibration_node:
 
                 xout.setStreamName(cam_info['name'])
                 cam_node.out.link(xout.input)
+
+            elif cam_info['type'] == 'tof':
+                cam_node = pipeline.createColorCamera()
+                tof_node = pipeline.create(dai.node.ToF)
+                xout = pipeline.createXLinkOut()
+
+                print("Camera type ToF")
+                cam_node.setBoardSocket(stringToCam[cam_id])
+                cam_node.setResolution(camToRgbRes[cam_info['sensorName']])
+                cam_node.setFps(fps)
+
+                # Configure ToF node output FPS:
+                # - `ALL` for full FPS, both modulation frequencies, may flicker a little
+                # - `MIN` for half the FPS
+                tof_config = tof_node.initialConfig.get()
+                tof_config.depthParams.freqModUsed = dai.RawToFConfig.DepthParams.TypeFMod.MIN
+                tof_node.initialConfig.set(tof_config)
+
+                xout.setStreamName(cam_info['name'])
+                # xout.input.setBlocking(False)
+                # xout.input.setQueueSize(4)
+
+                cam_node.raw.link(tof_node.input)
+                tof_node.amplitude.link(xout.input)
+            
             else:
                 cam_node = pipeline.createColorCamera()
                 xout = pipeline.createXLinkOut()
