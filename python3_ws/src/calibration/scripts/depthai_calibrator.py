@@ -142,7 +142,7 @@ class depthai_calibration_node:
 
         # self.focus_value = 0
         # self.defaultLensPosition = 135
-        self.focusSigmaThreshold = 20
+        self.focusSigmaThreshold = 15
         # if self.rgbCcm == 'Sunny':
         #     self.focus_value = 135
         # elif self.rgbCcm == 'KingTop':
@@ -994,10 +994,17 @@ class depthai_calibration_node:
             
             is_board_found = self.is_markers_found(gray_frame)
             if is_board_found:
-                self.parse_frame(gray_frame, key, req.name)
+                if key == "tof":
+                    if req.name in ["start", "top", "left", "right"]:
+                        self.parse_frame(gray_frame, key + '_not', req.name)
+                    else:
+                        self.parse_frame(gray_frame, key, req.name)
+                else:
+                    self.parse_frame(gray_frame, key, req.name)
             else:
                 self.parse_frame(gray_frame, key + '_not', req.name)
-                detection_failed = True
+                if key != "tof":
+                    detection_failed = True
         #TODO(sachin): Do I need to cross check lens position of autofocus camera's ?
 
         if detection_failed:
