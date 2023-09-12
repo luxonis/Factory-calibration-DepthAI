@@ -949,7 +949,7 @@ class depthai_calibration_node:
         print("Capture image Service Started")
         self.is_service_active = True
         wait_time = 1
-        if "POE" in self.board_config['name']: 
+        if not self.args['usbMode']: 
             wait_time = 2
         rospy.sleep(wait_time)
 
