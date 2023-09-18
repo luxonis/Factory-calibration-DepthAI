@@ -487,7 +487,7 @@ class depthai_calibration_node:
 
     def backup_ds(self, stream_name, file_name, frame):
         now_tim = datetime.now()
-        local_ds = self.args['ds_backup_path'] + '/' + now_tim.strftime("%m_%d_%Y_%H") + '/{}'.format(stream_name)
+        local_ds = self.args['ds_backup_path'] + '/device_datasets/' + self.device_mxid + '/' + now_tim.strftime("%m_%d_%Y_%H") + '/{}'.format(stream_name)
         if not os.path.exists(local_ds):
             os.makedirs(local_ds)
         cv2.imwrite(local_ds + "/{}".format(file_name), frame)
