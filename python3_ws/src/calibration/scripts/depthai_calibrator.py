@@ -1011,6 +1011,16 @@ class depthai_calibration_node:
 
             if status == -1: # Calibration failed
                 raise CalibrationException("Calibration failed", return_value=result_config)
+            
+            now_time = datetime.now()
+            local_ds = self.args['ds_backup_path'] + '/device_datasets/' + self.device_mxid + '/' + now_time.strftime("%m_%d_%Y_%H")
+
+            target_file = open(local_ds + '/target_info.txt', 'w')            
+            target_file.write('Marker Size: {} cm\n'.format(self.args['marker_size_cm']))
+            target_file.write('Square Size:  {} cm\n'.format(self.args['square_size_cm']))
+            target_file.write('Number of squaresX: {}\n'.format(self.args['squares_x']))
+            target_file.write('Number of squaresY: {}\n'.format(self.args['squares_y']))
+            target_file.close()
 
             vis_x = 400
             vis_y = 180
