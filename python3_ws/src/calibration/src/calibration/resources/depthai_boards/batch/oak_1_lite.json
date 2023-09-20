@@ -1,0 +1,51 @@
+{
+    "title": "OAK-1-LITE",
+    "description": "OAK-1-LITE",
+    "image": "images/oak_1_lite.jpg",
+    "test_type": "OAK-1-LITE",
+    "options": {"bootloader": "none", "imu": false},
+    "variants": [
+        {
+            "title":"OAK-1 Lite C05 (NG9093 R2M0E3)",
+            "description": "OAK-1 Lite C05 based on NG9093 R2M0E3 board",
+            "eeprom":"eeprom/NG9093_R2M0E3_oak_1_lite_c05.json",
+            "board_config_file": "OAK-1-LITE-C05.json"
+        },
+        {
+            "title":"OAK-1 Lite AF C21 (NG9093 R3M0E4)",
+            "description": "OAK-1 Lite C21 based on NG9093 R3M0E4 board, without enclosure",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_lite_af_c21.json",
+            "board_config_file": "OAK-1-LITE.json"
+        },
+        {
+            "title":"OAK-1 Lite W (NG9093 R2M0E3)",
+            "description": "OAK-1 Lite Wide Lens based on NG9093 R2M0E3 board",
+            "eeprom":"eeprom/NG9093_R2M0E3_oak_1_lite_w.json",
+            "board_config_file": "OAK-1-LITE-W.json"
+        },
+        {
+            "title":"OAK-1 Lite FF (NG9093 R2M0E3)",
+            "description": "OAK-1 Lite Fixed Focus based on NG9093 R2M0E3 board",
+            "eeprom":"eeprom/NG9093_R2M0E3_oak_1_lite_ff.json",
+            "board_config_file": "OAK-1-LITE.json"
+        },
+        {
+            "title":"OAK-1 Lite C05 (NG9093 R3M0E4)",
+            "description": "OAK-1 Lite C05 based on NG9093 R3M0E4 board",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_lite_c05.json",
+            "board_config_file": "OAK-1-LITE-C05.json"
+        },
+        {
+            "title":"OAK-1 Lite W (NG9093 R3M0E4)",
+            "description": "OAK-1 Lite Wide Lens based on NG9093 R3M0E4 board",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_lite_w.json",
+            "board_config_file": "OAK-1-LITE-W.json"
+        },
+        {
+            "title":"OAK-1 Lite FF (NG9093 R3M0E4)",
+            "description": "OAK-1 Lite Fixed Focus based on NG9093 R3M0E4 board",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_lite_ff.json",
+            "board_config_file": "OAK-1-LITE.json"
+        }
+    ]
+}

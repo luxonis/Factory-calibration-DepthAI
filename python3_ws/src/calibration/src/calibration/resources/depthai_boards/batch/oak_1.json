@@ -1,0 +1,87 @@
+{
+    "title": "OAK-1",
+    "description": "OAK-1",
+    "image": "images/oak_1.jpg",
+    "test_type": "OAK-1",
+    "options": {"bootloader": "none", "imu": false},
+    "variants": [
+        {
+            "title":"OAK-1 AF (NG9093 R2M0E3)",
+            "description": "OAK-1 with Auto Focus",
+            "eeprom":"eeprom/NG9093_R2M0E3_oak_1_af.json",
+            "board_config_file": "OAK-1.json"
+        },
+        {
+            "title":"OAK-1 AF C20 (NG9093 R3M0E4)",
+            "description": "OAK-1 with Auto Focus, without enclosure",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_af_c20.json",
+            "board_config_file": "OAK-1.json"
+        },
+        {
+            "title":"OAK-1 FF 97 (NG9093 R3M0E4)",
+            "description": "OAK-1 with Fixed Focus 97, previously c09",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_ff_97.json",
+            "board_config_file": "OAK-1-97.json"
+        },
+        {
+            "title":"OAK-1 FF C09 (NG9093 R2M0E3)",
+            "description": "OAK-1 with Fixed Focus C09",
+            "eeprom":"eeprom/NG9093_R2M0E3_oak_1_ff_c09.json",
+            "board_config_file": "OAK-1-C09.json"
+        },
+        {
+            "title":"OAK-1 FF (NG9093 R2M0E3)",
+            "description": "OAK-1 with Fixed Focus",
+            "eeprom":"eeprom/NG9093_R2M0E3_oak_1_ff.json",
+            "board_config_file": "OAK-1.json"
+        },
+        {
+            "title":"OAK-1 Max (NG9093 R2M0E3)",
+            "description": "OAK-1 Max",
+            "eeprom":"eeprom/NG9093_R2M0E3_oak_1_max.json",
+            "board_config_file": "OAK-1-MAX.json"
+        },
+        {
+            "title":"OAK-1 W (NG9093 R2M0E3)",
+            "description": "OAK-1 Wide Lens",
+            "eeprom":"eeprom/NG9093_R2M0E3_oak_1_w.json",
+            "board_config_file": "OAK-1-W.json"
+        },
+        {
+            "title":"OAK-1 AF (NG9093 R3M0E4)",
+            "description": "OAK-1 with Auto Focus",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_af.json",
+            "board_config_file": "OAK-1.json"
+        },
+        {
+            "title":"OAK-1 FF C09 (NG9093 R3M0E4)",
+            "description": "OAK-1 with Fixed Focus C09",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_ff_c09.json",
+            "board_config_file": "OAK-1-C09.json"
+        },
+        {
+            "title":"OAK-1 FF (NG9093 R3M0E4)",
+            "description": "OAK-1 with Fixed Focus",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_ff.json",
+            "board_config_file": "OAK-1.json"
+        },
+        {
+            "title":"OAK-1 Max (NG9093 R3M0E4)",
+            "description": "OAK-1 Max",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_max.json",
+            "board_config_file": "OAK-1-MAX.json"
+        },
+        {
+            "title":"OAK-1 W (NG9093 R3M0E4)",
+            "description": "OAK-1 Wide Lens",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_w.json",
+            "board_config_file": "OAK-1-W.json"
+        },
+        {
+            "title":"OAK-1 W 97 (NG9093 R3M0E4)",
+            "description": "OAK-1 Wide Lens 97",
+            "eeprom":"eeprom/NG9093_R3M0E4_oak_1_w_97.json",
+            "board_config_file": "OAK-1-W-97.json"
+        }
+    ]
+}

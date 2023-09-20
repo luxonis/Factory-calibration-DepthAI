@@ -1,0 +1,15 @@
+{
+    "title": "OAK-D",
+    "description": "OAK-D",
+    "image": "images/oak_d.jpg",
+    "test_type": "OAK-D",
+    "options": {"bootloader": "none", "imu": true},
+    "variants": [
+        {
+            "title":"OAK-D (BW1098 R1M0E1)",
+            "description": "OAK-D based on BW1098 R1M0E1 board",
+            "eeprom":"eeprom/BW1098_R1M0E1_oak_d.json",
+            "board_config_file": "OAK-D.json"
+        }
+    ]
+}

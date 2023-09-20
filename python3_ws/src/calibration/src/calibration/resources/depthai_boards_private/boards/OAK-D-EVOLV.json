@@ -1,0 +1,56 @@
+{
+    "board_config":
+    {
+        "name": "OAK-D-EVOLV",
+        "revision": "R0M0E0",
+        "camera_model": "fisheye",
+        "cameras":{
+            "CAM_A": {
+                "name": "rgb",
+                "hfov": 180.0,
+                "type": "color"
+            },
+            "CAM_C": {
+                "name": "left",
+                "hfov": 139.2,
+                "type": "mono",
+                "extrinsics": {
+                    "to_cam": "CAM_B",
+                    "specTranslation": {
+                        "x": -6.25,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "rotation":{
+                        "r": 0,
+                        "p": 0,
+                        "y": 0
+                    }
+                }
+            },
+            "CAM_B": {
+                "name": "right",
+                "hfov": 139.2,
+                "type": "mono",
+                "extrinsics": {
+                    "to_cam": "CAM_A",
+                    "specTranslation": {
+                        "x": 3.125,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "rotation":{
+                        "r": 0,
+                        "p": 0,
+                        "y": 0
+                    }
+                }
+            }
+        },
+        "stereo_config":{
+            "left_cam": "CAM_C",
+            "right_cam": "CAM_B"
+        }
+    }
+}
+

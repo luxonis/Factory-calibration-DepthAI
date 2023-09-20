@@ -1,0 +1,40 @@
+{
+    "board_config":
+    {
+        "name": "TOF-FFC",
+        "revision": "R0M0E0",
+        "cameras":{
+            "CAM_A": {
+                "name": "left",
+                "hfov": 71.86,
+                "type": "color",
+                "extrinsics": {
+                    "to_cam": "CAM_B",
+                    "specTranslation": {
+                        "x": -4.71,
+                        "y": 0,
+                        "z": 0
+                    },
+                    "rotation":{
+                        "r": 0,
+                        "p": 0,
+                        "y": 0
+                    }
+
+                }
+
+            },
+            "CAM_B": {
+                "name": "right",
+                "hfov": 71.86,
+                "type": "tof"
+            }
+
+        },
+
+        "stereo_config":{
+            "left_cam": "CAM_A",
+            "right_cam": "CAM_B"
+        }
+    }
+}

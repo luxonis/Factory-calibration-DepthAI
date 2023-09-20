@@ -1,0 +1,16 @@
+{
+    "board_config":
+    {
+        "name": "RX-CAMERA",
+        "revision": "REV1",
+        "camera_model": "fisheye",
+        "cameras":{
+            "CAM_A": {
+                "name": "rgb",
+                "hfov": 180.0,
+                "type": "color"
+            }
+        }
+    }
+}
+

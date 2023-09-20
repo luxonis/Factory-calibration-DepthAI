@@ -3,11 +3,11 @@ import sys
 import os
 
 if os.environ.get('PRODUCTION_ENVIRONMENT') is not None:
-    from depthai_helpers.update_submodules import update_submodules
+    from calibration.depthai_helpers.update_submodules import update_submodules
     update_submodules()
 DEBUG = True
 
-from select_device_ui import select_device
+from calibration.select_device_ui import select_device
 SELECTED_DEVICE_EEPROM_DATA, DEVICE_VARIANT = select_device() # this has to run before cv2 is imported
 
 if DEBUG:
@@ -41,14 +41,14 @@ import struct
 from base64 import b64encode
 
 import depthai as dai
-import consts.resource_paths
-from depthai_calibration.calibration_utils import *
+# import consts.resource_paths
+from calibration.depthai_calibration.calibration_utils import *
 
-from depthai_helpers.pygame_checkbox import Checkbox, pygame_render_text
+from calibration.depthai_helpers.pygame_checkbox import Checkbox, pygame_render_text
 import pygame
 from pygame.locals import *
 
-from depthai_helpers import production_support_server_api
+from calibration.depthai_helpers import production_support_server_api
 
 
 os.environ['SDL_VIDEO_WINDOW_POS'] = '100,50'

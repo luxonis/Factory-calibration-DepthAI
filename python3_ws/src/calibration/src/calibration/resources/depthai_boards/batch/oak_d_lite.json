@@ -1,0 +1,46 @@
+{
+    "title": "OAK-D Lite",
+    "description": "OAK-D Lite",
+    "image": "images/oak_d_lite.jpg",
+    "test_type": "OAK-D-LITE",
+    "options": {"bootloader": "none", "imu": true},
+    "variants": [
+        {
+            "title":"OAK-D Lite AF (DM9095 R3M2E4)",
+            "description": "OAK-D Lite, based on DM9095 R3M2E4 board",
+            "eeprom":"eeprom/DM9095_R3M2E4_oak_d_lite_af.json",
+            "board_config_file": "OAK-D-LITE.json"
+        },
+        {
+            "title":"OAK-D Lite FF (DM9095 R3M2E4)",
+            "description": "OAK-D Lite, based on DM9095 R3M2E4 board",
+            "eeprom":"eeprom/DM9095_R3M2E4_oak_d_lite_ff.json",
+            "board_config_file": "OAK-D-LITE.json"
+        },
+        {
+            "title":"OAK-D Lite AF (DM9095 R2M1E4)",
+            "description": "OAK-D Lite Auto Focus, based on DM9095 R2M1E4 board",
+            "eeprom":"eeprom/DM9095_R2M1E4_oak_d_lite_af.json",
+            "board_config_file": "OAK-D-LITE.json",
+            "options": {
+                "imu": false
+            }
+        },
+        {
+            "title":"OAK-D Lite FF (DM9095 R2M1E4)",
+            "description": "OAK-D Lite Fixed Focus, based on DM9095 R2M1E4 board",
+            "eeprom":"eeprom/DM9095_R2M1E4_oak_d_lite_ff.json",
+            "board_config_file": "OAK-D-LITE.json",
+            "options": {
+                "imu": false
+            }
+        },
+        {
+            "title":"OAK-D Lite (early batch)",
+            "description": "early OAK-D Lite, with unknown board, DO NOT USE FOR NEW CAMERAS!",
+            "eeprom":"eeprom/DM9095_EARLY_oak_d_lite.json",
+            "board_config_file": "OAK-D-LITE.json",
+            "options": {"skip_eeprom_check": true}
+        }
+    ]
+}

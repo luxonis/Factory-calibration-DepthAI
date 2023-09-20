@@ -1,0 +1,21 @@
+{
+    "title": "OAK-D SR PoE",
+    "description": "OAK-D SR PoE",
+    "image": "images/oak_d_sr_poe.jpg",
+    "test_type": "OAK-D-SR-POE",
+    "options": {"bootloader": "poe", "imu": true},
+    "variants": [
+        {
+            "title":"OAK-D SR PoE (EL2086 R1M1E1)",
+            "description": "OAK-D SR PoE, based on EL2086 R1M1E1 board with ToF sensor",
+            "eeprom":"eeprom/EL2086_R1M1E1_oak_d_sr_poe.json",
+            "board_config_file": "OAK-D-SR-POE.json"
+        },
+        {
+            "title":"OAK-D SR PoE (EL2086 R0M0E0)",
+            "description": "OAK-D SR PoE, based on EL2086 R0M0E0 board with ToF sensor",
+            "eeprom":"eeprom/EL2086_R0M0E0_oak_d_sr_poe.json",
+            "board_config_file": "OAK-D-SR-POE.json"
+        }
+    ]
+}

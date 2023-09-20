@@ -1,0 +1,81 @@
+{
+    "title": "OAK-D PoE",
+    "description": "OAK-D PoE",
+    "image": "images/oak_d_poe.jpg",
+    "test_type": "OAK-D-POE",
+    "options": {"bootloader": "poe", "imu": true},
+    "variants": [
+        {
+            "title":"OAK-D PoE AF (DM2088 R1M1E3)",
+            "description": "OAK-D PoE with AutoFocus, based on DM2088 R1M1E3",
+            "eeprom":"eeprom/DM2088_R1M1E3_oak_d_poe_af.json",
+            "board_config_file": "OAK-D-POE.json"
+        },
+        {
+            "title":"OAK-D PoE AF (DM2088 R0M0E0)",
+            "description": "OAK-D PoE with AutoFocus, based on DM2088 R0M0E0",
+            "eeprom":"eeprom/DM2088_R0M0E0_oak_d_poe_af.json",
+            "board_config_file": "OAK-D-POE.json"
+        },
+        {
+            "title":"OAK-D PoE AF - 256Mbit NOR (DM2088 R0M0E0)",
+            "description": "OAK-D PoE with AutoFocus and 256Mbit NOR, based on DM2088 R0M0E0",
+            "eeprom":"eeprom/DM2088_R0M0E0_oak_d_poe_af_256mbit.json",
+            "board_config_file": "OAK-D-POE.json"
+        },
+        {
+            "title":"OAK-D W PoE (NG9097 R4M2E3 BMI270)",
+            "description": "OAK-D WideLens PoE, based on NG9097 R4M2E3 board with BMI270 IMU",
+            "eeprom":"eeprom/NG9097_R4M2E3_BMI270_oak_d_w_poe.json",
+            "board_config_file": "OAK-D-POE-W.json"
+        },
+        {
+            "title":"OAK-D W PoE (NG9097 R4M2E3 BNO086)",
+            "description": "OAK-D WideLens PoE, based on NG9097 R4M2E3 board with BNO086 IMU",
+            "eeprom":"eeprom/NG9097_R4M2E3_BNO086_oak_d_w_poe.json",
+            "board_config_file": "OAK-D-POE-W.json"
+        },
+        {
+            "title":"OAK-D W PoE (NG9097 R4M2E4 BMI270)",
+            "description": "OAK-D WideLens PoE, based on NG9097 R4M2E4 board with BMI270 IMU",
+            "eeprom":"eeprom/NG9097_R4M2E4_BMI270_oak_d_w_poe.json",
+            "board_config_file": "OAK-D-POE-W.json"
+        },
+        {
+            "title":"OAK-D W PoE (NG9097 R4M2E4 BNO086)",
+            "description": "OAK-D WideLens PoE, based on NG9097 R4M2E4 board with BNO086 IMU",
+            "eeprom":"eeprom/NG9097_R4M2E4_BNO086_oak_d_w_poe.json",
+            "board_config_file": "OAK-D-POE-W.json"
+        },
+        {
+            "title":"OAK-D W PoE C23 (NG9097 R4M2E4 BNO086)",
+            "description": "OAK-D WideLens PoE C23 (matte black enclosure), based on NG9097 R4M2E4 board with BNO086 IMU",
+            "eeprom":"eeprom/NG9097_R4M2E4_BNO086_oak_d_w_poe_c23.json",
+            "board_config_file": "OAK-D-POE-W.json"
+        },
+        {
+            "title":"OAK-D W PoE 97 (NG9097 R4M2E4 BMI270)",
+            "description": "OAK-D WideLens PoE 97, based on NG9097 R4M2E4 board with BMI270 IMU (previously C12)",
+            "eeprom":"eeprom/NG9097_R4M2E4_BMI270_oak_d_w_poe_97.json",
+            "board_config_file": "OAK-D-POE-W-97.json"
+        },
+        {
+            "title":"OAK-D W PoE 97 (NG9097 R4M2E4 BNO086)",
+            "description": "OAK-D WideLens PoE 97, based on NG9097 R4M2E4 board with BNO086 IMU (previously C12)",
+            "eeprom":"eeprom/NG9097_R4M2E4_BNO086_oak_d_w_poe_97.json",
+            "board_config_file": "OAK-D-POE-W-97.json"
+        },
+        {
+            "title":"OAK-D W PoE C12 (NG9097 R4M2E4 BMI270)",
+            "description": "OAK-D WideLens PoE C12, based on NG9097 R4M2E4 board with BMI270 IMU",
+            "eeprom":"eeprom/NG9097_R4M2E4_oak_d_w_poe_c12.json",
+            "board_config_file": "OAK-D-POE-W-C12.json"
+        },
+        {
+            "title":"OAK-D PoE C22 (DM2088 R1M1E3)",
+            "description": "OAK-D PoE C22, based on DM2088 R1M1E3 board, with ArduCam OV9782 PY074",
+            "eeprom":"eeprom/DM2088_R1M1E3_oak_d_poe_c22.json",
+            "board_config_file": "OAK-D-POE-C22.json"
+        }
+    ]
+}

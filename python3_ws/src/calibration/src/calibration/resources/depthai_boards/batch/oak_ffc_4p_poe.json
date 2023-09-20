@@ -1,0 +1,14 @@
+{
+    "title": "OAK FFC-4P PoE",
+    "description": "OAK FFC-4P PoE",
+    "image": "images/oak_d_ffc_4p_poe.jpg",
+    "test_type": "OAK-1-POE",
+    "options": {"bootloader": "poe", "imu": true},
+    "variants": [
+        {
+            "title":"OAK-FFC 4P PoE (NG2093 R1M0E1)",
+            "description": "OAK-FFC 4P PoE based on NG2093 R1M0E1 board",
+            "eeprom":"eeprom/NG2093_R1M0E1_oak_ffc_4p_poe.json"
+        }
+    ]
+}

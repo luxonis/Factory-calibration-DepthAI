@@ -1,0 +1,32 @@
+{
+	"title": "OAK-D CM4 PoE",
+	"description": "OAK-D CM4 PoE",
+	"test_type": "OAK-D-CM4-POE",
+    "options": {"bootloader": "none", "websocket_capture": true, "imu": true},
+	"variants": [
+		{
+			"title": "OAK-D CM4 PoE (DM2097 R3M1E4)",
+			"description": "OAK-D CM4 PoE, based on DM2097 R1M1E1 board",
+			"eeprom": "eeprom/DM2097_R1M1E1_oak_d_cm4_poe.json",
+			"board_config_file": "OAK-D-CM4-POE.json"
+		},
+		{
+			"title": "OAK-D CM4 PoE C11 (DM2097 R3M1E4)",
+			"description": "OAK-D CM4 PoE, based on DM2097 R3M1E4 board",
+			"eeprom": "eeprom/DM2097_R3M1E4_oak_d_cm4_poe_c11.json",
+			"board_config_file": "OAK-D-CM4-POE-C11.json"
+		},
+		{
+			"title": "OAK-D CM4 PoE (DM2097 R1M1E1)",
+			"description": "OAK-D CM4 PoE, based on DM2097 R1M1E1 board",
+			"eeprom": "eeprom/DM2097_R1M1E1_oak_d_cm4_poe.json",
+			"board_config_file": "OAK-D-CM4-POE.json"
+		},
+		{
+			"title": "OAK-D CM4 PoE C24 (DM2097 R3M1E4)",
+			"description": "OAK-D CM4 PoE, based on DM2097 R3M1E4 board",
+			"eeprom": "eeprom/DM2097_R3M1E4_oak_d_cm4_poe_c24.json",
+			"board_config_file": "OAK-D-CM4-POE-C24.json"
+		}
+	]
+}

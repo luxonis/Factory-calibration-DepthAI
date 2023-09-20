@@ -1,0 +1,14 @@
+{
+    "title": "OAK-FFC 1P POE",
+    "description": "OAK-FFC 1P POE",
+    "image": "images/oak_ffc_1p.jpg",
+    "test_type": "OAK-1-POE",
+    "options": {"bootloader": "poe", "imu": false},
+    "variants": [
+        {
+            "title":"OAK-FFC 1P PoE (BW2098 R4M1E3)",
+            "description": "OAK-FFC 1P PoE",
+            "eeprom":"eeprom/BW2098_R4M1E3_oak_ffc_1p_poe.json"
+        }
+    ]
+}

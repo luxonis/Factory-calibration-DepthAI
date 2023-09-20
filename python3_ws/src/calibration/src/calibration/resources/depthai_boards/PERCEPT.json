@@ -1,0 +1,91 @@
+{
+    "board_config":
+    {
+        "name": "PERCEPT",
+        "revision": "R0M0E0",
+        "cameras":{
+            "CAM_A": {
+                "name": "rgb",
+                "hfov": 71.86,
+                "type": "color",
+                "extrinsics": {
+                    "to_cam": "CAM_B",
+                    "specTranslation": {
+                        "x": 0,
+                        "y": -2.21,
+                        "z": 0
+                    },
+                    "rotation":{
+                        "r": 0,
+                        "p": 0,
+                        "y": 0
+                    }
+                }
+            },
+            "CAM_B": {
+                "name": "left",
+                "hfov": 71.86,
+                "type": "mono"
+            },
+            "CAM_C": {
+                "name": "right",
+                "hfov": 71.86,
+                "type": "mono",
+                "extrinsics": {
+                    "to_cam": "CAM_B",
+                    "specTranslation": {
+                        "x": 0,
+                        "y": -7.56,
+                        "z": 0
+                    },
+                    "rotation":{
+                        "r": 0,
+                        "p": 0,
+                        "y": 0
+                    }
+                }
+            },
+            "CAM_D": {
+                "name": "camd",
+                "hfov": 71.86,
+                "type": "color",
+                "extrinsics": {
+                    "to_cam": "CAM_B",
+                    "specTranslation": {
+                        "x": 0,
+                        "y": -5.28,
+                        "z": 0
+                    },
+                    "rotation":{
+                        "r": 0,
+                        "p": 0,
+                        "y": 0
+                    }
+                }
+            },
+            "CAM_E": {
+                "name": "came",
+                "hfov": 71.86,
+                "type": "mono",
+                "extrinsics": {
+                    "to_cam": "CAM_B",
+                    "specTranslation": {
+                        "x": 0,
+                        "y": 0,
+                        "z": -1.9925
+                    },
+                    "rotation":{
+                        "r": 0,
+                        "p": 0,
+                        "y": 0
+                    }
+                }
+            }
+        },
+        "stereo_config":{
+            "left_cam": "CAM_B",
+            "right_cam": "CAM_C"
+        }
+    }
+}
+

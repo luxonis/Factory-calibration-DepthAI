@@ -1,0 +1,30 @@
+{
+    "title": "Evolv",
+    "description": "Evolv custom boards",
+    "image": "images/oak_d_evolv.jpg",
+    "test_type": "OAK-D-POE",
+    "options": {"bootloader": "poe", "imu": false},
+    "variants": [
+        {
+            "title":"OAK-D EVOLV (BK2091 R1M0E1)",
+            "description": "OAK-D EVOLV, based on BK2091 R1M0E1",
+            "test_type": "OAK-D-POE-IMX296",
+            "eeprom":"eeprom/BK2091_R1M0E1_oak_d_evolv.json",
+            "board_config_file": "OAK-D-EVOLV.json"
+        },
+        {
+            "title":"OAK-D EVOLV (BK2091 R0M0E0)",
+            "description": "OAK-D EVOLV, based on BK2091 R0M0E0",
+            "test_type": "OAK-D-POE-IMX296",
+            "eeprom":"eeprom/BK2091_R0M0E0_oak_d_evolv.json",
+            "board_config_file": "OAK-D-EVOLV.json"
+        },
+        {
+            "title":"RX Camera (BK2091 REV1)",
+            "description": "Custom EVOLV, based on BK2091 R0M0E0",
+            "test_type": "OAK-1-POE-IMX296",
+            "eeprom":"eeprom/BK2091_REV1_rx_evolv.json",
+            "board_config_file": "RX-CAMERA.json"
+        }
+    ]
+}

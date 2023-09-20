@@ -1,0 +1,2 @@
+pydantic==1.10.5
+depthai==2.20.2

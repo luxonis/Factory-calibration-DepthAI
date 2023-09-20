@@ -1,0 +1,20 @@
+{
+    "title": "Vermeer",
+    "description": "Vermeer devices",
+    "image": "images/oak_1_poe.jpg",
+    "test_type": "ETH",
+    "options": {
+        "platform": "rvc3",
+        "bootloader": "poe",
+        "environment": {"flashing": "rvc3_develop", "testing": "rvc3_develop", "calibration": "rvc3_develop"}
+    },
+    "variants": [
+        {
+            "title":"Vermeer A-Sample (BL3389-VE-R0M0E0)",
+            "description": "Vermeer A-Sample, based on BL3389-VE-R0M0E0 board",
+            "eeprom":"eeprom/BK3389_VE_R0M0E0.json",
+			"board_config_file": "VERMEER.json",
+            "test_suite": "BK3389_VE_R0M0E0"
+        }
+    ]
+}

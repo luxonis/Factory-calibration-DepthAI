@@ -1,0 +1,13 @@
+{
+    "board_config":
+    {
+        "name": "OAK-1-W-97",
+        "cameras":{
+            "CAM_A": {
+                "name": "rgb",
+                "hfov": 127,
+                "type": "color"
+            }
+        }
+    }
+}

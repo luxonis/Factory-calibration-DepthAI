@@ -1,0 +1,14 @@
+{
+	"title": "OAK-D CM4",
+	"description": "OAK-D CM4",
+	"test_type": "OAK-D-CM4",
+    "options": {"bootloader": "none", "websocket_capture": true, "imu": false},
+	"variants": [
+		{
+			"title": "OAK-D CM4 (DM1097 R2M0E2)",
+			"description": "OAK-D CM4, based on DM1097 R2M0E2 board",
+			"eeprom": "eeprom/DM1097_R2M0E2_oak_d_cm4.json",
+			"board_config_file": "OAK-D-CM4.json"
+		}
+	]
+}

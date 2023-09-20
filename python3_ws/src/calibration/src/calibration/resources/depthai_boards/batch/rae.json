@@ -1,0 +1,52 @@
+{
+    "title": "RAE",
+    "description": "RAE",
+    "test_type": "ETH",
+    "options": {
+        "platform": "rvc3",
+        "bootloader": "poe",
+        "environment": {
+            "flashing": "rvc3_develop",
+            "testing": "rvc3_develop",
+            "calibration": "rvc3_develop"
+        }
+    },
+    "variants": [
+        {
+            "title": "rae (DM3370_R5M2E5)",
+            "description": "rae (little robot)",
+            "eeprom": "eeprom/DM3370_R5M2E5_rae.json",
+            "board_config_file": "RAE-A-B-C.json",
+            "board_config_file_2": "RAE-D-E.json",
+            "configs": [
+                "config-rae.tar"
+            ],
+            "fip": "fip-dm3370-r5m2e5-1.8.0.bin",
+            "test_suite": "DM3370_R5M2E5_rae",
+            "os": "luxonisos-1.12.zip"
+        },
+        {
+            "title": "rae (DM3370_R4M2E4)",
+            "description": "rae (little robot)",
+            "eeprom": "eeprom/DM3370_R4M2E4_rae.json",
+            "board_config_file": "RAE-A-B-C.json",
+            "board_config_file_2": "RAE-D-E.json",
+            "configs": [
+                "config-rae.tar"
+            ],
+            "fip": "fip-dm3370-r4m2e4-1.5.0.bin",
+            "test_suite": "DM3370_R4M2E4_rae"
+        },
+        {
+            "title": "rae (DM3370_R1M1E1)",
+            "description": "Little robot",
+            "eeprom": "eeprom/DM3370_R1M1E1_rae.json",
+            "board_config_file": "RAE-A-B-C.json",
+            "board_config_file_2": "RAE-D-E.json",
+            "configs": [
+                "config-rae.tar"
+            ],
+            "fip": "fip-rae-dm3370-r0m0e0-1.5.0.bin"
+        }
+    ]
+}

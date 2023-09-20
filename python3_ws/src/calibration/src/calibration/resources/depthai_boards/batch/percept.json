@@ -1,0 +1,20 @@
+{
+    "title": "Percept",
+    "description": "Percept devices",
+    "image": "images/oak_1_poe.jpg",
+    "test_type": "ETH",
+    "options": {
+        "platform": "rvc3",
+        "bootloader": "poe",
+        "environment": {"flashing": "rvc3_develop", "testing": "rvc3_develop", "calibration": "rvc3_develop"}
+    },
+    "variants": [
+        {
+            "title":"Percept (DM6031_R0M0E0)",
+            "description": "Percept based on DM6031_R0M0E0 board",
+            "eeprom":"eeprom/DM6031_R0M0E0_percept.json",
+            "fip": "fip-dm6031-r0m0e0-1.8.1.bin",
+            "test_suite": "DM6031_R0M0E0_percept"
+        }
+    ]
+}

@@ -1,0 +1,27 @@
+{
+    "title": "OAK-D-W",
+    "description": "OAK-D-W",
+    "image": "images/oak_d.jpg",
+    "test_type": "OAK-D",
+    "options": {"bootloader": "header_usb", "imu": true},
+    "variants": [
+        {
+            "title":"OAK-D W 97 (DM9098 R7M2E7)",
+            "description": "OAK-D W 97 based on DM9098 R7M2E7 board, with wide lens (OV9782 center camera)",
+            "eeprom":"eeprom/DM9098_R7M2E7_oak_d_w_97.json",
+            "board_config_file": "OAK-D-W-97.json"
+        },
+        {
+            "title":"OAK-D W C15 (DM9098 R6M2E6)",
+            "description": "OAK-D W C15 based on DM9098 R6M2E6 board, with wide lens (OV9782 center camera)",
+            "eeprom":"eeprom/DM9098_R6M2E6_oak_d_w_c15.json",
+            "board_config_file": "OAK-D-W-97.json"
+        },
+        {
+            "title":"OAK-D W (DM9098 R6M2E6)",
+            "description": "OAK-D Wide Lens, based on DM9098 R6M2E6 board",
+            "eeprom":"eeprom/DM9098_R6M2E6_oak_d_w.json",
+            "board_config_file": "OAK-D-W.json"
+        }
+    ]
+}

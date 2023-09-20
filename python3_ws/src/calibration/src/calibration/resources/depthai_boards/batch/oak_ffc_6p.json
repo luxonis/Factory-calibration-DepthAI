@@ -1,0 +1,27 @@
+{
+    "title": "OAK-FFC 6P",
+    "description": "OAK-FFC 6P devices",
+    "image": "images/oak_ffc_6p.jpg",
+    "test_type": "ETH",
+    "options": {
+        "platform": "rvc3",
+        "bootloader": "poe",
+        "environment": {"flashing": "rvc3_develop", "testing": "rvc3_develop", "calibration": "rvc3_develop"}
+    },
+    "variants": [
+        {
+            "title":"OAK-FFC 6P (DM3390_R1M0E1)",
+            "description": "OAK-FFC 6P on DM6031_R1M0E1 board",
+            "eeprom":"eeprom/DM3390_R1M0E1_oak_ffc_6p.json",
+            "fip": "fip-oak-ffc-6p-rvc3-1.2.0.bin",
+            "test_suite": "DM3390_R0M0E0_oak_ffc_6p"
+        },
+        {
+            "title":"OAK-FFC 6P (DM3390_R0M0E0)",
+            "description": "OAK-FFC 6P on DM6031_R0M0E0 board",
+            "eeprom":"eeprom/DM3390_R0M0E0_oak_ffc_6p.json",
+            "fip": "fip-oak-ffc-6p-rvc3-1.2.0.bin",
+            "test_suite": "DM3390_R0M0E0_oak_ffc_6p"
+        }
+    ]
+}

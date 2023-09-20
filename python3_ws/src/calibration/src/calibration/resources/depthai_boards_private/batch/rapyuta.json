@@ -1,0 +1,20 @@
+{
+  "title": "Rapyuta",
+  "description": "Rapyuta custom devices",
+  "image": "images/oak_d_evolv.jpg",
+  "test_type": "ETH",
+  "options": {
+      "platform": "rvc3",
+      "bootloader": "poe",
+      "environment": {"flashing": "rvc3_develop", "testing": "rvc3_develop", "calibration": "rvc3_develop"}
+  },
+  "variants": [
+      {
+          "title": "Rapyuta (NG3398C_RA_R3M1E1)",
+          "description": "Rapyuta custom device based on NG3398C_RA_R3M1E1 board",
+          "eeprom":"eeprom/NG3398C_RA_R3M1E1.json",
+          "fip": "fip-ng3398c-ra-r1m1e1-1.4.0.bin",
+          "test_suite": "NG3398C_RA_R3M1E1"
+      }
+  ]
+}

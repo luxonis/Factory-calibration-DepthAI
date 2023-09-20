@@ -1,0 +1,21 @@
+{
+    "title": "Meta",
+    "description": "Meta custom devices",
+    "image": "images/meta.jpg",
+    "test_type": "ETH",
+    "options": {
+        "platform": "rvc3",
+        "bootloader": "poe",
+        "environment": {"flashing": "rvc3_develop", "testing": "rvc3_develop", "calibration": "rvc3_develop"}
+    },
+    "variants": [
+        {
+            "title": "Meta (BK3388_ME_R0M0E0)",
+            "description": "Meta custom device based on BK3388_ME_R0M0E0 board",
+            "eeprom":"eeprom/BK3388_ME_R0M0E0.json",
+            "fip": "fip-bk3388-me-r0m0e0-1.4.0.bin",
+            "configs": ["config-me.tar"],
+            "test_suite": "BK3388_ME_R0M0E0"
+        }
+    ]
+  }

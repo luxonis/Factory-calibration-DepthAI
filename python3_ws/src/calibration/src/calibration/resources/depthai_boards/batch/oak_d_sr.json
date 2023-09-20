@@ -1,0 +1,33 @@
+{
+    "title": "OAK-D SR",
+    "description": "OAK-D SR",
+    "image": "images/oak_d_sr.jpg",
+    "test_type": "OAK-D-SR",
+    "options": {"bootloader": "header_usb", "imu": true},
+    "variants": [
+        {
+            "title":"OAK-D SR (DM2080 R4M2E4) (2x OV9782)",
+            "description": "OAK-D SR, based on DM2080 R4M2E4 board",
+            "eeprom":"eeprom/DM2080_R4M2E4_oak_d_sr.json",
+            "board_config_file": "OAK-D-SR.json"
+        },
+        {
+            "title":"OAK-D SR (DM2080 R3M2E3) (2x OV9782)",
+            "description": "OAK-D SR, based on DM2080 R3M2E3 board",
+            "eeprom":"eeprom/DM2080_R3M2E3_oak_d_sr.json",
+            "board_config_file": "OAK-D-SR.json"
+        },
+        {
+            "title":"OAK-D SR (DM2080 R1M1E1) (2x OV9782)",
+            "description": "OAK-D SR, based on DM2080 R1M1E1 board",
+            "eeprom":"eeprom/DM2080_R1M1E1_oak_d_sr.json",
+            "board_config_file": "OAK-D-SR.json"
+        },
+        {
+            "title":"OAK-D SR (DM2080 R0M0E0) (2x OV9782)",
+            "description": "OAK-D SR, based on DM2080 R0M0E0 board",
+            "eeprom":"eeprom/DM2080_R0M0E0_oak_d_sr.json",
+            "board_config_file": "OAK-D-SR.json"
+        }
+    ]
+}
