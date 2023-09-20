@@ -5,5 +5,5 @@
 	path = python3_ws/src/calibration/scripts/resources/depthai_boards_private
 	url = ../depthai-boards-private.git
 [submodule "python3_ws/src/calibration/scripts/depthai_calibration"]
-	path = python3_ws/src/calibration/scripts/depthai_calibration
+	path = python3_ws/src/calibration/src/calibration/depthai_calibration
 	url = ../depthai-calibration.git
