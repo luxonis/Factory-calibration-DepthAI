@@ -167,10 +167,12 @@ class depthai_calibration_node:
         self.ccm_selector()
 
         self.args['cameraModel'] = 'perspective'
-        if "camera_model" in self.board_config['cameras']:
+        # if "camera_model" in self.board_config['camera_model']:
+        
+        if self.board_config.get('camera_model') != None and self.board_config['camera_model'] == 'fisheye':
             print("~~~ Camera model is ~~~ {}".format(self.board_config['camera_model']))
-            if self.board_config['camera_model'] == 'fisheye':
-                self.args['cameraModel'] = 'fisheye'
+            self.args['cameraModel'] = 'fisheye'
+            # if self.board_config['camera_model'] == 'fisheye':
 
         # Connection checks ----------->
         title = "Device Status"
