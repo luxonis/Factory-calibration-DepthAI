@@ -84,12 +84,17 @@ class SocketWorker:
         # set pre-set env
         # TODO: Temp, remove after GPIO fix
         os.system(f'sshpass -p raspberry ssh pi@{HOST} killall python')
+        os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/depthai-2.20.2.0-cp39-cp39-linux_armv7l.whl pi@{HOST}:/home/pi/')
+
+        os.system(f'sshpass -p raspberry ssh pi@{HOST} pip3 install depthai-2.20.2.0-cp39-cp39-linux_armv7l.whl')
         os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/enable_cm4_oak.py ~/Factory-calibration-DepthAI/rc.local ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi/')
+        #os.system(f'sshpass -p raspberry scp  ~/Factory-calibration-DepthAI/requirements_cm4.txt pi@{HOST}:/home/pi')
+        #os.system(f'sshpass -p raspberry ssh pi@luxonis.local "pip3 install -r requirements_cm4.txt"')
         os.system(f'sshpass -p raspberry ssh pi@luxonis.local "echo raspberry | sudo -S mv /home/pi/rc.local | /etc/python3 /home/pi/enable_cm4_oak.py"')
         os.system(f"\
             sshpass -p raspberry ssh pi@{HOST} '\
             unset HISTFILE; \
-            export DEPTHAI_ALLOW_FACTORY_FLASHING=868632271;\
+            export DEPTHAI_ALLOW_FACTORY_FLASHING=868632271 ;\
             nohup python server.py > /home/pi/server_out 2>&1 &'")
 
         
@@ -114,6 +119,7 @@ class SocketWorker:
                 if not packet:
                     return None
                 data += packet
+            #print("recv: ", pickle.loads(data))
             return pickle.loads(data)
         except Exception as e:
             print(f"An error occurred while receiving data: {e}")
@@ -121,6 +127,7 @@ class SocketWorker:
 
     def send(self, data):
         try:
+            #print("data: ", data)
             data_bytes = pickle.dumps(data)
             self.conn.send(len(data_bytes).to_bytes(4, 'big'))
             self.conn.send(data_bytes)
@@ -711,7 +718,7 @@ class depthai_calibration_node:
         # self.imgPublishers[cam_info['name']].publish(
         #             self.bridge.cv2_to_imgmsg(currFrame, "passthrough"))
         mx_id = self.socket_worker.recv()
-
+        #print("mxid", mx_id)
         backupFocusPath = self.args['ds_backup_path'] + '/focus/' + mx_id
         if not os.path.exists(backupFocusPath):
             os.makedirs(backupFocusPath)
