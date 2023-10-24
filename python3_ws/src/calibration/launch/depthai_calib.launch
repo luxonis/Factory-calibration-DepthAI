@@ -1,9 +1,9 @@
 <launch>
 
   <arg name="square_size_cm"               default="4"/>
-  <arg name="marker_size_cm"               default="3"/>
-  <arg name="squares_x"                    default="49"/>
-  <arg name="squares_y"                    default="29"/>
+  <arg name="marker_size_cm"               default="3.1"/>
+  <arg name="squares_x"                    default="22"/>
+  <arg name="squares_y"                    default="16"/>
   <arg name="traceLevel"                   default="0"/>
   <arg name="outputScaleFactor"            default="1"/>
   <arg name="usbMode"                      default="true"/>
