@@ -54,8 +54,20 @@ stringToCam = {
     'CAM_B': dai.CameraBoardSocket.LEFT,
     'CAM_C': dai.CameraBoardSocket.RIGHT,
 }
+import os
+def find_ssh_directory():
+    home_dir = os.path.expanduser("~")
 
+    possible_ssh_paths = [
+        os.path.join(home_dir, ".ssh"),
+        os.path.join(home_dir, "ssh"),
+        os.path.join(home_dir, "Documents", ".ssh"),
+    ]
+    for path in possible_ssh_paths:
+        if os.path.exists(path):
+            return path
 
+    return None
 class SocketWorker:
     def __init__(self):
         self.PORT = 51014
@@ -83,7 +95,12 @@ class SocketWorker:
 
         # set pre-set env
         # TODO: Temp, remove after GPIO fix
-        os.system(f" ssh-keygen -f '/home/luxnuc-a/.ssh/known_hosts' -R 'luxonis.local'")
+        if ssh_directory:
+            print(f".ssh directory found at: {ssh_directory}")
+        else:
+            print("Unable to locate .ssh directory.")
+        ssh_directory = find_ssh_directory()
+        os.system(f" ssh-keygen -f '{ssh_directory}/known_hosts' -R 'luxonis.local'")
         os.system(f'sshpass -p raspberry ssh pi@{HOST} killall python')
         os.system(f'sshpass -p raspberry scp -r ~/Factory-calibration-DepthAI/enable_cm4_oak.py ~/Factory-calibration-DepthAI/rc.local ~/Factory-calibration-DepthAI/calib_env/ ~/Factory-calibration-DepthAI/server.py pi@{HOST}:/home/pi/')
         os.system(f'sshpass -p raspberry ssh pi@luxonis.local "echo raspberry | sudo -S mv /home/pi/rc.local /etc/;python3 /home/pi/enable_cm4_oak.py"')
